@@ -101,13 +101,17 @@ namespace Uninet.DATA.Services
         {
             try
             {
-                AdminUsers NewUser = new AdminUsers();
-                NewUser.FirstName = RegisterUserReq.FirstName;
-                NewUser.LastName = RegisterUserReq.LastName;
-                NewUser.PhoneNumber = RegisterUserReq.PhoneNumber;
-                NewUser.DateCreated = DateTime.Now;
-                NewUser.ValidUser = false;
-                NewUser.Email = RegisterUserReq.Email;
+                var NewUser = new AdminUsers
+                {
+
+                    FirstName = RegisterUserReq.FirstName,
+                    LastName = RegisterUserReq.LastName,
+                    PhoneNumber = RegisterUserReq.PhoneNumber,
+                    DateCreated = DateTime.Now,
+                    ValidUser = false,
+                    Email = RegisterUserReq.Email
+                };
+              
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email && x.PhoneNumber== RegisterUserReq.PhoneNumber);
                 if (result != null)
                 {
@@ -117,7 +121,9 @@ namespace Uninet.DATA.Services
                 { 
                     _repository.Create<AdminUsers>(NewUser);
                     // Retrieve the last inserted identity value
-                    int lastInsertedId = _repository.GetLastInsertedId(NewUser);
+
+                    int lastInsertedId = NewUser.AdminUserid;
+                   // int lastInsertedId = _repository.GetLastInsertedId(NewUser);
                     // Return the AdminUserId
                     return lastInsertedId;
                    

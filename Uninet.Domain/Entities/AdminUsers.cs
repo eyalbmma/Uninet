@@ -14,6 +14,7 @@ namespace Uninet.Domain.Entities
     public class AdminUsers
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int AdminUserid { get; set; }
         [Key]
         public string Email { get; set; }
@@ -21,16 +22,16 @@ namespace Uninet.Domain.Entities
         public int PhoneNumber { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public DateTime DateCreated { get; set; }
+        public DateTime? DateCreated { get; set; }
         public bool ValidUser { get; set; }
 
-        public bool DateEmailVerificationSent { get; set; }
-        public DateTime EmailVerificationsent { get; set; }
+        public DateTime?   DateEmailVerificationSent { get; set; }
+        public bool? EmailVerificationsent { get; set; }
 
-        public string GuidVerification { get; set; }
+        public string? GuidVerification { get; set; }
 
-        public string RefreshToken { get; set; }
-        public DateTime RefreshTokenExpireTime { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpireTime { get; set; }
 
         
 
