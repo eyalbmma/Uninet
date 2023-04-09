@@ -1,0 +1,19 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Uninet.Domain.StoredProcedures.Constants
+{
+    public class ConstUninetStoredprocedure
+    {
+        public const string SP_updateInsertOTP = "SP_updateInsertOTP";
+        public const string SP_GetUserByOtp = "SP_GetUserByOtp";
+        public const string SP_GetRefreshToken = "SP_GetRefreshToken";
+        public const string SP_UpdateInsertRefreshToken = "SP_UpdateInsertRefreshToken";
+        public const string SP_SaveIndicationOfSentApprovalMailToCustomer = "SP_SaveIndicationOfSentApprovalMailToCustomer";
+        public const string SP_SaveRefreshToken= "SP_SaveRefreshToken";
+
+    }
+}

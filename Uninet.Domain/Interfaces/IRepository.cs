@@ -20,7 +20,7 @@ namespace Uninet.Domain.Interfaces
 
         int Create<T>(T entity) where T : class;
 
-
+        int GetLastInsertedId<T>(T entity) where T : class;
 
         int Update<T>(T entity) where T : class;
 
@@ -45,9 +45,7 @@ namespace Uninet.Domain.Interfaces
         T Find<T>(Expression<Func<T, bool>> expression) where T : class;
 
 
-
-
-
+       
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
 
     }

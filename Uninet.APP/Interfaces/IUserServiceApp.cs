@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Responses;
+
+namespace Uninet.APP.Interfaces
+{
+    public interface IUserServiceApp
+    {
+        public Task<bool>  SendOtpByPhone(SendOtpRequest _sendOtpRequest);
+        public Task<LoginWithOtpResponse> LoginWithOtp(string otp);
+        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid,string usernewguid);
+
+        public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
+
+
+        public Task<bool> VerifyEmailLink(string Userguid);
+
+    }
+}

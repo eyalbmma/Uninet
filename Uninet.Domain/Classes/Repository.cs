@@ -109,8 +109,12 @@ namespace Uninet.Domain.Classes
 
 
         }
-
-
+        public int GetLastInsertedId<T>(T entity) where T : class
+        {
+            this.dbContext.Set<T>().Add(entity);
+            this.dbContext.SaveChanges();
+            return Convert.ToInt32(entity.GetType().GetProperty("AdminUserid").GetValue(entity));
+        }
 
         public async Task UpdateAsync<T>(T entity) where T : class
 
@@ -156,6 +160,13 @@ namespace Uninet.Domain.Classes
 
         }
 
+
+
+       
+
+
+
+      
 
 
 

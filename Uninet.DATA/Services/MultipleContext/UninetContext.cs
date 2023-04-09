@@ -6,6 +6,7 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Responses;
 
 namespace Uninet.DATA.Services.MultipleContext
 {
@@ -19,17 +20,23 @@ namespace Uninet.DATA.Services.MultipleContext
         }
 
         public virtual DbSet<TestResponse> TestResponse { get; set; }
-
+        public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
+        public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
+        public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
+        
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-
         {
 
             base.OnModelCreating(modelBuilder);
 
-            //builder.Entity<PatientData>().HasNoKey();
 
+
+            modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
+            modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
+            modelBuilder.Entity<RefreshResponse>().HasNoKey();
+            
             //builder.Entity<HospitalUserModel>().HasNoKey();
 
             OnModelCreatingPartial(modelBuilder);
