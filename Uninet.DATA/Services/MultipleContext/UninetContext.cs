@@ -25,10 +25,11 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
-            public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
-        
+        public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
+        public virtual DbSet<Businesses> Businesses { get; set; }
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
-
+        
+        public virtual DbSet<AddBusinessToUserResult> AddBusinessToUserResult { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
@@ -36,12 +37,13 @@ namespace Uninet.DATA.Services.MultipleContext
 
 
             
-                modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
+            modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
             modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
-
+            modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
+            modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             //builder.Entity<HospitalUserModel>().HasNoKey();
 
             OnModelCreatingPartial(modelBuilder);

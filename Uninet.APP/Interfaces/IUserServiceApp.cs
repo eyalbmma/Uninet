@@ -19,5 +19,8 @@ namespace Uninet.APP.Interfaces
 
         public Task<bool> VerifyEmailLink(string Userguid);
 
+
+        public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
+
     }
 }

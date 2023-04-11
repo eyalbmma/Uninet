@@ -1,7 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 using Twilio;
@@ -83,6 +87,101 @@ namespace Uninet.DATA.Services
             catch (Exception ex) { return false; }
         }
 
+        public bool ExecuteGetSP(string spName, object parameters)
+        {
+            var result = _repository.ExecuteGetSP<AddBusinessToUserResult>(spName, parameters);
+            return result.ToList()[0].Result;
+        }
+
+
+        public async Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses)
+        {
+            try
+            {
+
+
+                //AddBusinessToUserResult res = new AddBusinessToUserResult();
+                var existingBusinessIds = (await _repository.GetAllAsync<Businesses>())
+                .Where(b => userBusinesses.BusinessRequests.Any(r => r.BusinessId == b.BusinessId))
+                .Select(b => b.BusinessId);
+
+                var existingBusinessRequests = userBusinesses.BusinessRequests
+                    .Where(br => existingBusinessIds.Contains(br.BusinessId))
+                    .ToList();
+
+
+                if (existingBusinessRequests.Count > 0)
+                {
+                    var result = new AddBusinessToUserResult
+                    {
+                        Result = false,
+                        BusinessRequests = existingBusinessRequests
+                    };
+                    return result;
+                }
+                else
+                {
+
+
+                    ////////////////////////////////////////////////////
+                    var dataTable = new DataTable();
+                    dataTable.Columns.Add("BusinessId", typeof(int));
+                    dataTable.Columns.Add("BusinessName", typeof(string));
+                    dataTable.Columns.Add("BusinessEmail", typeof(string));
+                    dataTable.Columns.Add("DelearType", typeof(int));
+                    dataTable.Columns.Add("BusinessType", typeof(int));
+                    foreach (var businessRequest in userBusinesses.BusinessRequests)
+                    {
+
+                        dataTable.Rows.Add(
+                            businessRequest.BusinessId,
+                            businessRequest.BusinessName,
+                            businessRequest.BusinessEmail,
+                            businessRequest.DelearType,
+                            businessRequest.BusinessType);
+                    }
+                    var json = JsonConvert.SerializeObject(dataTable, Formatting.None);
+                    var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
+                    {
+                        Value = json
+                    };
+                    var UserParam = new
+                    {
+                        UserId = userBusinesses.Userid,
+                        BusinessRequests = parameter.Value // retrieve the value of the parameter
+                    };
+                    //var spresult = _repository.ExecuteGetSP<AddBusinessToUserResult>(ConstUninetStoredprocedure.SP_AddBusinessesToUser, UserParam);
+                   bool spresult=ExecuteGetSP(ConstUninetStoredprocedure.SP_AddBusinessesToUser, UserParam);
+
+                    if (spresult)
+                    {
+                        var result = new AddBusinessToUserResult
+                        {
+                            Result = true,
+                            BusinessRequests = existingBusinessRequests
+                        };
+                        return result;
+                    }
+                    else
+                    {
+                        var result = new AddBusinessToUserResult
+                        {
+                            Result = false,
+                            BusinessRequests = null
+                        };
+                        return result;
+                    }
+                   
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
+            
+        }
         public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid)
         {
             try

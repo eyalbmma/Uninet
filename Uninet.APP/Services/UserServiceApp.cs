@@ -49,6 +49,12 @@ namespace Uninet.APP.Services
                 return 0;
             }
         }
+
+
+        public async Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses)
+        {
+            return await _userServiceDataAccess.RegisterBusinessToUser(userBusinesses);
+        }
         public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid)
         {
             return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer(Userid, usernewguid);

@@ -19,5 +19,7 @@ namespace Uninet.DATA.Interfaces
         public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid);
 
         public Task<bool> VerifyEmailLink(string Userguid);
+
+        public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
     }
 }

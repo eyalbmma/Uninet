@@ -9,7 +9,8 @@ namespace Uninet.Domain.Interfaces
 {
     public interface IRepository<TDbContext>
     {
-
+        //Task AddRange<T>(IEnumerable<T> entities) where T : class;
+        
         Task<List<T>> GetAllAsync<T>() where T : class;
 
         Task<T> GetByIdAsync<T>(long id) where T : class;

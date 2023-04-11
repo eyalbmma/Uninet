@@ -14,6 +14,7 @@ namespace Uninet.Domain.StoredProcedures.Constants
         public const string SP_UpdateInsertRefreshToken = "SP_UpdateInsertRefreshToken";
         public const string SP_SaveIndicationOfSentApprovalMailToCustomer = "SP_SaveIndicationOfSentApprovalMailToCustomer";
         public const string SP_SaveRefreshToken= "SP_SaveRefreshToken";
-
+        public const string SP_AddBusinessesToUser = "SP_AddBusinessesToUser";
+        
     }
 }

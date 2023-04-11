@@ -23,7 +23,7 @@ namespace Uninet.Domain.Models
 
         [Required]
         [JsonPropertyName("BusinessEmail")]
-        public int BusinessEmail { get; set; }
+        public string BusinessEmail { get; set; }
 
 
         [Required]

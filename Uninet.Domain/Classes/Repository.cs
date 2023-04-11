@@ -7,6 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 
@@ -27,6 +28,49 @@ namespace Uninet.Domain.Classes
             dbContext = context;
 
         }
+        //public async Task<List<T>> GetAll<T>() where T : class
+
+        //{
+
+        //    return  await this.dbContext.Set<T>()
+        //                   .Select(b => b.BusinessId)
+        //                   .ToList();
+
+        //}
+        //public List<int> GetAllBusinessIds()
+        //{
+        //    return this.dbContext.Set<Businesses>()
+        //                   .Select(b => b.BusinessId)
+        //                   .ToList();
+        //}
+
+        //public async Task AddRange<T>(IEnumerable<T> entities) where T : class
+        //{
+
+        //foreach (var entity in entities)
+        //{
+        //    var businessRequest = entity as BusinessRequest;
+        //    if (businessRequest == null)
+        //        throw new ArgumentException($"Invalid entity type {typeof(TEntity)}");
+
+        //    var business = new Businesses
+        //    {
+        //        AdminUserid = businessRequest.AdminUserId,
+        //        BusinessId = businessRequest.BusinessId,
+        //        BusinessName = businessRequest.BusinessName,
+        //        BusinessEmail = businessRequest.BusinessEmail,
+        //        DelearType = businessRequest.DelearType,
+        //        BusinessType = businessRequest.BusinessType,
+        //    };
+
+        //this.dbContext.Businesses.Add(business);
+
+
+        //     this.dbContext.SaveChanges();
+
+        //}
+
+
 
 
 
