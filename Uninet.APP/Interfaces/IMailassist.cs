@@ -4,13 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.APP.Services;
+using Uninet.Domain.Models;
 
 namespace Uninet.APP.Interfaces
 {
     public  interface IMailassist 
     {
-        Task<bool> sendsmtpmail(string subject, string body, string From, string To);
-       
+        Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int TemplateId, int Lang);
+
+
 
     }
 }

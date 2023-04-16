@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson;
+using MongoDB.Bson.IO;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -6,6 +7,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.DATA.Interfaces;
+using Newtonsoft.Json;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Uninet.DATA.Services
 {
@@ -24,18 +27,18 @@ namespace Uninet.DATA.Services
             
         }
 
-        public async Task<List<BsonDocument>> GeneralQueryBynameValue(string name, string value)
+        public async Task<string> GeneralQueryBynameValue(string name, string value)
         {
             try
             {
                 List<BsonDocument> Temp = new List<BsonDocument>();
 
                 var query = Builders<BsonDocument>.Filter.Eq(name, value);
-                //var query = Builders<BsonDocument>.Filter.Eq("id", "da5d064b-aac7-fcb4-45e9-c1123b3899d2");
                 var results = _greenvoicedocument.Find(query).ToList();
 
 
-                
+                var json = results.ToJson();
+                return json;
 
 
 
@@ -43,7 +46,7 @@ namespace Uninet.DATA.Services
 
 
 
-                return results;
+
 
 
                 //var client = new MongoClient("mongodb://localhost:27017");mongodb://localhost:27017/Uninet

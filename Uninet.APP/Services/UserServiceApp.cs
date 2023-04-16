@@ -55,25 +55,25 @@ namespace Uninet.APP.Services
         {
             return await _userServiceDataAccess.RegisterBusinessToUser(userBusinesses);
         }
-        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid)
+        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
         {
-            return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer(Userid, usernewguid);
+            return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer(Userid, otp);
         }
-        public async Task<bool> VerifyEmailLink(string Userguid)
-        {
-            try
-            {
-                return await _userServiceDataAccess.VerifyEmailLink(Userguid);
+        //public async Task<bool> VerifyEmailLink(string Userguid)
+        //{
+        //    try
+        //    {
+        //        return await _userServiceDataAccess.VerifyEmailLink(Userguid);
 
 
 
 
-            }
-            catch (Exception ex)
-            {
-                return false;
-            }
-        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return false;
+        //    }
+        //}
         public async Task<LoginWithOtpResponse> LoginWithOtp(string otp)
         {
             try

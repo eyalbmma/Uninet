@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MongoDB.Bson;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,6 +27,21 @@ namespace Uninet.APP.Services
 
             }
             catch (Exception ex) { throw new Exception(); }
+
+        }
+
+        public async Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData)
+        {
+            try
+            {
+
+
+                return await _uninetInputDataAccess.SavegreenvoicedocumentIntoUninet(InputData);
+
+
+               
+            }
+            catch (Exception ex) { return false; }
 
         }
     }

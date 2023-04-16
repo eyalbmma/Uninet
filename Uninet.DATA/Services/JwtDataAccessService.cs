@@ -56,7 +56,7 @@ namespace Uninet.DATA.Services
         public string RefreshToken { get; set; }
     }
     public class JwtDataAccessService : IJwtDataAccessService
-    {
+    {   
         private readonly JwtTokenConfig _jwtTokenConfig;
         private readonly ILogger<JwtDataAccessService> _logger;
         // private readonly IloginRepository _loginRepository;

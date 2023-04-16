@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,8 @@ namespace Uninet.Domain.StoredProcedures.Constants
         public const string SP_SaveIndicationOfSentApprovalMailToCustomer = "SP_SaveIndicationOfSentApprovalMailToCustomer";
         public const string SP_SaveRefreshToken= "SP_SaveRefreshToken";
         public const string SP_AddBusinessesToUser = "SP_AddBusinessesToUser";
+        public const string SP_InsertGreenvoiceJsonDetailsIntoDB = "SP_InsertGreenvoiceJsonDetailsIntoDB";
+        public const string SP_GetOtpHtmlBody = "SP_GetOtpHtmlBody";
         
     }
 }

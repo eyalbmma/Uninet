@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MongoDB.Bson;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,7 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUninetInputDataAccess
     {
-        Task<List<TestResponse>> GetTestResponse();
+       public  Task<List<TestResponse>> GetTestResponse();
+        public Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData);
     }
 }

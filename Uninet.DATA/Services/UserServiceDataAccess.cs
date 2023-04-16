@@ -70,22 +70,22 @@ namespace Uninet.DATA.Services
                 return false;
             }
         }
-        public async Task<bool> VerifyEmailLink(string Userguid)
-        {
-            try
-            {
-                var Adminuserobj = _repository.GetFirstObject<AdminUsers>(x => x.GuidVerification == Userguid );// && x.Password == model.P
-                if (Adminuserobj != null) 
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            catch (Exception ex) { return false; }
-        }
+        //public async Task<bool> VerifyEmailLink(string Userguid)
+        //{
+        //    try
+        //    {
+        //        var Adminuserobj = _repository.GetFirstObject<AdminUsers>(x => x.GuidVerification == Userguid );// && x.Password == model.P
+        //        if (Adminuserobj != null) 
+        //        {
+        //            return true;
+        //        }
+        //        else
+        //        {
+        //            return false;
+        //        }
+        //    }
+        //    catch (Exception ex) { return false; }
+        //}
 
         public bool ExecuteGetSP(string spName, object parameters)
         {
@@ -182,11 +182,11 @@ namespace Uninet.DATA.Services
 
             
         }
-        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid)
+        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
         {
             try
             {
-                var UserParam = new { userid = Userid ,newguid= usernewguid };
+                var UserParam = new { userid = Userid , Otp = otp };
 
                 var res = _repository.ExecuteGetSP<ApprovalMailIndication>(ConstUninetStoredprocedure.SP_SaveIndicationOfSentApprovalMailToCustomer, UserParam);
                 return res.ToList()[0].result;
@@ -203,22 +203,25 @@ namespace Uninet.DATA.Services
                 var NewUser = new AdminUsers
                 {
 
-                    FirstName = RegisterUserReq.FirstName,
-                    LastName = RegisterUserReq.LastName,
-                    PhoneNumber = RegisterUserReq.PhoneNumber,
+                    //FirstName = RegisterUserReq.FirstName,
+                    //LastName = RegisterUserReq.LastName,
+                    //PhoneNumber = RegisterUserReq.PhoneNumber,
                     DateCreated = DateTime.Now,
                     ValidUser = false,
-                    Email = RegisterUserReq.Email
+                    Email = RegisterUserReq.Email,
+                    passwordEncrypted=RegisterUserReq.Password
                 };
-              
-                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email && x.PhoneNumber== RegisterUserReq.PhoneNumber);
+
+                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
                 if (result != null)
                 {
-                    return 0;
+                    result.passwordEncrypted = RegisterUserReq.Password;
+                    _repository.Update(result);
+                    return result.AdminUserid;//user exist
                 }
                 else
                 { 
-                    _repository.Create<AdminUsers>(NewUser);
+                    _repository.Create<AdminUsers>(NewUser);//new user
                     // Retrieve the last inserted identity value
 
                     int lastInsertedId = NewUser.AdminUserid;
@@ -232,7 +235,7 @@ namespace Uninet.DATA.Services
             }
             catch (Exception ex)
             {
-                return 0;
+                return 0;//exception
             }
         }
         public async Task<LoginWithOtpResponse> LoginWithOtp(string otp)
@@ -245,8 +248,8 @@ namespace Uninet.DATA.Services
                 {
                     return new LoginWithOtpResponse()
                     {
-                        Userid = res[0].Userid,
-                        FirstName = res[0].FirstName,
+                        Userid = res[0].Userid
+                       
                        
                     };
                 }

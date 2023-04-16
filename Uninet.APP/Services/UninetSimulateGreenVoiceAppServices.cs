@@ -17,7 +17,7 @@ namespace Uninet.APP.Services
         {
             _uninetSimulateGreenVoiceServiceDataAccess = uninetSimulateGreenVoiceServiceDataAccess;
         }
-        public async Task<List<BsonDocument>> GeneralQueryBynameValue(string name, string value)
+        public async Task<string> GeneralQueryBynameValue(string name, string value)
         {
             return await _uninetSimulateGreenVoiceServiceDataAccess.GeneralQueryBynameValue(name, value);
         }

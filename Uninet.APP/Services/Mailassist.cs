@@ -7,24 +7,23 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.APP.Interfaces;
+using Uninet.DATA.Interfaces;
+using Uninet.DATA.Services;
+using Uninet.Domain.Models;
 
 namespace Uninet.APP.Services
 {
     public class Mailassist: IMailassist
     {
-        public MailAddress fromAddress { get; set; }
-        public MailAddress toAddress { get; set; }
-        public string Password { get; set; }
-        //public Mailassist(string fadress, string tadress)
-        //{
-        //    this.fromAddress = new MailAddress(fadress, "UNINET");
-        //    this.toAddress = new MailAddress(tadress);
 
-        //}
-        public Mailassist()
+        readonly IDataMailassist _dataMailassist = null;
+       
+        public Mailassist(IDataMailassist dataMailassist)
         {
-
+            // _logger = logger;
+            _dataMailassist = dataMailassist;
         }
+       
         //public string PopulateResearchBody()//string userName, string title, string url, string description
         //{
         //    try
@@ -81,52 +80,17 @@ namespace Uninet.APP.Services
        
 
 
-        public async Task<bool> sendsmtpmail(string subject, string body,string From ,string To)
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From ,string To,int TemplateId,int Lang)
         {
             try
             {
-                var fromAddress = new MailAddress(From);
-                var toAddress = new MailAddress(To);
-                MailMessage message = new MailMessage(fromAddress, toAddress);
-                //if (ms != null && filename != string.Empty)
-                //{
-                //    message.Attachments.Add(new Attachment(ms, filename, "text/plain"));
-                //}
-                //AlternateView imgview = AlternateView.CreateAlternateViewFromString(body + "<br/><img style='direction:rtl' src=cid:goldpanel height=112 width:145>", null, "text/html");
-               // var fullPath = System.Web.Hosting.HostingEnvironment.MapPath(@"~/App_Data/goldpanellogo.jpeg");
-                //LinkedResource lr = new LinkedResource(fullPath);
-               // lr.ContentId = "goldpanel";
-               // imgview.LinkedResources.Add(lr);
-
-               // message.AlternateViews.Add(imgview);
-                //message.Body = lr.ContentId;
-                message.Subject = subject;
-                message.Body = body;
-
-                /*
-                 <add key="Username" value="apikey"/>
-                <!--""/-->
-                <add key="Password" value="YOUR_EMAIL_API_KEY"/>
-                */
-                SmtpClient smtp = new SmtpClient("smtp.sendgrid.net", 587);//smtpout.secureserver.net //smtp-relay.sendinblue.com
-                System.Net.NetworkCredential credential = new NetworkCredential("apikey", "YOUR_EMAIL_API_KEY");
-                smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-                smtp.Port = 587;
-                smtp.UseDefaultCredentials = false;
-                smtp.Credentials = credential;
-                smtp.Send(message);
-
-
-                
-
-                // return sendMail(message.Body, message.Subject, toAddress.Address);
-                return true;
+                return await _dataMailassist.sendsmtpmail(subject, From, To, TemplateId, Lang);
 
             }
             catch (Exception ex)
             {
                // Loger.Writetolog("current function sendsmtpmail" + ex.Message + ex.InnerException);
-                return false;
+                return null;
             }
 
 

@@ -12,12 +12,12 @@ namespace Uninet.APP.Interfaces
     {
         public Task<bool>  SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> LoginWithOtp(string otp);
-        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid,string usernewguid);
+        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid,string otp);
 
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 
 
-        public Task<bool> VerifyEmailLink(string Userguid);
+       // public Task<bool> VerifyEmailLink(string Userguid);
 
 
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);

@@ -6,12 +6,8 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-    public class LoginWithOtpResponse
+    public class OTPHtmlBody
     {
-        public int Userid { get; set; }
-       
-       // public int Role { get; set; }
-
-
+        public string  HtmlBody { get; set; }
     }
 }

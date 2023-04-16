@@ -20,15 +20,17 @@ namespace Uninet.Domain.Entities
         public string Email { get; set; }
         [Key]
         public int PhoneNumber { get; set; }
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public string? passwordEncrypted { get; set; }
+        
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public DateTime? DateCreated { get; set; }
-        public bool ValidUser { get; set; }
+        public bool? ValidUser { get; set; }
 
-        public DateTime?   DateEmailVerificationSent { get; set; }
-        public bool? EmailVerificationsent { get; set; }
+        public DateTime? DateOtpSent { get; set; }
+        public bool? Otpsent { get; set; }
 
-        public string? GuidVerification { get; set; }
+        
 
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpireTime { get; set; }

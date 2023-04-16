@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Uninet.Domain.Models;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-    public class LoginWithOtpResponse
+    
+
+    public class AddBusinessDataToSQLFromGreenINvoiceResponse
     {
-        public int Userid { get; set; }
-       
-       // public int Role { get; set; }
-
-
+        public bool Result { get; set; }
+        
     }
 }

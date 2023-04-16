@@ -10,22 +10,36 @@ namespace Uninet.Domain.Models
 {
     public class RegisterUserRequest
     {
-        [Required]
-        [JsonPropertyName("FirstName")]
-        public string FirstName { get; set; }
+        // [Required]
+        //[JsonPropertyName("FirstName")]
+        //public string FirstName { get; set; }
 
-        [Required]
-        [JsonPropertyName("LastName")]
-        public string LastName { get; set; }
+        //[Required]
+        //[JsonPropertyName("LastName")]
+        //public string LastName { get; set; }
 
 
-        [Required]
-        [JsonPropertyName("PhoneNumber")]
-        public int PhoneNumber { get; set; }
+        //[Required]
+        //[JsonPropertyName("PhoneNumber")]
+        //public int PhoneNumber { get; set; }
+        
 
         [Required]
         [JsonPropertyName("Email")]
         public string Email { get; set; }
+
+        [Required]
+        [JsonPropertyName("Password")]
+        public string Password { get; set; }
+
+        [Required]
+        [JsonPropertyName("TemplateId")]
+        public int TemplateId { get; set; }
+
+        [Required]
+        [JsonPropertyName("Lang")]
+        public int Lang { get; set; }
+
 
 
     }

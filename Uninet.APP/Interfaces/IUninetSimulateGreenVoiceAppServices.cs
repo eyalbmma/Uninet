@@ -9,6 +9,6 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUninetSimulateGreenVoiceAppServices
     {
-        Task<List<BsonDocument>> GeneralQueryBynameValue(string name, string value);
+        Task<string> GeneralQueryBynameValue(string name, string value);
     }
 }

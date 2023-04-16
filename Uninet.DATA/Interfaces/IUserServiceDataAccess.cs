@@ -16,9 +16,9 @@ namespace Uninet.DATA.Interfaces
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 
 
-        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string usernewguid);
+        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);
 
-        public Task<bool> VerifyEmailLink(string Userguid);
+        //public Task<bool> VerifyEmailLink(string Userguid);
 
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
     }
