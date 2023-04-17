@@ -1,12 +1,16 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.EntityFrameworkCore.Storage;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -24,13 +28,78 @@ namespace Uninet.DATA.Services
     {
         private readonly IRepository<UninetContext> _repository;
         private readonly IMongoCollection<BsonDocument> _Uninetgreenvoicedocument;
+
+        private readonly IMongoCollection<BsonDocument> _UninetGetStaticQuestionsService;
+
         public UninetInputDataAccess(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
             var Uninetgreenvoicedocument = database.GetCollection<BsonDocument>("UninetGreenVoiceCollection");
             _Uninetgreenvoicedocument = Uninetgreenvoicedocument;
             _repository = repository;
-           
+             var uninetGetStaticQuestionsService = database.GetCollection<BsonDocument>("UninetStaticData");
+            _UninetGetStaticQuestionsService = uninetGetStaticQuestionsService; 
+        }
+
+
+
+        //[HttpGet("{questionNumber}/{language}")]
+        //public IActionResult GetQuestion(int questionNumber, string language)
+        //{
+        //    var filter = Builders<BsonDocument>.Filter.And(
+        //        Builders<BsonDocument>.Filter.Eq("Questionnumber", questionNumber),
+        //        Builders<BsonDocument>.Filter.Eq("Questions.Language", language)
+        //    );
+
+        //    var projection = Builders<BsonDocument>.Projection.Include("Questions.$");
+
+        //    var document = _collection.Find(filter).Project(projection).FirstOrDefault();
+
+        //    if (document == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    var question = document["Questions"][0].AsBsonDocument;
+
+        //    return Ok(question.ToJson());
+        //}
+
+        public async Task<BsonDocument> GetQuestion(int questionNumber, string language)
+        {
+            try
+            {
+               
+
+
+
+                var filter = Builders<BsonDocument>.Filter.Eq("Questionnumber", questionNumber);
+                var document = _UninetGetStaticQuestionsService.Find(filter).FirstOrDefault();
+                if (document != null)
+                {
+                    var questions = document["Questions"].AsBsonArray;
+                    
+                    // access the first item in the "Fields" array
+                    if (language=="English")
+                    {
+                        var question = questions[0].AsBsonDocument;
+                        return question;
+                    }
+                    else
+                    {
+                        var question = questions[0].AsBsonDocument;
+                        return question;
+                    }
+                    
+                }
+
+
+
+                return null;
+
+
+            }
+            catch (Exception ex) { return null; }
         }
 
 

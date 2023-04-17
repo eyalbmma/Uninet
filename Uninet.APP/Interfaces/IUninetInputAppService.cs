@@ -13,5 +13,7 @@ namespace Uninet.APP.Interfaces
         Task<List<TestResponse>> GetTestResponse();
 
         Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData);
+
+         Task<BsonDocument> GetQuestion(int questionNumber, string language);
     }
 }

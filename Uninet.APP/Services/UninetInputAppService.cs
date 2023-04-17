@@ -10,7 +10,7 @@ using Uninet.Domain.Models;
 
 namespace Uninet.APP.Services
 {
-    public class UninetInputAppService: IUninetInputAppService
+    public class UninetInputAppService : IUninetInputAppService
     {
         readonly IUninetInputDataAccess _uninetInputDataAccess = null;
         public UninetInputAppService(IUninetInputDataAccess uninetInputDataAccess)
@@ -30,6 +30,7 @@ namespace Uninet.APP.Services
 
         }
 
+
         public async Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData)
         {
             try
@@ -39,9 +40,27 @@ namespace Uninet.APP.Services
                 return await _uninetInputDataAccess.SavegreenvoicedocumentIntoUninet(InputData);
 
 
-               
+
             }
             catch (Exception ex) { return false; }
+
+        }
+
+
+
+        public async Task<BsonDocument> GetQuestion(int questionNumber, string language)
+        {
+            try
+            {
+                return await _uninetInputDataAccess.GetQuestion(questionNumber, language);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception();
+            }
+
+
+
 
         }
     }
