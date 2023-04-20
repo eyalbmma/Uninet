@@ -46,7 +46,17 @@ namespace Uninet.APP.Services
 
         }
 
-
+        public async Task<List<BsonDocument>> GetLandingPageContent(string language)
+        {
+            try
+            {
+                return await _uninetInputDataAccess.GetLandingPageContent( language);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception();
+            }
+        }
 
         public async Task<BsonDocument> GetQuestion(int questionNumber, string language)
         {

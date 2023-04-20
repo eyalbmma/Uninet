@@ -4,22 +4,29 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.GeoJsonObjectModel;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Runtime.Intrinsics.X86;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Twilio.TwiML.Voice;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
+using static Azure.Core.HttpHeader;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Uninet.DATA.Services
@@ -30,15 +37,19 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _Uninetgreenvoicedocument;
 
         private readonly IMongoCollection<BsonDocument> _UninetGetStaticQuestionsService;
-
+        private readonly IMongoCollection<BsonDocument> _UninetGetLandingPageDataService;
         public UninetInputDataAccess(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
             var Uninetgreenvoicedocument = database.GetCollection<BsonDocument>("UninetGreenVoiceCollection");
             _Uninetgreenvoicedocument = Uninetgreenvoicedocument;
             _repository = repository;
-             var uninetGetStaticQuestionsService = database.GetCollection<BsonDocument>("UninetStaticData");
-            _UninetGetStaticQuestionsService = uninetGetStaticQuestionsService; 
+            var uninetGetStaticQuestionsService = database.GetCollection<BsonDocument>("UninetStaticData");
+            _UninetGetStaticQuestionsService = uninetGetStaticQuestionsService;
+
+
+            var UninetGetLandingPageDataService = database.GetCollection<BsonDocument>("UninetHomepageBlocks");
+            _UninetGetLandingPageDataService = UninetGetLandingPageDataService;
         }
 
 
@@ -69,7 +80,7 @@ namespace Uninet.DATA.Services
         {
             try
             {
-               
+
 
 
 
@@ -78,9 +89,9 @@ namespace Uninet.DATA.Services
                 if (document != null)
                 {
                     var questions = document["Questions"].AsBsonArray;
-                    
+
                     // access the first item in the "Fields" array
-                    if (language=="English")
+                    if (language == "English")
                     {
                         var question = questions[0].AsBsonDocument;
                         return question;
@@ -90,7 +101,7 @@ namespace Uninet.DATA.Services
                         var question = questions[0].AsBsonDocument;
                         return question;
                     }
-                    
+
                 }
 
 
@@ -101,6 +112,42 @@ namespace Uninet.DATA.Services
             }
             catch (Exception ex) { return null; }
         }
+
+
+
+        public async Task<List<BsonDocument>> GetLandingPageContent(string language)
+        {
+            try
+            {
+                List<BsonDocument> ResultLIst = new List<BsonDocument>();
+                var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId("64412ba23c1fe35afcf51ee8"));
+                var document = await _UninetGetLandingPageDataService.Find(filter).FirstOrDefaultAsync();
+
+                for (int i = 1; i <= 6; i++)
+                {
+                    var blockName = $"Block{i}";
+                    if (document.Contains(blockName))
+                    {
+                        var block = document.GetValue(blockName).AsBsonArray;
+                        if (language == "English")
+                        {
+                            ResultLIst.Add(block[0].AsBsonDocument);
+                        }
+                        else
+                        {
+                            ResultLIst.Add(block[1].AsBsonDocument);
+                        }
+                        
+                    }
+                }
+                return ResultLIst;
+            }
+            catch (Exception ex) { return null; }
+
+        }
+          
+      
+
 
 
         public async Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData)
