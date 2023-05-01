@@ -10,5 +10,8 @@ namespace Uninet.APP.Interfaces
     public interface IUninetSimulateGreenVoiceAppServices
     {
         Task<string> GeneralQueryBynameValue(string name, string value);
+        Task<string> PullBusinessDataByTaxid(string Taxid);
+
+
     }
 }

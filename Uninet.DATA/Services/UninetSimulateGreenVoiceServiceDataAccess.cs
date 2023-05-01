@@ -26,7 +26,26 @@ namespace Uninet.DATA.Services
             _greenvoicedocument = greenvoicedocument;
             
         }
+        public async Task<string> PullBusinessDataByTaxid(string Taxid)
+        {
+            try
+            {
+                // Define the filter to retrieve only the documents with business.taxId = "123456789"
+                var filter = Builders<BsonDocument>.Filter.Eq("business.taxId", Taxid);
 
+                // Retrieve the documents that match the filter
+                var result = _greenvoicedocument.Find(filter).ToList();
+
+                // Print the result to the console
+                //foreach (var document in result)
+                //{
+                //    Console.WriteLine(document);
+                //}
+                var json = result.ToJson();
+                return json;    
+            }
+            catch(Exception ex) { return string.Empty; }   
+        }
         public async Task<string> GeneralQueryBynameValue(string name, string value)
         {
             try

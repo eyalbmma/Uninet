@@ -21,5 +21,12 @@ namespace Uninet.APP.Services
         {
             return await _uninetSimulateGreenVoiceServiceDataAccess.GeneralQueryBynameValue(name, value);
         }
+
+
+        public async Task<string> PullBusinessDataByTaxid(string Taxid)
+        {
+            return await _uninetSimulateGreenVoiceServiceDataAccess.PullBusinessDataByTaxid(Taxid);
+        }
+
     }
 }

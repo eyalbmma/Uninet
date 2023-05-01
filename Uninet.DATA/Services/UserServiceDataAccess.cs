@@ -128,8 +128,16 @@ namespace Uninet.DATA.Services
                     dataTable.Columns.Add("BusinessId", typeof(int));
                     dataTable.Columns.Add("BusinessName", typeof(string));
                     dataTable.Columns.Add("BusinessEmail", typeof(string));
-                    dataTable.Columns.Add("DelearType", typeof(int));
                     dataTable.Columns.Add("BusinessType", typeof(int));
+                    dataTable.Columns.Add("OrganizationName", typeof(string));
+                    dataTable.Columns.Add("OrganizationType", typeof(int));
+                    dataTable.Columns.Add("ExternalSystemId", typeof(int));
+                    dataTable.Columns.Add("Apikey", typeof(string));
+                    dataTable.Columns.Add("Username", typeof(string));
+                    dataTable.Columns.Add("Password", typeof(string));
+                    dataTable.Columns.Add("Endpoint", typeof(string));
+
+
                     foreach (var businessRequest in userBusinesses.BusinessRequests)
                     {
 
@@ -137,8 +145,15 @@ namespace Uninet.DATA.Services
                             businessRequest.BusinessId,
                             businessRequest.BusinessName,
                             businessRequest.BusinessEmail,
-                            businessRequest.DelearType,
-                            businessRequest.BusinessType);
+                            businessRequest.BusinessType,
+                            businessRequest.OrganizationName,
+                            businessRequest.OrganizationType,
+                            businessRequest.ExternalSystemId,
+                            businessRequest.Apikey,
+                            businessRequest.Username,
+                            businessRequest.Password,
+                            businessRequest.Endpoint
+                            );
                     }
                     var json = JsonConvert.SerializeObject(dataTable, Formatting.None);
                     var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
@@ -238,6 +253,26 @@ namespace Uninet.DATA.Services
                 return 0;//exception
             }
         }
+
+        //
+        public async Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest)
+        {
+            try
+            {
+                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
+                var Response = new LoginWithEmailandPasswordResponse
+                {
+
+                    Userid = result.AdminUserid
+                };
+               return Response;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
         public async Task<LoginWithOtpResponse> LoginWithOtp(string otp)
         {
             try

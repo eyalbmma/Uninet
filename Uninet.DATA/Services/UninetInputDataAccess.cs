@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Amazon.Runtime.Internal.Util;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.GeoJsonObjectModel;
@@ -11,23 +13,30 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.Intrinsics.X86;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Twilio.Jwt.AccessToken;
 using Twilio.TwiML.Voice;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using static Azure.Core.HttpHeader;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using MongoDB.Bson.Serialization;
 
 namespace Uninet.DATA.Services
 {
@@ -145,8 +154,123 @@ namespace Uninet.DATA.Services
             catch (Exception ex) { return null; }
 
         }
+
+        protected string SimulateToken()
+        {
+            // Define the secret key used to sign the JWT token
+            string secretKey = "12345";
+
+            // Define the claims for the JWT token
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, "user123"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            // Create the JWT token
+            var token = new JwtSecurityToken(
+                issuer: "my_issuer",
+                audience: "my_audience",
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(30),
+                signingCredentials: new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                    SecurityAlgorithms.HmacSha256Signature)
+            );
+
+            // Convert the JWT token to a string
+            string tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+            // Now you have a JWT token string that you can use for testing or other purposes
+           return tokenString;
+        }
+
+
+     
+
+    public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken)
+    {
+        // Create a new instance of HttpClient
+        using (HttpClient client = new HttpClient())
+        {
+            // Set the authorization header with the JWT token
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwtToken);
+
+            // Create a new instance of HttpRequestMessage with the specified endpoint URL and HTTP method
+            var request = new HttpRequestMessage(method, endpointUrl);
+
+            // Send the HTTP request and await the response
+            var response = await client.SendAsync(request);
+
+            // Read the response content as a string and return it
+            return await response.Content.ReadAsStringAsync();
+        }
+    }
+
+
+
+         public async Task<string> PullUserDatafromExternalSystem(int Userid)
+        {
+
+           
+            List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
+           
+           
           
-      
+            //on this res i have the list of businesses realted to this user 
+            foreach (var Business in res)
+            {
+                //for each bussines i need to get their api key and send request to get jwt token
+                //here i will simulate getting the jwt token 
+                //string Jwtsimlulation= SimulateToken();//remark this meanwhile
+
+                //now get the end point url for this businessId
+                //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
+                //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
+                //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
+
+
+                //need to call a generic function that get the end point ,jwt token ,method (put get post ) and send the request 
+
+                //HttpMethod method = new HttpMethod(Endpoint.MethodeType);////remark this meanwhile
+                //here i call a function that will call real external system
+                // string jsonfromExternalServiceRsult =await SendRequest(StrEndpoint, method, Jwtsimlulation);////remark this meanwhile
+                //i need to remark this code until i will have a real api from morning or any other external service
+
+
+                //from here i call meanwhile greenvoice controller named PullBusinessDataByTaxid
+                using var client = new System.Net.Http.HttpClient();
+
+                // Send an HTTP GET request to the specified URL
+                var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId );
+                             
+
+                // Read the response content as a string
+                var json = await response.Content.ReadAsStringAsync();
+
+                // Deserialize the string into a BsonArray
+                BsonArray bsonArray = BsonSerializer.Deserialize<BsonArray>(json);
+
+                // Convert the BsonArray to a list of BsonDocuments
+                List<BsonDocument> bsonDocuments = new List<BsonDocument>();
+                foreach (BsonValue bsonValue in bsonArray)
+                {
+                    BsonDocument bsonDocument = bsonValue.ToBsonDocument();
+                    bsonDocuments.Add(bsonDocument);
+                }
+
+
+                ///save json into MongoDb Collection
+                var SavingToUninetGreenvoiceCollection = SavegreenvoicedocumentIntoUninet(bsonDocuments);
+
+
+
+
+
+            }
+            return string.Empty;
+        }
+
 
 
 
@@ -157,11 +281,22 @@ namespace Uninet.DATA.Services
 
 
 
+                for (var i = 0; i < InputData.Count; i++)
+                {
 
+                    BsonString IDString = InputData[i]["id"].AsString;
+                    
+                    var filter = Builders<BsonDocument>.Filter.Eq("id", IDString);
+                    var existingDocument = _Uninetgreenvoicedocument.Find(filter).FirstOrDefault();
 
-
+                    if (existingDocument == null)
+                    {
+                        // If the document does not exist, add it to a list of documents to insert
+                        _Uninetgreenvoicedocument.InsertOne(InputData[i]);
+                    }
+                }
                 //insert Data into UninetGreenVoiceCollection MongoDB
-                _Uninetgreenvoicedocument.InsertMany(InputData);
+               
 
 
 
@@ -169,32 +304,32 @@ namespace Uninet.DATA.Services
 
                 //insert data into sql DB table BusinessData
 
-
-                //extract documnet from uninet mongo
-                List<string> EmailLIst = new List<string>();
-                BsonDocument client = InputData[0]["client"].AsBsonDocument;
-                BsonArray emails = client["emails"].AsBsonArray;
-                foreach (BsonValue email in emails)
+                for (var i=0;i< InputData.Count;i++)
                 {
-                    EmailLIst.Add(email.AsString);
-                }
-                var EmailListstr = String.Join(",", EmailLIst);
+                    List<string> EmailLIst = new List<string>();
+                    BsonDocument client = InputData[i]["client"].AsBsonDocument;
+                    BsonArray emails = client["emails"].AsBsonArray;
+                    foreach (BsonValue email in emails)
+                    {
+                        EmailLIst.Add(email.AsString);
+                    }
+                    var EmailListstr = String.Join(",", EmailLIst);
 
-                BsonDocument business = InputData[0]["business"].AsBsonDocument;
-                string taxId = business["taxId"].AsString;
+                    BsonDocument business = InputData[i]["business"].AsBsonDocument;
+                    string taxId = business["taxId"].AsString;
 
 
 
-                string JsonDocumentid = InputData[0]["id"].AsString;
+                    string JsonDocumentid = InputData[i]["id"].AsString;
 
-                var dataTable = new DataTable();
-                dataTable.Columns.Add("BusinessId", typeof(int));
-                dataTable.Columns.Add("JsonDocumentid", typeof(string));
-                dataTable.Columns.Add("DataSourceEnum", typeof(int));
-                dataTable.Columns.Add("ClientEmail", typeof(string));
-                dataTable.Columns.Add("EmailSent", typeof(bool));
-                dataTable.Columns.Add("DateEmailSent", typeof(DateTime));
-                
+                    var dataTable = new DataTable();
+                    dataTable.Columns.Add("BusinessId", typeof(int));
+                    dataTable.Columns.Add("JsonDocumentid", typeof(string));
+                    dataTable.Columns.Add("DataSourceEnum", typeof(int));
+                    dataTable.Columns.Add("ClientEmail", typeof(string));
+                    dataTable.Columns.Add("EmailSent", typeof(bool));
+                    dataTable.Columns.Add("DateEmailSent", typeof(DateTime));
+
 
                     dataTable.Rows.Add(
                         taxId,
@@ -204,20 +339,27 @@ namespace Uninet.DATA.Services
                         false,
                         null
                         );
-                
-                var json = JsonConvert.SerializeObject(dataTable, Formatting.None);
-                var parameter = new SqlParameter("@BusinessData", SqlDbType.NVarChar)
-                {
-                    Value = json
-                };
-                var UserParam = new
-                {
-                    
-                    BusinessRequests = parameter.Value // retrieve the value of the parameter
-                };
-                var result = _repository.ExecuteGetSP<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
-                var res = result.ToList();
-                return res[0].Result;
+
+                    var json = JsonConvert.SerializeObject(dataTable, Formatting.None);
+                    var parameter = new SqlParameter("@BusinessData", SqlDbType.NVarChar)
+                    {
+                        Value = json
+                    };
+                    var UserParam = new
+                    {
+
+                        BusinessRequests = parameter.Value // retrieve the value of the parameter
+                    };
+                    var result = _repository.ExecuteGetSP<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
+                    try
+                    {
+                        var res = result.ToList();
+                    }
+                    catch(Exception ex) { }
+                   
+                }
+                //extract documnet from uninet mongo
+                return true;
             }
             catch (Exception ex) { return false; }
         }

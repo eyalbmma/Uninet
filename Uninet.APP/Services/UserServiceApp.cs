@@ -59,6 +59,13 @@ namespace Uninet.APP.Services
         {
             return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer(Userid, otp);
         }
+
+
+        public async Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest)
+        {
+            return await _userServiceDataAccess.LoginWithEmailPasswordRequest(_LoginWithEmailPasswordRequest);
+        }
+
         //public async Task<bool> VerifyEmailLink(string Userguid)
         //{
         //    try

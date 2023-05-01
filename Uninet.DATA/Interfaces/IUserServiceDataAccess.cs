@@ -12,7 +12,7 @@ namespace Uninet.DATA.Interfaces
     {
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> LoginWithOtp(string otp);
-
+        public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 
 

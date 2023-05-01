@@ -127,7 +127,6 @@ namespace Uninet.Domain.Classes
 
 
         public async Task<List<T>> GetAllAsync<T>() where T : class
-
         {
 
             return await this.dbContext.Set<T>().ToListAsync();
@@ -193,7 +192,10 @@ namespace Uninet.Domain.Classes
             return this.dbContext.Set<T>().Find(expression);
 
         }
-
+        public List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class
+        {
+            return this.dbContext.Set<T>().Where(filterExpression).ToList();
+        }
 
 
         public T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class

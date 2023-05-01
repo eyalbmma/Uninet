@@ -16,8 +16,9 @@ namespace Uninet.APP.Interfaces
 
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 
-
-       // public Task<bool> VerifyEmailLink(string Userguid);
+        public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
+        
+        // public Task<bool> VerifyEmailLink(string Userguid);
 
 
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);

@@ -20,9 +20,25 @@ namespace Uninet.Domain.Entities
         
         public string BusinessName { get; set; }
         public string? BusinessEmail { get; set; }
-        public int? DelearType { get; set; }
-        public int? BusinessType { get; set; }
         
+        public int? BusinessType { get; set; }
+        public string? OrganizationName { get; set; }
+
+        public int? OrganizationType { get; set; }
+
+        public int? ExternalSystemId { get; set; }
+
+       
+        public string? Apikey { get; set; }
+
+
+
+        public string? Username { get; set; }
+
+        public string? Password { get; set; }
+
+        public string? Endpoint { get; set; }
+
 
     }
 }

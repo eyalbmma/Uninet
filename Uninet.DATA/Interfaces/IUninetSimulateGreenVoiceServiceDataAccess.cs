@@ -10,5 +10,6 @@ namespace Uninet.DATA.Interfaces
     public interface IUninetSimulateGreenVoiceServiceDataAccess
     {
         Task<string> GeneralQueryBynameValue(string name, string value);
+        Task<string> PullBusinessDataByTaxid(string Taxid);
     }
 }
