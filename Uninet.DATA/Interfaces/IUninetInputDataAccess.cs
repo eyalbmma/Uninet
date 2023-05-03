@@ -17,6 +17,8 @@ namespace Uninet.DATA.Interfaces
 
         public Task<List<BsonDocument>> GetLandingPageContent(string language);
 
-        public Task<string> PullUserDatafromExternalSystem(int Userid);
+        //public Task<string> PullUserDatafromExternalSystem(int Userid);
+
+      
     }
 }

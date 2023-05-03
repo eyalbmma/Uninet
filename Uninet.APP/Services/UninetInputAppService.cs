@@ -45,17 +45,17 @@ namespace Uninet.APP.Services
             catch (Exception ex) { return false; }
 
         }
-        public async Task<string> PullUserDatafromExternalSystem(int Userid)
-        {
-            try
-            {
-                return await _uninetInputDataAccess.PullUserDatafromExternalSystem(Userid);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception();
-            }
-        }
+        //public async Task<string> PullUserDatafromExternalSystem(int Userid)
+        //{
+        //    try
+        //    {
+        //        return await _uninetInputDataAccess.PullUserDatafromExternalSystem(Userid);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw new Exception();
+        //    }
+        //}
         public async Task<List<BsonDocument>> GetLandingPageContent(string language)
         {
             try

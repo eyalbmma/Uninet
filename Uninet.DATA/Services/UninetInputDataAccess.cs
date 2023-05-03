@@ -206,70 +206,72 @@ namespace Uninet.DATA.Services
             return await response.Content.ReadAsStringAsync();
         }
     }
+       
 
 
 
-         public async Task<string> PullUserDatafromExternalSystem(int Userid)
-        {
+
+        //public async Task<string> PullUserDatafromExternalSystem(int Userid)
+        //{
 
            
-            List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
+        //    List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
            
            
           
-            //on this res i have the list of businesses realted to this user 
-            foreach (var Business in res)
-            {
-                //for each bussines i need to get their api key and send request to get jwt token
-                //here i will simulate getting the jwt token 
-                //string Jwtsimlulation= SimulateToken();//remark this meanwhile
+        //    //on this res i have the list of businesses realted to this user 
+        //    foreach (var Business in res)
+        //    {
+        //        //for each bussines i need to get their api key and send request to get jwt token
+        //        //here i will simulate getting the jwt token 
+        //        //string Jwtsimlulation= SimulateToken();//remark this meanwhile
 
-                //now get the end point url for this businessId
-                //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
-                //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
-                //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
-
-
-                //need to call a generic function that get the end point ,jwt token ,method (put get post ) and send the request 
-
-                //HttpMethod method = new HttpMethod(Endpoint.MethodeType);////remark this meanwhile
-                //here i call a function that will call real external system
-                // string jsonfromExternalServiceRsult =await SendRequest(StrEndpoint, method, Jwtsimlulation);////remark this meanwhile
-                //i need to remark this code until i will have a real api from morning or any other external service
+        //        //now get the end point url for this businessId
+        //        //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
+        //        //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
+        //        //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
 
 
-                //from here i call meanwhile greenvoice controller named PullBusinessDataByTaxid
-                using var client = new System.Net.Http.HttpClient();
+        //        //need to call a generic function that get the end point ,jwt token ,method (put get post ) and send the request 
 
-                // Send an HTTP GET request to the specified URL
-                var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId );
+        //        //HttpMethod method = new HttpMethod(Endpoint.MethodeType);////remark this meanwhile
+        //        //here i call a function that will call real external system
+        //        // string jsonfromExternalServiceRsult =await SendRequest(StrEndpoint, method, Jwtsimlulation);////remark this meanwhile
+        //        //i need to remark this code until i will have a real api from morning or any other external service
+
+
+        //        //from here i call meanwhile greenvoice controller named PullBusinessDataByTaxid
+        //        using var client = new System.Net.Http.HttpClient();
+
+        //        // Send an HTTP GET request to the specified URL
+        //        var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId );
                              
 
-                // Read the response content as a string
-                var json = await response.Content.ReadAsStringAsync();
+        //        // Read the response content as a string
+        //        var json = await response.Content.ReadAsStringAsync();
 
-                // Deserialize the string into a BsonArray
-                BsonArray bsonArray = BsonSerializer.Deserialize<BsonArray>(json);
+        //        // Deserialize the string into a BsonArray
+        //        BsonArray bsonArray = BsonSerializer.Deserialize<BsonArray>(json);
 
-                // Convert the BsonArray to a list of BsonDocuments
-                List<BsonDocument> bsonDocuments = new List<BsonDocument>();
-                foreach (BsonValue bsonValue in bsonArray)
-                {
-                    BsonDocument bsonDocument = bsonValue.ToBsonDocument();
-                    bsonDocuments.Add(bsonDocument);
-                }
-
-
-                ///save json into MongoDb Collection
-                var SavingToUninetGreenvoiceCollection = SavegreenvoicedocumentIntoUninet(bsonDocuments);
+        //        // Convert the BsonArray to a list of BsonDocuments
+        //        List<BsonDocument> bsonDocuments = new List<BsonDocument>();
+        //        foreach (BsonValue bsonValue in bsonArray)
+        //        {
+        //            BsonDocument bsonDocument = bsonValue.ToBsonDocument();
+        //            bsonDocuments.Add(bsonDocument);
+        //        }
 
 
+        //        ///save json into MongoDb Collection
+        //        var SavingToUninetGreenvoiceCollection = SavegreenvoicedocumentIntoUninet(bsonDocuments);
 
 
 
-            }
-            return string.Empty;
-        }
+
+
+        //    }
+        //    return string.Empty;
+        //}
 
 
 
