@@ -9,6 +9,7 @@ using Uninet.DATA.Interfaces;
 using Uninet.Domain.Classes;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
 using static System.Net.WebRequestMethods;
 
@@ -33,7 +34,24 @@ namespace Uninet.APP.Services
                 return false;
             }
         }
+        public async Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId)
+        {
+            try
+            {
+                return await _userServiceDataAccess.GetExternalCustomizedFieldByExternaLSystemID(ExternalSystemId);
+            }
+            catch (Exception ex) { return null; }
+        }
 
+        public async Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
+        {
+
+            try
+            {
+                return await _userServiceDataAccess.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails,  UserId);
+            }
+            catch (Exception ex) { return false; }
+        }
         public async Task<int> RegisterUser(RegisterUserRequest RegisterUserReq)
         {
             try

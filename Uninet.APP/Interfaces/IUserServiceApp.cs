@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
 
 namespace Uninet.APP.Interfaces
@@ -22,6 +23,10 @@ namespace Uninet.APP.Interfaces
 
 
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
+
+        public Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId);
+
+        public Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails,string UserId);
 
     }
 }

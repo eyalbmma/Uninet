@@ -33,8 +33,12 @@ namespace Uninet.DATA.Services.MultipleContext
 
         public virtual DbSet<AddBusinessDataToSQLFromGreenINvoiceResponse> AddBusinessDataToSQLFromGreenINvoiceResponse { get; set; }
         public virtual DbSet<OTPHtmlBody> OTPHtmlBody { get; set; }
-        
-            public virtual DbSet<SendOtpViaMailResponse> SendOtpViaMailResponse { get; set; }
+        public virtual DbSet<ExternalSystemDynamicFields> ExternalSystemDynamicFields { get; set; }
+        public virtual DbSet<LUT_UninetExternalSystems> LUT_UninetExternalSystems { get; set; }
+        public virtual DbSet<LutCompanies> LutCompanies { get; set; }
+        public virtual DbSet<SendOtpViaMailResponse> SendOtpViaMailResponse { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
@@ -54,6 +58,10 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<AddBusinessDataToSQLFromGreenINvoiceResponse>().HasNoKey();
             
                 modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
+            modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
+
+            modelBuilder.Entity<LUT_UninetExternalSystems>().HasNoKey();
+            modelBuilder.Entity<LutCompanies>().HasKey(u => new { u.CompanyInnerId });
             //builder.Entity<HospitalUserModel>().HasNoKey();
 
             OnModelCreatingPartial(modelBuilder);

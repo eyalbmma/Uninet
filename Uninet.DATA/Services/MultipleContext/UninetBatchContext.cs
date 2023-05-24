@@ -24,6 +24,7 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
+        
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
@@ -33,7 +34,8 @@ namespace Uninet.DATA.Services.MultipleContext
 
         public virtual DbSet<AddBusinessDataToSQLFromGreenINvoiceResponse> AddBusinessDataToSQLFromGreenINvoiceResponse { get; set; }
         public virtual DbSet<OTPHtmlBody> OTPHtmlBody { get; set; }
-
+        
+        
         public virtual DbSet<SendOtpViaMailResponse> SendOtpViaMailResponse { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,6 +50,9 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
+           
+            
+
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
 

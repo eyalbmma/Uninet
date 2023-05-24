@@ -18,10 +18,10 @@ namespace Uninet.Domain.Entities
         [Key]
         public int BusinessId { get; set; }
         
-        public string BusinessName { get; set; }
-        public string? BusinessEmail { get; set; }
+      
         
         public int? BusinessType { get; set; }
+        public string?  OrganizationRole { get; set; }
         public string? OrganizationName { get; set; }
 
         public int? OrganizationType { get; set; }
