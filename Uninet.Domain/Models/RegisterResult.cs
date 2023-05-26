@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class LoginResult
+    public class RegisterResult
     {
 
 

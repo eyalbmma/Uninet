@@ -25,10 +25,13 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
+        public virtual DbSet<VerifyUserByOtpUserIdAndTimeStampResponse> VerifyUserByOtpUserIdAndTimeStampResponse { get; set; }
+        
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
         
+         public virtual DbSet<SaveIndicationOfSentApprovalMailToCustomerResponse> SaveIndicationOfSentApprovalMailToCustomerResponse { get; set; }
         public virtual DbSet<AddBusinessToUserResult> AddBusinessToUserResult { get; set; }
 
         public virtual DbSet<AddBusinessDataToSQLFromGreenINvoiceResponse> AddBusinessDataToSQLFromGreenINvoiceResponse { get; set; }
@@ -46,6 +49,7 @@ namespace Uninet.DATA.Services.MultipleContext
 
 
             
+            modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
             modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
@@ -54,6 +58,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
+            modelBuilder.Entity<SaveIndicationOfSentApprovalMailToCustomerResponse>().HasNoKey();
             
             modelBuilder.Entity<AddBusinessDataToSQLFromGreenINvoiceResponse>().HasNoKey();
             

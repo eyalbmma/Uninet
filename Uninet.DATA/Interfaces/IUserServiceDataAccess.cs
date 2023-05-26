@@ -12,12 +12,12 @@ namespace Uninet.DATA.Interfaces
     public interface IUserServiceDataAccess
     {
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
-        public Task<LoginWithOtpResponse> LoginWithOtp(string otp);
+        public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser);
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 
 
-        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);
+        public Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);
 
         //public Task<bool> VerifyEmailLink(string Userguid);
 

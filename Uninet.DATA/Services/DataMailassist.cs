@@ -15,6 +15,8 @@ using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using Uninet.Domain.Models;
 using Uninet.DATA.Interfaces;
+using System.Reflection;
+using Amazon.Runtime.Internal.Transform;
 
 namespace Uninet.DATA.Services
 {
@@ -61,6 +63,19 @@ namespace Uninet.DATA.Services
             }
             return strrandom;
         }
+
+        public static string ReplaceDynamicPlaceholders(string html, Dictionary<string, string> placeholderValues)
+        {
+            foreach (var kvp in placeholderValues)
+            {
+                string placeholder = $"{{{kvp.Key}}}";
+                string value = kvp.Value;
+                html = html.Replace(placeholder, value);
+            }
+
+            return html;
+        }
+
         public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang)
         {
             try
@@ -73,7 +88,75 @@ namespace Uninet.DATA.Services
                 message.Subject = subject;
                 var ObjTemplateparam = new { TemplateId = Templateid, Lang = lang };
                 var res = _repository.ExecuteGetSP<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetOtpHtmlBody, ObjTemplateparam).ToList();
-                message.Body = ReplacePlaceholders(res[0].HtmlBody, userOtp, "UNINET");
+
+                switch (ObjTemplateparam.TemplateId)
+                {
+                    case 1:
+                        message.Body = ReplacePlaceholders(res[0].HtmlBody, userOtp, "UNINET");
+                        break;
+                    case 2:
+                        
+                        Dictionary<string, string> values2 = new Dictionary<string, string>
+                        {
+                            { "username", "John Doe" }
+                        };
+                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values2);
+                       
+
+
+                        break;
+                    case 3:
+                        Dictionary<string, string> values3 = new Dictionary<string, string>
+                        {
+                            { "recipient name", "eyal berda" },
+                            { "Sender name", "yosi mualem " }
+                            
+                        };
+                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);
+                        
+                        break;
+                    case 4:
+                        Dictionary<string, string> values4 = new Dictionary<string, string>
+                        {
+                            { "recipient name", "eyal berda" },
+                            { "Sender name", "yosi mualem " },
+                             { "doc type", "pdf " }
+
+                        };
+                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
+                        break;
+                    case 5:
+                        Dictionary<string, string> values5= new Dictionary<string, string>
+                        {
+                            { "recipient name", "eyal berda" },
+                            { "Sender name", "yosi mualem " },
+                             { "doc type", "pdf " },
+                             { "docID", "111 " }
+
+                        };
+                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values5);
+                        break;
+                    case 6:
+                        Dictionary<string, string> values6 = new Dictionary<string, string>
+                        {
+                            { "username", "yona" },
+                            { "docType", "pdf " },
+                            { "createdDate", DateTime.Now.ToString() },
+                            { "RecipientName", "moshe  RecipientName " },
+                            {"doc status","opened" }
+
+                        };
+                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values6);
+                        break;
+                   
+                    default:
+                        // Code to handle cases other than 1 to 7
+                        break;
+                }
+
+                
+
+
 
                 /*
                  <add key="Username" value="apikey"/>

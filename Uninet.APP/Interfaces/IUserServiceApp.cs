@@ -12,8 +12,8 @@ namespace Uninet.APP.Interfaces
     public interface IUserServiceApp
     {
         public Task<bool>  SendOtpByPhone(SendOtpRequest _sendOtpRequest);
-        public Task<LoginWithOtpResponse> LoginWithOtp(string otp);
-        public Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid,string otp);
+        public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp,string EncryptedUser);
+        public Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);
 
         public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
 

@@ -73,9 +73,9 @@ namespace Uninet.APP.Services
         {
             return await _userServiceDataAccess.RegisterBusinessToUser(userBusinesses);
         }
-        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
+        public async Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
         {
-            return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer(Userid, otp);
+            return await _userServiceDataAccess.SaveIndicationOfSentApprovalMailToCustomer( Userid,  otp);
         }
 
 
@@ -99,11 +99,11 @@ namespace Uninet.APP.Services
         //        return false;
         //    }
         //}
-        public async Task<LoginWithOtpResponse> LoginWithOtp(string otp)
+        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser)
         {
             try
             {
-                return await _userServiceDataAccess.LoginWithOtp(otp);
+                return await _userServiceDataAccess.RegisterWithOtpAndEncryptedUser(otp, EncryptedUser);
 
 
 

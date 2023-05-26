@@ -14,5 +14,10 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("Otp")]
         public string Otp { get; set; }
 
+
+        [Required]
+        [JsonPropertyName("EncryptedUser")]
+        public string EncryptedUser { get; set; }
+
     }
 }

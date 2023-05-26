@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Twilio;
@@ -27,13 +29,16 @@ namespace Uninet.DATA.Services
     public class UserServiceDataAccess: IUserServiceDataAccess
     {
         private readonly IRepository<UninetContext> _repository;
-
-        public UserServiceDataAccess(IRepository<UninetContext> repository)//, IloginRepository loginRepository
+        private readonly IDataMailassist _dataMailassist;
+        //IDataMailassist, DataMailassist
+        public IConfiguration Configuration { get; }
+        public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist)//, IloginRepository loginRepository
         {
 
 
             _repository = repository;
-
+            Configuration = configuration;
+            _dataMailassist = dataMailassist;   
         }
 
         protected string Generate_otp()
@@ -239,6 +244,10 @@ namespace Uninet.DATA.Services
                         var dataTable = new DataTable();
                         dataTable.Columns.Add("BusinessId", typeof(int));
                         dataTable.Columns.Add("BusinessType", typeof(int));
+
+                        dataTable.Columns.Add("FirstName", typeof(string));
+                        dataTable.Columns.Add("LastName", typeof(string));
+                        dataTable.Columns.Add("MobileNumber", typeof(string));
                         dataTable.Columns.Add("OrganizationRole", typeof(string));
                         dataTable.Columns.Add("OrganizationName", typeof(string));
                         dataTable.Columns.Add("OrganizationType", typeof(int));
@@ -249,6 +258,9 @@ namespace Uninet.DATA.Services
                             dataTable.Rows.Add(
                                 businessRequest.BusinessId,
                                 businessRequest.BusinessType,
+                                businessRequest.FirstName,
+                                businessRequest.LastName,
+                                businessRequest.MobileNumber,
                                 businessRequest.OrganizationRole,
                                 businessRequest.OrganizationName,
                                 businessRequest.OrganizationType,
@@ -297,18 +309,97 @@ namespace Uninet.DATA.Services
             }
         }
 
-        public async Task<bool> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
+
+        public static string EncryptUserId(string userId, string key, byte[] iv)
+        {
+            byte[] encryptedBytes;
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = StringToByteArray(key);
+                aesAlg.IV = iv;
+                aesAlg.Padding = PaddingMode.PKCS7; // Set the padding mode
+
+                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                byte[] userIdBytes = Encoding.UTF8.GetBytes(userId);
+                encryptedBytes = encryptor.TransformFinalBlock(userIdBytes, 0, userIdBytes.Length);
+
+                encryptor.Dispose();
+            }
+
+            return Convert.ToBase64String(encryptedBytes);
+        }
+
+        public static byte[] StringToByteArray(string hex)
+        {
+            int length = hex.Length / 2;
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+            return bytes;
+        }
+
+
+
+        public static byte[] GenerateSalt(int sizeInBytes)
+        {
+            byte[] salt = new byte[sizeInBytes];
+            using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
+            {
+                rngCsp.GetBytes(salt);
+            }
+            return salt;
+        }
+
+        public static byte[] GenerateAesKey(string passphrase, byte[] salt)
+        {
+            const int keySizeInBits = 256;
+            const int keySizeInBytes = keySizeInBits / 8;
+
+            using (Rfc2898DeriveBytes deriveBytes = new Rfc2898DeriveBytes(passphrase, salt))
+            {
+                return deriveBytes.GetBytes(keySizeInBytes);
+            }
+        }
+        public static byte[] GenerateRandomIV(int sizeInBytes)
+        {
+            byte[] iv = new byte[sizeInBytes];
+            using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
+            {
+                rngCsp.GetBytes(iv);
+            }
+            return iv;
+        }
+        public async Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp)
         {
             try
             {
                 var UserParam = new { userid = Userid , Otp = otp };
+                //byte[] salt = GenerateSalt(16);
+               // byte[] key = Encoding.UTF8.GetBytes(Configuration["EncryptedUserId:key"]);
+                string iv = Configuration["EncryptedUserId:iv"];
+                byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
 
-                var res = _repository.ExecuteGetSP<ApprovalMailIndication>(ConstUninetStoredprocedure.SP_SaveIndicationOfSentApprovalMailToCustomer, UserParam);
-                return res.ToList()[0].result;
+               
+
+                string encryptedUserId = EncryptUserId(Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+                Console.WriteLine("Encrypted User ID: " + encryptedUserId);
+
+                var Procedureres = _repository.ExecuteGetSP<SaveIndicationOfSentApprovalMailToCustomerResponse>(ConstUninetStoredprocedure.SP_SaveIndicationOfSentApprovalMailToCustomer, UserParam);
+                bool ProcedureResult = Procedureres.ToList()[0].result;
+                
+                var ApprovalMailIndicationResult = new ApprovalMailIndication
+                {
+                    result = ProcedureResult,
+                    EncryptedUserid = encryptedUserId
+                };
+                return ApprovalMailIndicationResult;
             }
             catch (Exception ex)
             {
-                return false;
+                return null;
             }
         }
         public async Task<int> RegisterUser(RegisterUserRequest RegisterUserReq)
@@ -354,7 +445,7 @@ namespace Uninet.DATA.Services
             }
         }
 
-        //
+        
         public async Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest)
         {
             try
@@ -372,20 +463,40 @@ namespace Uninet.DATA.Services
                 return null;
             }
         }
+       
 
-        public async Task<LoginWithOtpResponse> LoginWithOtp(string otp)
+        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string DecryptedUser)
         {
             try
             {
-                var Otparam = new { Otp = otp };
-                var res = _repository.ExecuteGetSP<LoginWithOtpResponse>(ConstUninetStoredprocedure.SP_GetUserByOtp, Otparam).ToList();
+                var res1 = new VerifyUserByOtpUserIdAndTimeStampResponse();
+
+                var Otparam = new { Otp = otp, Userid= DecryptedUser, Email = res1.Email };
+                //var res = _repository.ExecuteGetSP<VerifyUserByOtpUserIdAndTimeStampResponse>(ConstUninetStoredprocedure.SP_VerifyUserByOtpUserIdAndTimeStamp, Otparam).ToList();
+
+
+                var res = _repository.ExecuteGetSP<VerifyUserByOtpUserIdAndTimeStampResponse>(ConstUninetStoredprocedure.SP_VerifyUserByOtpUserIdAndTimeStamp, Otparam).ToList();
+
+    
+
+
+
+
+
+
                 if (res != null)
                 {
+                    if (res[0].Verified)
+                    {
+                        //send mail welcome mail to user
+                        _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "Support@uninet.co.il", res[0].Email, 2, 1);
+                        
+                    }
                     return new LoginWithOtpResponse()
                     {
-                        Userid = res[0].Userid
-                       
-                       
+                        Verified = res[0].Verified,
+                        UserId= DecryptedUser
+
                     };
                 }
                 else

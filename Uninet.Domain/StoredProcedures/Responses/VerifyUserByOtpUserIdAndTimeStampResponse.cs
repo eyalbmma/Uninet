@@ -6,13 +6,9 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-    public class LoginWithOtpResponse
+    public  class VerifyUserByOtpUserIdAndTimeStampResponse
     {
-        public bool Verified { get; set; }
-        
-        public string UserId { get; set; }
-       // public int Role { get; set; }
-
-
+        public bool Verified { get; set;}
+        public string Email { get; set; }
     }
 }
