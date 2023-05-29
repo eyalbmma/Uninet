@@ -186,27 +186,34 @@ namespace Uninet.DATA.Services
         }
 
 
-     
 
-    public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken)
-    {
-        // Create a new instance of HttpClient
-        using (HttpClient client = new HttpClient())
+
+        public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null)
         {
-            // Set the authorization header with the JWT token
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwtToken);
+            string result = "";
+            using (HttpClient client = new HttpClient())
+            {
+                HttpRequestMessage request = new HttpRequestMessage(method, endpointUrl);
 
-            // Create a new instance of HttpRequestMessage with the specified endpoint URL and HTTP method
-            var request = new HttpRequestMessage(method, endpointUrl);
+                // Add authorization header if jwtToken is provided
+                if (!string.IsNullOrEmpty(jwtToken))
+                {
+                    request.Headers.Add("Authorization", $"Bearer {jwtToken}");
+                }
 
-            // Send the HTTP request and await the response
-            var response = await client.SendAsync(request);
+                HttpResponseMessage response = await client.SendAsync(request);
 
-            // Read the response content as a string and return it
-            return await response.Content.ReadAsStringAsync();
+                response.EnsureSuccessStatusCode(); // Throw an exception if the request is not successful
+
+                string responseData = await response.Content.ReadAsStringAsync();
+                result = responseData;
+                
+            }
+
+            return result;
         }
-    }
-       
+
+
 
 
 
@@ -214,11 +221,11 @@ namespace Uninet.DATA.Services
         //public async Task<string> PullUserDatafromExternalSystem(int Userid)
         //{
 
-           
+
         //    List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
-           
-           
-          
+
+
+
         //    //on this res i have the list of businesses realted to this user 
         //    foreach (var Business in res)
         //    {
@@ -245,7 +252,7 @@ namespace Uninet.DATA.Services
 
         //        // Send an HTTP GET request to the specified URL
         //        var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId );
-                             
+
 
         //        // Read the response content as a string
         //        var json = await response.Content.ReadAsStringAsync();

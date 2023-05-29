@@ -40,15 +40,19 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<LUT_UninetExternalSystems> LUT_UninetExternalSystems { get; set; }
         public virtual DbSet<LutCompanies> LutCompanies { get; set; }
         public virtual DbSet<SendOtpViaMailResponse> SendOtpViaMailResponse { get; set; }
+        public virtual DbSet<SystemsEndpoints> SystemsEndpoints { get; set; }
 
-
+        public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
             base.OnModelCreating(modelBuilder);
-
-
+            modelBuilder.Entity<SystemsEndpoints>().HasKey(u => new { u.Id, u.ExternalSystemId, u.Endpoint ,u.MethodeType });
             
+            modelBuilder.Entity<CompanyPulledDataLog>().HasKey(u => new { u.CompanyVatid});
+            modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
+
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();

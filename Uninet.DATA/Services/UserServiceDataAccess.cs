@@ -2,7 +2,10 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using MongoDB.Bson;
+using MongoDB.Driver;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,7 +13,9 @@ using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using ThirdParty.Json.LitJson;
 using Twilio;
 using Twilio.Rest.Api.V2010.Account;
 using Uninet.DATA.Interfaces;
@@ -30,15 +35,24 @@ namespace Uninet.DATA.Services
     {
         private readonly IRepository<UninetContext> _repository;
         private readonly IDataMailassist _dataMailassist;
-        //IDataMailassist, DataMailassist
+        private readonly IMongoCollection<BsonDocument> _ICountCollection;
+        private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
+        
+
+        private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
-        public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist)//, IloginRepository loginRepository
+        public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
         {
 
-
+            var database = client.GetDatabase("Uninet");
+            _ICountCollection = database.GetCollection<BsonDocument>("Icount");
+            _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
+            _IcountClientInfoCollection= database.GetCollection<BsonDocument>("icountClientInfo");
             _repository = repository;
             Configuration = configuration;
-            _dataMailassist = dataMailassist;   
+            _dataMailassist = dataMailassist;
+            _UninetInputDataAccess = uninetInputDataAccess;
         }
 
         protected string Generate_otp()
@@ -56,6 +70,164 @@ namespace Uninet.DATA.Services
             return strrandom;
         }
 
+
+
+public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
+    {
+        JsonDocument jsonDocument = JsonDocument.Parse(jsonString);
+        JsonElement propertyElement = jsonDocument.RootElement;
+
+        // Traverse the property path to reach the desired property
+        foreach (var propertyName in propertyPath.Split('.'))
+        {
+            if (propertyElement.TryGetProperty(propertyName, out var nextPropertyElement))
+            {
+                propertyElement = nextPropertyElement;
+            }
+            else
+            {
+                throw new ArgumentException($"Property '{propertyPath}' not found in the JSON.");
+            }
+        }
+
+        // Convert and return the property value
+        return propertyElement.ValueKind switch
+        {
+            JsonValueKind.String => propertyElement.GetString() != null ? (T)Convert.ChangeType(propertyElement.GetString(), typeof(T)) : default,
+            JsonValueKind.Number => (T)Convert.ChangeType(propertyElement.GetDouble(), typeof(T)),
+            JsonValueKind.True => (T)Convert.ChangeType(true, typeof(T)),
+            JsonValueKind.False => (T)Convert.ChangeType(false, typeof(T)),
+            _ => throw new ArgumentException($"Property '{propertyPath}' cannot be converted to type {typeof(T).Name}.")
+        };
+    }
+        public enum MongoDbDestination
+        {
+            DocinfoDB,
+            ClientInfoDB
+        }
+        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination)
+        {
+            // Convert the JsonElement to a BsonDocument
+            BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
+
+            // Check if the document already exists in the collection
+            if (destination == MongoDbDestination.DocinfoDB)
+            {
+                var docnum = document["docnum"];
+                var filter = Builders<BsonDocument>.Filter.Eq("docnum", docnum);
+                var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
+
+                if (existingDocument == null)
+                {
+                    // Insert the document into the collection
+                    _ICountDocInfoCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Document already exists, handle the case accordingly
+                    // For example, you can update the existing document or log an error
+                    Console.WriteLine($"Document with docnum '{docnum}' already exists.");
+                }
+            }
+            else if (destination == MongoDbDestination.ClientInfoDB)
+            {
+                var clientInfo = document["client_info"];
+                var client_id = clientInfo["client_id"].AsString;
+
+                var filter = Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id);
+                var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
+
+                if (existingDocument == null)
+                {
+                    // Insert the document into the collection
+                    _IcountClientInfoCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Document already exists, handle the case accordingly
+                    // For example, you can update the existing document or log an error
+                    Console.WriteLine($"Document with client_id '{client_id}' already exists.");
+                }
+            }
+
+        }
+
+
+
+
+        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
+        {
+            // Loop over the items in the results_list array
+            foreach (JsonElement item in resultsList.EnumerateArray())
+            {
+                // Get the value of the client_id property
+                string clientId = item.GetProperty("client_id").GetString();
+                var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&client_id=" + clientId;
+                HttpMethod methodclientinfo = HttpMethod.Get;
+                // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
+                var ReponsneClientInfo = await _UninetInputDataAccess.SendRequest(endpointClinetinfo, methodclientinfo);
+                JsonDocument jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
+                JsonElement jsonData = jsonDocument.RootElement;
+
+                MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
+                InsertDocumentInfo(jsonData, destination);
+            }
+            return true;
+        }
+        public async Task<bool> CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(JsonElement resultsList,string cidvalue, string uservalue, string passvalue)
+        {
+
+            // Iterate over each element in the 'results_list' and create a get endpoint methode to get docinfo from icount
+            foreach (JsonElement item in resultsList.EnumerateArray())
+            {
+                // Extract the values of 'doctype' and 'docnum'
+                string doctype = item.GetProperty("doctype").GetString();
+                string docnum = item.GetProperty("docnum").GetString();
+
+                var DocinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 72); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var endpointdocInfo = DocinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&doctype=" + doctype + "&docnum=" + docnum;
+                HttpMethod methoddocinfo = HttpMethod.Get;
+                // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
+                var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
+
+                JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
+                JsonElement jsonData = jsonDocument.RootElement;
+                MongoDbDestination destination = MongoDbDestination.DocinfoDB;
+                InsertDocumentInfo(jsonData, destination);
+
+            }
+
+            return true;
+
+
+                
+
+           
+        }
+        public async Task SetLastPullDataDate(int companyVatid)
+        {
+            
+
+            var existingRow = await _repository.GetByIdAsync<CompanyPulledDataLog>(companyVatid);
+
+            if (existingRow != null)
+            {
+                existingRow.LastPullDataDate = DateTime.Now;
+                await _repository.UpdateAsync(existingRow);
+            }
+            else
+            {
+                var newRow = new CompanyPulledDataLog
+                {
+                    CompanyVatid = companyVatid,
+                    LastPullDataDate = DateTime.Now
+                };
+
+                await _repository.CreateAsync(newRow);
+            }
+
+        }
         public async Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try
@@ -64,7 +236,8 @@ namespace Uninet.DATA.Services
                 {
                     listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
                     userid = UserId,
-                    ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString()
+                    ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
+                    CompanyId= spInputExternalSystemCompanyDetails.Companyid
                 };
 
                 // Convert the JSON object to string
@@ -79,14 +252,138 @@ namespace Uninet.DATA.Services
 
 
                 bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
+                if (spresult)
+                {
+                    /// here comes the logic of calling web api of external system (mvp external is icount)
+                    /// to get the documents of the user  that was just registered to the system
+                    string cidvalue = null;
+                    string uservalue = null;
+                    string passvalue = null;
+                    foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
+                    {
+                        if (item.FieldLabelName == "cid")
+                        {
+                            cidvalue = item.FieldLabelValue;
+                        }
+                        else if (item.FieldLabelName == "user")
+                        {
+                            uservalue = item.FieldLabelValue;
+                        }
+                        else if (item.FieldLabelName == "pass")
+                        {
+                            passvalue = item.FieldLabelValue;
+                        }
+                    }
 
-               
+                    ///get the comopany info to know what was the started date to get documents from this started date
 
-                    return spresult;
+                    var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                    var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                    HttpMethod methodcomopanyinfo = HttpMethod.Get;
+                    var ReponsneCompanyInfo=await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
+                    //exstract the date started from companyinfo
+                   // string jsonResponse = "Your JSON response goes here";
+                    string propertyPathstart_date = "company_info.start_date";
+
+                    DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
+
+
+
+                    string propertyPathVatid = "company_info.vat_id";
+                    string vatid= ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
+                    DateTime startPulldata = startDate;
+                    DateTime EndPulldata = DateTime.Now;
+                    var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
+                    if (companyPulledDataLog != null)
+                    {
+                        startPulldata = companyPulledDataLog.LastPullDataDate;
+                    }
+
+                    await SetLastPullDataDate(Convert.ToInt32(vatid));
+
+                    var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
+
+                    string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid="+ cidvalue+"&user="+uservalue+ "&pass=" + passvalue+"&start_ts="+ startPulldata.ToString()+"&end_ts="+ EndPulldata;
+                    HttpMethod methoddocsearch = HttpMethod.Get;
+                    var Reponsnedocsearch = await _UninetInputDataAccess.SendRequest(endpointUrldocsearch, methoddocsearch);
+
+                   
+
+                    // insert  compay cutomer invoices to mongodb collection name icount
+                    JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
+                    JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
+                    InsertDocumentsToMongoDB(resultsList, vatid);
+
+
+                    //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                    var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
+
+
+
+                    //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                    //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                    //foreach invoce in resultsList get property value of doctype and docnum
+                    var res = await  CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+
+
+
+
+
+
+
+
+
+
+                    //// Call with jwtToken provided
+                    //string jwtToken = "your-jwt-token";
+                    //string responseData2 = await SendRequest(endpointUrl, method, jwtToken);
+                    //Console.WriteLine(responseData2);
+
+
+                    //
+                }
+                return spresult;
                 
 
             }
             catch (Exception ex) { return false; };
+        }
+        public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid)
+        {
+            foreach (var item in resultsList.EnumerateArray())
+            {
+                var document = new BsonDocument
+          {
+            { "doctype", item.GetProperty("doctype").GetString() },
+            { "docnum", item.GetProperty("docnum").GetString() },
+            { "dateissued", item.GetProperty("dateissued").GetString() },
+            { "timeissued", item.GetProperty("timeissued").GetString() },
+            { "client_id", item.GetProperty("client_id").GetString() },
+            { "custom_client_id", item.GetProperty("custom_client_id").GetString() },
+            { "currency_id", item.GetProperty("currency_id").GetString() },
+            { "currency_code", item.GetProperty("currency_code").GetString() },
+            { "currency", item.GetProperty("currency").GetString() },
+            { "rate", item.GetProperty("rate").GetString() },
+            { "total", item.GetProperty("total").GetString() },
+            { "is_cancellation", item.GetProperty("is_cancellation").GetInt32() },
+            { "is_cancelled", item.GetProperty("is_cancelled").GetInt32() },
+            { "status", item.GetProperty("status").GetInt32() },
+            { "vat_id", vatid } // Replace "YourVatId" with the appropriate value or logic to retrieve the VAT ID
+        };
+
+                // Check if the document already exists in the collection
+                var filter = Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]);
+                var existingDocument = _ICountCollection.Find(filter).FirstOrDefault();
+                if (existingDocument == null)
+                {
+                    _ICountCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Handle the case where the document already exists
+                    // You can update the existing document or skip it based on your requirement
+                }
+            }
         }
 
         public async Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId)
@@ -176,27 +473,18 @@ namespace Uninet.DATA.Services
             try
             {
                 var businessobjects = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
-               
 
-                        var existingCompanyInnerId = (await _repository.GetAllAsync<LutCompanies>())
-                  .Where(b => businessobjects.Any(r => r.BusinessId == b.CompanyInnerId))
-                  .Select(b => b.CompanyInnerId)
-                  .ToList(); // Convert to List
-
-               
-
-
-
-
-
+                var existingCompanyInnerId = (await _repository.GetAllAsync<LutCompanies>())
+                    .Where(b => businessobjects.Any(r => r.BusinessId == b.CompanyInnerId))
+                    .Select(b => b.CompanyInnerId)
+                    .ToList(); // Convert to List
 
                 //get number of companies from json 
                 int count = userBusinesses.BusinessRequests.Count;
-                if (existingCompanyInnerId.Count != count )
+                if (existingCompanyInnerId.Count != count)
                 {
                     if (count > 0)
                     {
-
                         foreach (var businessRequest in userBusinesses.BusinessRequests)
                         {
                             var newCompany = new LutCompanies
@@ -209,26 +497,17 @@ namespace Uninet.DATA.Services
                             _repository.Create<LutCompanies>(newCompany);
                             int lastInsertedCompanyinneridId = newCompany.CompanyInnerId;
                             businessRequest.BusinessId = lastInsertedCompanyinneridId;
-
-
-
-
                         }
-
-
                     }
 
-
-
                     var existingBusinessIds = (await _repository.GetAllAsync<Businesses>())
-                 .Where(b => userBusinesses.BusinessRequests.Any(r => r.BusinessId == b.BusinessId))
-                 .Select(b => b.BusinessId)
-                 .ToList(); // Convert to List
+                        .Where(b => userBusinesses.BusinessRequests.Any(r => r.BusinessId == b.BusinessId))
+                        .Select(b => b.BusinessId)
+                        .ToList(); // Convert to List
 
                     var existingBusinessRequests = userBusinesses.BusinessRequests
-                .Where(br => existingBusinessIds.Contains(br.BusinessId))
-                .ToList();
-
+                        .Where(br => existingBusinessIds.Contains(br.BusinessId))
+                        .ToList();
 
                     if (existingBusinessRequests.Count > 0)
                     {
@@ -244,7 +523,6 @@ namespace Uninet.DATA.Services
                         var dataTable = new DataTable();
                         dataTable.Columns.Add("BusinessId", typeof(int));
                         dataTable.Columns.Add("BusinessType", typeof(int));
-
                         dataTable.Columns.Add("FirstName", typeof(string));
                         dataTable.Columns.Add("LastName", typeof(string));
                         dataTable.Columns.Add("MobileNumber", typeof(string));
@@ -281,15 +559,18 @@ namespace Uninet.DATA.Services
 
                         bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_AddBusinessesToUser, UserParam);
 
+                        // Retrieve the added business requests from the Businesses table
+                        var addedBusinessRequests = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
+                        // Map Businesses objects to BusinessRequest objects
+                        var addedBusinessRequestModels = addedBusinessRequests.Select(br => MapBusinessToBusinessRequest(br)).ToList();
                         var result = new AddBusinessToUserResult
                         {
                             Result = spresult,
-                            BusinessRequests = existingBusinessRequests
+                            BusinessRequests = addedBusinessRequestModels
                         };
+                       
 
                         return result;
-
-
                     }
                 }
                 else
@@ -299,7 +580,7 @@ namespace Uninet.DATA.Services
                         Result = false,
                         BusinessRequests = null
                     };
-                    return result;  
+                    return result;
                 }
             }
             catch (Exception ex)
@@ -309,6 +590,22 @@ namespace Uninet.DATA.Services
             }
         }
 
+        // Mapping method to convert Businesses to BusinessRequest
+        private BusinessRequest MapBusinessToBusinessRequest(Businesses business)
+        {
+            return new BusinessRequest
+            {
+                BusinessId = business.BusinessId,
+                BusinessType = business.BusinessType,
+               // FirstName = business.FirstName,
+                //LastName = business.LastName,
+               // MobileNumber = business.MobileNumber,
+                OrganizationRole = business.OrganizationRole,
+                OrganizationName = business.OrganizationName,
+                OrganizationType = business.OrganizationType,
+                ExternalSystemId = business.ExternalSystemId
+            };
+        }
 
         public static string EncryptUserId(string userId, string key, byte[] iv)
         {

@@ -12,5 +12,6 @@ namespace Uninet.Domain.StoredProcedures.Requests
         public List<CustomizedDataLIst> ListInputLabelDetails { get; set; }
         
         public int ExternalSystemId { get; set; }
+        public int Companyid { get; set; }
     }
 }

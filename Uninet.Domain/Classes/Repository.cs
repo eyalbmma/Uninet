@@ -135,7 +135,7 @@ namespace Uninet.Domain.Classes
 
 
 
-        public async Task<T> GetByIdAsync<T>(long id) where T : class
+        public async Task<T> GetByIdAsync<T>(int id) where T : class
 
         {
 

@@ -20,7 +20,7 @@ namespace Uninet.Domain.Entities
         [Key]
         public string  Endpoint { get; set; }
 
-        public string EndpointCategory { get; set; }
+        public string? EndpointCategory { get; set; }
 
 
         [Key]

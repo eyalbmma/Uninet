@@ -13,7 +13,7 @@ namespace Uninet.Domain.Interfaces
         
         Task<List<T>> GetAllAsync<T>() where T : class;
 
-        Task<T> GetByIdAsync<T>(long id) where T : class;
+        Task<T> GetByIdAsync<T>(int id) where T : class;
 
         T GetById<T>(int id) where T : class;
 
