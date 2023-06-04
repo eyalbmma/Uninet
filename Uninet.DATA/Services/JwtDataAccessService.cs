@@ -73,6 +73,25 @@ namespace Uninet.DATA.Services
             //_loginRepository = loginRepository;
         }
 
+        public async Task<int> GetUserIdByRefreshToken(string refreshToken)
+        {
+            try
+            {
+                var Input = new
+                {
+
+                    RefreshToken = refreshToken
+                };
+                var result = _repository.ExecuteGetSP<GetUserIdByRefreshTokenResponse>(ConstUninetStoredprocedure.SP_GetUserIdByRefreshToken, Input);
+                var res = result.ToList();
+                return res[0].UserId;
+            }
+            catch (Exception ex)
+            {
+                return 0;
+            }
+        }
+
         private async Task<string> GenerateRefreshTokenString()
         {
             var randomNumber = new byte[32];

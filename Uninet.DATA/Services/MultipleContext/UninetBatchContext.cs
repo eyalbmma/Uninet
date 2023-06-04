@@ -34,24 +34,32 @@ namespace Uninet.DATA.Services.MultipleContext
 
         public virtual DbSet<AddBusinessDataToSQLFromGreenINvoiceResponse> AddBusinessDataToSQLFromGreenINvoiceResponse { get; set; }
         public virtual DbSet<OTPHtmlBody> OTPHtmlBody { get; set; }
-        
-        
+        public virtual DbSet<SystemsEndpoints> SystemsEndpoints { get; set; }
+
+
         public virtual DbSet<SendOtpViaMailResponse> SendOtpViaMailResponse { get; set; }
+        public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
+
+        public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
+
+        public virtual DbSet<ExternalSystemDynamicFields> ExternalSystemDynamicFields { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
             base.OnModelCreating(modelBuilder);
 
-
-
+            modelBuilder.Entity<SystemsEndpoints>().HasKey(u => new { u.Id, u.ExternalSystemId, u.Endpoint, u.MethodeType });
+            modelBuilder.Entity<CompanyPulledDataLog>().HasKey(u => new { u.CompanyVatid });
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
             modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
-           
+
             
+            modelBuilder.Entity<UsersExternalSystemDynamicFields>().HasKey(u => new { u.Companyid, u.Userid ,u.ExternalSystemId,u.FieldLabelName });
+
 
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
@@ -60,7 +68,7 @@ namespace Uninet.DATA.Services.MultipleContext
 
             modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
             //builder.Entity<HospitalUserModel>().HasNoKey();
-
+            modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
             OnModelCreatingPartial(modelBuilder);
         }
 

@@ -55,6 +55,9 @@ public class PullUsersData : IHostedService, IDisposable
             {
                 string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
             }
+
+
+            ////
         }
         catch (Exception ex)
         {

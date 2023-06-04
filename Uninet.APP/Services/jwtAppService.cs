@@ -37,6 +37,11 @@ namespace Uninet.APP.Services
             _JwtDataAccessService = JwtDataAccessService;
         }
 
+
+        public async Task<int> GetUserIdByRefreshToken(string refreshToken)
+        {
+            return await _JwtDataAccessService.GetUserIdByRefreshToken(refreshToken);
+        }
         private async Task<string> GenerateRefreshTokenString()
         {
             var randomNumber = new byte[32];

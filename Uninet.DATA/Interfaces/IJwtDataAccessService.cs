@@ -14,7 +14,7 @@ namespace Uninet.DATA.Interfaces
 
 
         Task<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token);
-        Task<string> GetRefreshTokenByUserId(int Userid);
+        Task<int> GetUserIdByRefreshToken(string refreshToken);
         Task<string> GenerateAccessTokenFromClaims(IEnumerable<Claim> claims);
         Task<string> GenerateRefreshToken(int Userid);
         //Task<string> GenerateAccessToken(string userId);

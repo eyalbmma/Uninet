@@ -168,6 +168,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
                 var ReponsneClientInfo = await _UninetInputDataAccess.SendRequest(endpointClinetinfo, methodclientinfo);
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
+                
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
@@ -281,52 +282,61 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod methodcomopanyinfo = HttpMethod.Get;
                     var ReponsneCompanyInfo=await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
-                    //exstract the date started from companyinfo
-                   // string jsonResponse = "Your JSON response goes here";
+
+
+
+
+
+                    string vatid = "";
+                    DateTime startPulldata = new DateTime();
+                    DateTime EndPulldata = new DateTime(); 
                     string propertyPathstart_date = "company_info.start_date";
-
-                    DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-
-
-
-                    string propertyPathVatid = "company_info.vat_id";
-                    string vatid= ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
-                    DateTime startPulldata = startDate;
-                    DateTime EndPulldata = DateTime.Now;
-                    var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
-                    if (companyPulledDataLog != null)
+                    if (ReponsneCompanyInfo != null)
                     {
-                        startPulldata = companyPulledDataLog.LastPullDataDate;
+                        DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
+
+
+
+                        string propertyPathVatid = "company_info.vat_id";
+                         vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
+                         startPulldata = startDate;
+                         EndPulldata = DateTime.Now;
+                         EndPulldata = EndPulldata.AddDays(-7);
+                        var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
+                        if (companyPulledDataLog != null)
+                        {
+                            startPulldata = companyPulledDataLog.LastPullDataDate;
+                        }
+
+                        await SetLastPullDataDate(Convert.ToInt32(vatid));
                     }
-
-                    await SetLastPullDataDate(Convert.ToInt32(vatid));
-
                     var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
 
                     string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid="+ cidvalue+"&user="+uservalue+ "&pass=" + passvalue+"&start_ts="+ startPulldata.ToString()+"&end_ts="+ EndPulldata;
                     HttpMethod methoddocsearch = HttpMethod.Get;
                     var Reponsnedocsearch = await _UninetInputDataAccess.SendRequest(endpointUrldocsearch, methoddocsearch);
+                    
+                    if (Reponsnedocsearch != null)
+                    {
 
-                   
-
-                    // insert  compay cutomer invoices to mongodb collection name icount
-                    JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
-                    JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
-                    InsertDocumentsToMongoDB(resultsList, vatid);
-
-
-                    //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
-                    var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
+                        // insert  compay cutomer invoices to mongodb collection name icount
+                        JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
+                        JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
+                        InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
 
 
-
-                    //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
-                    //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
-                    //foreach invoce in resultsList get property value of doctype and docnum
-                    var res = await  CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+                        //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                        var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
 
 
 
+                        //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                        //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                        //foreach invoce in resultsList get property value of doctype and docnum
+                        var res = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+
+
+                    }
 
 
 
@@ -348,7 +358,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
             catch (Exception ex) { return false; };
         }
-        public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid)
+        public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid,string InternalUserId,int InternalComopanyId )
         {
             foreach (var item in resultsList.EnumerateArray())
             {
@@ -368,7 +378,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             { "is_cancellation", item.GetProperty("is_cancellation").GetInt32() },
             { "is_cancelled", item.GetProperty("is_cancelled").GetInt32() },
             { "status", item.GetProperty("status").GetInt32() },
-            { "vat_id", vatid } // Replace "YourVatId" with the appropriate value or logic to retrieve the VAT ID
+            { "vat_id", vatid },
+            {"InternalCompanyId",InternalUserId },
+            {"InternalUserid",InternalComopanyId.ToString() }
+            
         };
 
                 // Check if the document already exists in the collection
@@ -718,9 +731,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
                 if (result != null)
                 {
-                    result.passwordEncrypted = RegisterUserReq.Password;
-                    _repository.Update(result);
-                    return result.AdminUserid;//user exist
+                   // result.passwordEncrypted = RegisterUserReq.Password;
+                   // _repository.Update(result);
+                    return -1;//user exist
                 }
                 else
                 { 
@@ -785,7 +798,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     if (res[0].Verified)
                     {
-                        //send mail welcome mail to user
+                        //send mail welcome mail to user after he loged in with otp
                         _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "Support@uninet.co.il", res[0].Email, 2, 1);
                         
                     }

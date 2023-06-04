@@ -9,6 +9,7 @@ namespace Uninet.DATA.Interfaces
     public interface IuninetBatchDataAccess
     {
         public Task<string> PullUserDatafromExternalSystem(int Userid);
-        
+        public Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null);
+       
     }
 }

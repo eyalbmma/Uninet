@@ -12,6 +12,7 @@ namespace Uninet.Domain.StoredProcedures.Constants
         public const string SP_updateInsertOTP = "SP_updateInsertOTP";
         public const string SP_VerifyUserByOtpUserIdAndTimeStamp = "SP_VerifyUserByOtpUserIdAndTimeStamp";
         public const string SP_GetRefreshToken = "SP_GetRefreshToken";
+        public const string SP_GetUserIdByRefreshToken = "SP_GetUserIdByRefreshToken";
         public const string SP_UpdateInsertRefreshToken = "SP_UpdateInsertRefreshToken";
         public const string SP_SaveIndicationOfSentApprovalMailToCustomer = "SP_SaveIndicationOfSentApprovalMailToCustomer";
         public const string SP_SaveRefreshToken= "SP_SaveRefreshToken";

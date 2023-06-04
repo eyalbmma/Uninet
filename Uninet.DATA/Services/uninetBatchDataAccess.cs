@@ -15,6 +15,11 @@ using System.Data;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using Newtonsoft.Json;
+using System.Text.Json;
+using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Requests;
+using Twilio.Rest.Api.V2010.Account.Usage.Record;
+using static Uninet.DATA.Services.UserServiceDataAccess;
 
 namespace Uninet.DATA.Services
 {
@@ -22,11 +27,25 @@ namespace Uninet.DATA.Services
     {
         private readonly IBatchRepository<UninetBatchContext> _repository;
         private readonly IMongoCollection<BsonDocument> _Uninetgreenvoicedocument;
+
+        private readonly IMongoCollection<BsonDocument> _ICountCollection;
+        private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         public uninetBatchDataAccess(IBatchRepository<UninetBatchContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
+
+            
+            _ICountCollection = database.GetCollection<BsonDocument>("Icount");
+            _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
+            _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
+
             var Uninetgreenvoicedocument = database.GetCollection<BsonDocument>("UninetGreenVoiceCollection");
             _Uninetgreenvoicedocument = Uninetgreenvoicedocument;
+            
+            
+            
+            
             _repository = repository;
             
         }
@@ -120,68 +139,370 @@ namespace Uninet.DATA.Services
             }
             catch (Exception ex) { return false; }
         }
+        public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null)
+        {
+            string result = "";
+            using (HttpClient client = new HttpClient())
+            {
+                HttpRequestMessage request = new HttpRequestMessage(method, endpointUrl);
 
+                // Add authorization header if jwtToken is provided
+                if (!string.IsNullOrEmpty(jwtToken))
+                {
+                    request.Headers.Add("Authorization", $"Bearer {jwtToken}");
+                }
 
+                HttpResponseMessage response = await client.SendAsync(request);
 
-        public async Task<string> PullUserDatafromExternalSystem(int Userid)
+                response.EnsureSuccessStatusCode(); // Throw an exception if the request is not successful
+
+                string responseData = await response.Content.ReadAsStringAsync();
+                result = responseData;
+
+            }
+
+            return result;
+        }
+
+        public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
+        {
+            JsonDocument jsonDocument = JsonDocument.Parse(jsonString);
+            JsonElement propertyElement = jsonDocument.RootElement;
+
+            // Traverse the property path to reach the desired property
+            foreach (var propertyName in propertyPath.Split('.'))
+            {
+                if (propertyElement.TryGetProperty(propertyName, out var nextPropertyElement))
+                {
+                    propertyElement = nextPropertyElement;
+                }
+                else
+                {
+                    throw new ArgumentException($"Property '{propertyPath}' not found in the JSON.");
+                }
+            }
+
+            // Convert and return the property value
+            return propertyElement.ValueKind switch
+            {
+                JsonValueKind.String => propertyElement.GetString() != null ? (T)Convert.ChangeType(propertyElement.GetString(), typeof(T)) : default,
+                JsonValueKind.Number => (T)Convert.ChangeType(propertyElement.GetDouble(), typeof(T)),
+                JsonValueKind.True => (T)Convert.ChangeType(true, typeof(T)),
+                JsonValueKind.False => (T)Convert.ChangeType(false, typeof(T)),
+                _ => throw new ArgumentException($"Property '{propertyPath}' cannot be converted to type {typeof(T).Name}.")
+            };
+        }
+        public async Task SetLastPullDataDate(CompanyPulledDataLog companyPulledDataLog,int companyVatid)
         {
 
 
+            
+
+            if (companyPulledDataLog != null)
+            {
+                companyPulledDataLog.LastPullDataDate = DateTime.Now;
+                await _repository.UpdateAsync(companyPulledDataLog);
+            }
+            else
+            {
+                var newRow = new CompanyPulledDataLog
+                {
+                    CompanyVatid = companyVatid,
+                    LastPullDataDate = DateTime.Now
+                };
+
+                await _repository.CreateAsync(newRow);
+            }
+
+        }
+        public void InsertDocumentsToMongoDB(JsonElement resultsList, string vatid, string InternalUserId, int InternalComopanyId)
+        {
+            foreach (var item in resultsList.EnumerateArray())
+            {
+                var document = new BsonDocument
+          {
+            { "doctype", item.GetProperty("doctype").GetString() },
+            { "docnum", item.GetProperty("docnum").GetString() },
+            { "dateissued", item.GetProperty("dateissued").GetString() },
+            { "timeissued", item.GetProperty("timeissued").GetString() },
+            { "client_id", item.GetProperty("client_id").GetString() },
+            { "custom_client_id", item.GetProperty("custom_client_id").GetString() },
+            { "currency_id", item.GetProperty("currency_id").GetString() },
+            { "currency_code", item.GetProperty("currency_code").GetString() },
+            { "currency", item.GetProperty("currency").GetString() },
+            { "rate", item.GetProperty("rate").GetString() },
+            { "total", item.GetProperty("total").GetString() },
+            { "is_cancellation", item.GetProperty("is_cancellation").GetInt32() },
+            { "is_cancelled", item.GetProperty("is_cancelled").GetInt32() },
+            { "status", item.GetProperty("status").GetInt32() },
+            { "vat_id", vatid } ,
+            {"InternalCompanyId",InternalUserId },
+            {"InternalUserid",InternalComopanyId.ToString() }
+        };
+
+                // Check if the document already exists in the collection
+                var filter = Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]);
+                var existingDocument = _ICountCollection.Find(filter).FirstOrDefault();
+                if (existingDocument == null)
+                {
+                    _ICountCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Handle the case where the document already exists
+                    // You can update the existing document or skip it based on your requirement
+                }
+            }
+        }
+        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination)
+        {
+            // Convert the JsonElement to a BsonDocument
+            BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
+
+            // Check if the document already exists in the collection
+            if (destination == MongoDbDestination.DocinfoDB)
+            {
+                var docnum = document["docnum"];
+                var filter = Builders<BsonDocument>.Filter.Eq("docnum", docnum);
+                var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
+
+                if (existingDocument == null)
+                {
+                    // Insert the document into the collection
+                    _ICountDocInfoCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Document already exists, handle the case accordingly
+                    // For example, you can update the existing document or log an error
+                    Console.WriteLine($"Document with docnum '{docnum}' already exists.");
+                }
+            }
+            else if (destination == MongoDbDestination.ClientInfoDB)
+            {
+                var clientInfo = document["client_info"];
+                var client_id = clientInfo["client_id"].AsString;
+
+                var filter = Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id);
+                var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
+
+                if (existingDocument == null)
+                {
+                    // Insert the document into the collection
+                    _IcountClientInfoCollection.InsertOne(document);
+                }
+                else
+                {
+                    // Document already exists, handle the case accordingly
+                    // For example, you can update the existing document or log an error
+                    Console.WriteLine($"Document with client_id '{client_id}' already exists.");
+                }
+            }
+
+        }
+        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
+        {
+            // Loop over the items in the results_list array
+            foreach (JsonElement item in resultsList.EnumerateArray())
+            {
+                // Get the value of the client_id property
+                string clientId = item.GetProperty("client_id").GetString();
+                var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&client_id=" + clientId;
+                HttpMethod methodclientinfo = HttpMethod.Get;
+                // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
+                var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
+                JsonDocument jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
+                JsonElement jsonData = jsonDocument.RootElement;
+
+                MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
+                InsertDocumentInfo(jsonData, destination);
+            }
+            return true;
+        }
+        //we get to this function with single row a userid  from AdminUsers table
+
+        public async Task<bool> CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
+        {
+
+            // Iterate over each element in the 'results_list' and create a get endpoint methode to get docinfo from icount
+            foreach (JsonElement item in resultsList.EnumerateArray())
+            {
+                // Extract the values of 'doctype' and 'docnum'
+                string doctype = item.GetProperty("doctype").GetString();
+                string docnum = item.GetProperty("docnum").GetString();
+
+                var DocinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 72); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var endpointdocInfo = DocinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&doctype=" + doctype + "&docnum=" + docnum;
+                HttpMethod methoddocinfo = HttpMethod.Get;
+                // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
+                var ReponsneDocInfo = await SendRequest(endpointdocInfo, methoddocinfo);
+
+                JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
+                JsonElement jsonData = jsonDocument.RootElement;
+                MongoDbDestination destination = MongoDbDestination.DocinfoDB;
+                InsertDocumentInfo(jsonData, destination);
+
+            }
+
+            return true;
+
+
+
+
+
+        }
+
+        public async Task<string> PullUserDatafromExternalSystem(int Userid)
+        {
             List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
 
-
-
-            //on this res i have the list of businesses realted to this user 
+            //loop on [dbo].[Businesses] for the same userid that may have many businesses related to him
             foreach (var Business in res)
             {
-                //for each bussines i need to get their api key and send request to get jwt token
-                //here i will simulate getting the jwt token 
-                //string Jwtsimlulation= SimulateToken();//remark this meanwhile
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == Business.BusinessId && x.Userid== Business.AdminUserid);
 
-                //now get the end point url for this businessId
-                //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
-                //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
-                //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
+                //List<CustomizedDataLIst> ListInputLabelDetails { get; set; }
 
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+                
 
-                //need to call a generic function that get the end point ,jwt token ,method (put get post ) and send the request 
-
-                //HttpMethod method = new HttpMethod(Endpoint.MethodeType);////remark this meanwhile
-                //here i call a function that will call real external system
-                // string jsonfromExternalServiceRsult =await SendRequest(StrEndpoint, method, Jwtsimlulation);////remark this meanwhile
-                //i need to remark this code until i will have a real api from morning or any other external service
-
-
-                //from here i call meanwhile greenvoice controller named PullBusinessDataByTaxid
-                using var client = new System.Net.Http.HttpClient();
-
-                // Send an HTTP GET request to the specified URL
-                var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId);
-
-
-                // Read the response content as a string
-                var json = await response.Content.ReadAsStringAsync();
-
-                // Deserialize the string into a BsonArray
-                BsonArray bsonArray = BsonSerializer.Deserialize<BsonArray>(json);
-
-                // Convert the BsonArray to a list of BsonDocuments
-                List<BsonDocument> bsonDocuments = new List<BsonDocument>();
-                foreach (BsonValue bsonValue in bsonArray)
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
                 {
-                    BsonDocument bsonDocument = bsonValue.ToBsonDocument();
-                    bsonDocuments.Add(bsonDocument);
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                         cidvalue = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                         uservalue = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalue = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
                 }
 
+                ///get the comopany info to know what was the started date to get documents from this started date
 
-                ///save json into MongoDb Collection
-               var SavingToUninetGreenvoiceCollection = SavegreenvoicedocumentIntoUninet(bsonDocuments);
+                var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod methodcomopanyinfo = HttpMethod.Get;
+                var ReponsneCompanyInfo = await SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
+                //exstract the date started from companyinfo
+                // string jsonResponse = "Your JSON response goes here";
+                string propertyPathstart_date = "company_info.start_date";
+
+                DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
+
+
+
+                string propertyPathVatid = "company_info.vat_id";
+                string vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
+                DateTime startPulldata = startDate;
+                DateTime EndPulldata = DateTime.Now;
+                int intVatid = Convert.ToInt32(vatid.TrimStart('0'));
+                CompanyPulledDataLog companyPulledDataLog =  _repository.GetFirstObject<CompanyPulledDataLog>(x => x.CompanyVatid == intVatid);
+                if (companyPulledDataLog != null)
+                {
+                    startPulldata = companyPulledDataLog.LastPullDataDate;
+                }
+
+                await SetLastPullDataDate(companyPulledDataLog, intVatid);
+
+                var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
+
+                string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString() + "&end_ts=" + EndPulldata;
+                HttpMethod methoddocsearch = HttpMethod.Get;
+                var Reponsnedocsearch = await SendRequest(endpointUrldocsearch, methoddocsearch);
+
+
+
+                // insert  compay cutomer invoices to mongodb collection name icount
+                JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
+                JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
+                InsertDocumentsToMongoDB(resultsList, vatid, Userid.ToString(), Business.BusinessId);
+
+
+                //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
+
+
+
+                //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                //foreach invoce in resultsList get property value of doctype and docnum
+                var res1 = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+
+
 
 
 
 
 
             }
+            /*
+
+             //on this res i have the list of businesses realted to this user 
+             foreach (var Business in res)
+             {
+                 //for each bussines i need to get their api key and send request to get jwt token
+                 //here i will simulate getting the jwt token 
+                 //string Jwtsimlulation= SimulateToken();//remark this meanwhile
+
+                 //now get the end point url for this businessId
+                 //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
+                 //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
+                 //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
+
+
+                 //need to call a generic function that get the end point ,jwt token ,method (put get post ) and send the request 
+
+                 //HttpMethod method = new HttpMethod(Endpoint.MethodeType);////remark this meanwhile
+                 //here i call a function that will call real external system
+                 // string jsonfromExternalServiceRsult =await SendRequest(StrEndpoint, method, Jwtsimlulation);////remark this meanwhile
+                 //i need to remark this code until i will have a real api from morning or any other external service
+
+
+                 //from here i call meanwhile greenvoice controller named PullBusinessDataByTaxid
+                 using var client = new System.Net.Http.HttpClient();
+
+                 // Send an HTTP GET request to the specified URL
+                 var response = await client.GetAsync("https://localhost:7285/api/GreenInvoice/PullBusinessDataByTaxid/" + Business.BusinessId);
+
+
+                 // Read the response content as a string
+                 var json = await response.Content.ReadAsStringAsync();
+
+                 // Deserialize the string into a BsonArray
+                 BsonArray bsonArray = BsonSerializer.Deserialize<BsonArray>(json);
+
+                 // Convert the BsonArray to a list of BsonDocuments
+                 List<BsonDocument> bsonDocuments = new List<BsonDocument>();
+                 foreach (BsonValue bsonValue in bsonArray)
+                 {
+                     BsonDocument bsonDocument = bsonValue.ToBsonDocument();
+                     bsonDocuments.Add(bsonDocument);
+                 }
+
+
+                 ///save json into MongoDb Collection
+                var SavingToUninetGreenvoiceCollection = SavegreenvoicedocumentIntoUninet(bsonDocuments);
+
+
+
+
+
+             }
+             */
             return string.Empty;
         }
 

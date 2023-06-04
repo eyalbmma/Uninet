@@ -43,6 +43,7 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<SystemsEndpoints> SystemsEndpoints { get; set; }
 
         public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
+        public virtual DbSet<GetUserIdByRefreshTokenResponse> GetUserIdByRefreshTokenResponse { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -68,6 +69,8 @@ namespace Uninet.DATA.Services.MultipleContext
             
                 modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
             modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
+            modelBuilder.Entity<GetUserIdByRefreshTokenResponse>().HasNoKey();
+            
 
             modelBuilder.Entity<LUT_UninetExternalSystems>().HasNoKey();
             modelBuilder.Entity<LutCompanies>().HasKey(u => new { u.CompanyInnerId });

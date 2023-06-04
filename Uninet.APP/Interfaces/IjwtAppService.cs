@@ -9,7 +9,8 @@ namespace Uninet.APP.Interfaces
 {
     public  interface IjwtAppService
     {
-
+        
+        Task<int> GetUserIdByRefreshToken(string  RefreshToken);
         Task<ClaimsPrincipal> GetPrincipalFromExpiredToken(string token);
         Task<string> GetRefreshTokenByUserId(int Userid);
         Task<string> GenerateAccessTokenFromClaims(IEnumerable<Claim> claims);
