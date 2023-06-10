@@ -67,7 +67,7 @@ namespace Uninet.DATA.Services.MultipleContext
             
             modelBuilder.Entity<AddBusinessDataToSQLFromGreenINvoiceResponse>().HasNoKey();
             
-                modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
+            modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
             modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
             modelBuilder.Entity<GetUserIdByRefreshTokenResponse>().HasNoKey();
             
@@ -77,6 +77,8 @@ namespace Uninet.DATA.Services.MultipleContext
             //builder.Entity<HospitalUserModel>().HasNoKey();
 
             OnModelCreatingPartial(modelBuilder);
+
+
         }
 
 

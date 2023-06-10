@@ -50,11 +50,11 @@ public class PullUsersData : IHostedService, IDisposable
 
         try
         {
-            List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
-            foreach (var user in res)
-            {
-                string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
-            }
+            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
+            //foreach (var user in res)
+            //{
+            //    string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
+            //}
 
 
             ////

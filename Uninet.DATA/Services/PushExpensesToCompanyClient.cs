@@ -9,6 +9,7 @@ using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
+using Uninet.Domain.Models;
 
 namespace Uninet.DATA.Services
 {
@@ -61,11 +62,21 @@ namespace Uninet.DATA.Services
                 //3 we 
 
 
-                //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
-                //foreach (var user in res)
-                //{
-                //    string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
-                //}
+                List<Businesses> res = _repository.GetListOfObjects<Businesses>(b => true);
+               
+                foreach (var Business in res)
+                {
+                    var businessRequest = new BusinessRequestFoeExpenses
+                    {
+                        BusinessId = Business.BusinessId.ToString(),
+                        AdminUserid = Business.AdminUserid.ToString(),
+                        FirstName = Business.FirstName,
+                        LastName= Business.LastName
+
+                    };
+
+                    string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
+                }
                 Console.WriteLine("test");
 
                 ////

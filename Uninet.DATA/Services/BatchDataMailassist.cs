@@ -5,33 +5,29 @@ using System.Net.Mail;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Interfaces;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using Microsoft.AspNetCore.Mvc;
-using static System.Net.WebRequestMethods;
+using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
-using Uninet.Domain.Models;
-using Uninet.DATA.Interfaces;
-using System.Reflection;
-using Amazon.Runtime.Internal.Transform;
+using Uninet.Domain.Classes;
 
 namespace Uninet.DATA.Services
 {
-    public class DataMailassist: IDataMailassist
+    public  class BatchDataMailassist: IBatchDataMailassist
     {
-        private readonly IRepository<UninetContext> _repository;
+        
+        private readonly IBatchRepository<UninetBatchContext> _batchrepository;
 
-        public DataMailassist(IRepository<UninetContext> repository)//, IloginRepository loginRepository
+        public BatchDataMailassist(IBatchRepository<UninetBatchContext> batchrepository)//, IloginRepository loginRepository
         {
-           
-            _repository = repository;
+
+            _batchrepository = batchrepository;
 
         }
 
-        public string ReplacePlaceholders(string html,  string otpCode, string companyName)
+        public string ReplacePlaceholders(string html, string otpCode, string companyName)
         {
 
 
@@ -76,40 +72,41 @@ namespace Uninet.DATA.Services
             return html;
         }
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null)
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang, RequestedMailObject InputMailDetails = null)
         {
             try
             {
-                SendOtpViaMailResponse sendsmtpmailres=new SendOtpViaMailResponse();
+                SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
                 var fromAddress = new MailAddress(From);
                 var toAddress = new MailAddress(To);
                 MailMessage message = new MailMessage(fromAddress, toAddress);
-                string userOtp = Generate_otp();
                 message.Subject = subject;
                 var ObjTemplateparam = new { TemplateId = Templateid, Lang = lang };
-                var res = _repository.ExecuteGetSP<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam).ToList();
+                string userOtp = Generate_otp();
+
+                var res = _batchrepository.ExecuteGetSP<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam).ToList();
 
                 switch (ObjTemplateparam.TemplateId)
                 {
                     case 1:
-
+                        
                         //recipient name
                         Dictionary<string, string> values1 = new Dictionary<string, string>
                         {
-                            
+
                             { "OTP_CODE", userOtp },
                         };
 
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values1);
                         break;
                     case 2:
-                        
+
                         Dictionary<string, string> values2 = new Dictionary<string, string>
                         {
                             { "username", "John Doe" }
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values2);
-                       
+
 
 
                         break;
@@ -118,10 +115,10 @@ namespace Uninet.DATA.Services
                         {
                             { "recipient name", "eyal berda" },
                             { "Sender name", "yosi mualem " }
-                            
+
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);
-                        
+
                         break;
                     case 4:
                         Dictionary<string, string> values4 = new Dictionary<string, string>
@@ -130,12 +127,12 @@ namespace Uninet.DATA.Services
                             { "Sender name",InputMailDetails.Sendername },
                              { "doc type", InputMailDetails.DocType },
                               { "DocLink", InputMailDetails.DocLink }
-                            
+
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
                         break;
                     case 5:
-                        Dictionary<string, string> values5= new Dictionary<string, string>
+                        Dictionary<string, string> values5 = new Dictionary<string, string>
                         {
                             { "recipient name", "eyal berda" },
                             { "Sender name", "yosi mualem " },
@@ -157,13 +154,13 @@ namespace Uninet.DATA.Services
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values6);
                         break;
-                   
+
                     default:
                         // Code to handle cases other than 1 to 7
                         break;
                 }
 
-                
+
 
 
 
@@ -223,3 +220,4 @@ namespace Uninet.DATA.Services
 
     }
 }
+

@@ -21,6 +21,10 @@ namespace Uninet.Domain.Entities
       
         
         public int? BusinessType { get; set; }
+
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        
         public string?  OrganizationRole { get; set; }
         public string? OrganizationName { get; set; }
 

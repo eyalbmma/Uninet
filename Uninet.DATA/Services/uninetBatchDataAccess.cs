@@ -20,6 +20,7 @@ using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Requests;
 using Twilio.Rest.Api.V2010.Account.Usage.Record;
 using static Uninet.DATA.Services.UserServiceDataAccess;
+using Amazon.Runtime.Internal.Util;
 
 namespace Uninet.DATA.Services
 {
@@ -31,11 +32,13 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountCollection;
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
-        public uninetBatchDataAccess(IBatchRepository<UninetBatchContext> repository, IMongoClient client)//, IloginRepository loginRepository
+        private readonly IBatchDataMailassist _batchdataMailassist;
+        //private readonly IMailassist _mailasist;
+        public uninetBatchDataAccess(IBatchRepository<UninetBatchContext> repository, IMongoClient client, IBatchDataMailassist batchdataMailassist)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
+            _batchdataMailassist = batchdataMailassist;
 
-            
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
@@ -236,8 +239,8 @@ namespace Uninet.DATA.Services
             { "is_cancelled", item.GetProperty("is_cancelled").GetInt32() },
             { "status", item.GetProperty("status").GetInt32() },
             { "vat_id", vatid } ,
-            {"InternalCompanyId",InternalUserId },
-            {"InternalUserid",InternalComopanyId.ToString() }
+            {"InternalCompanyId",InternalComopanyId.ToString() },
+            {"InternalUserid", InternalUserId}
         };
 
                 // Check if the document already exists in the collection
@@ -505,6 +508,115 @@ namespace Uninet.DATA.Services
              */
             return string.Empty;
         }
+
+
+
+
+
+        public async Task<string> ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(BusinessRequestFoeExpenses businessRequest)
+        {
+
+
+            var filter = Builders<BsonDocument>.Filter.Eq("InternalCompanyId", businessRequest.BusinessId) &
+                 Builders<BsonDocument>.Filter.Eq("InternalUserid", businessRequest.AdminUserid);
+
+            var items = await _ICountCollection.Find(filter).ToListAsync();
+
+
+            List<ClientInfo> clientInfoList = new List<ClientInfo>();
+            //in the items list we have all items (receipt,invoice etc.. ) from  icount 
+            //new we need to loop each one and get his client_id
+            foreach (var item in items)
+            {
+                var clientId = item.GetValue("client_id").AsString;
+
+                var filterClientinfo = Builders<BsonDocument>.Filter.Eq("client_info.client_id", clientId);
+                var ClientInfoitems = await _IcountClientInfoCollection.Find(filterClientinfo).ToListAsync();
+
+                
+
+                foreach (var Clientitem in ClientInfoitems)
+                {
+                    var vatId = Clientitem["client_info"]["vat_id"].AsString;
+                    var companyName = Clientitem["client_info"]["company_name"].AsString;
+                    var clientName = Clientitem["client_info"]["client_name"].AsString;
+                    var email = Clientitem["client_info"]["email"].AsString;
+                    var mobile = Clientitem["client_info"]["mobile"].AsString;
+
+                    if (!clientInfoList.Any(c => c.VatId == vatId))
+                    {
+                        var clientInfo = new ClientInfo
+                        {
+                            VatId = vatId,
+                            CompanyName = companyName,
+                            ClientName = clientName,
+                            Email = email,
+                            Mobile = mobile,
+                            SenderName = businessRequest.FirstName + " " + businessRequest.LastName
+                        };
+
+                        clientInfoList.Add(clientInfo);
+                    }
+
+                }
+
+
+
+
+
+                // The clientInfoList now contains the objects for the matched items
+
+
+
+
+
+
+
+
+
+            }
+            ///now we loop over all clientInfoList that has cliet info and for each client get his docinfo from IcountDocInfo collection
+            ///and send  to the client email a mail  with a link to his pdf
+            // Iterate through the clientInfoList
+            foreach (var clientInfo in clientInfoList)
+            {
+                string clientVatId = clientInfo.VatId; // Replace VatId with the actual property name in the clientInfo object
+                var filterClientDocinfo = Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", clientVatId);
+                var clientDocInfoItems = await _ICountDocInfoCollection.Find(filterClientDocinfo).ToListAsync();
+
+                foreach (var clientDocInfoItem in clientDocInfoItems)
+                {
+                    string docUrl = clientDocInfoItem["doc_info"]["doc_url"].ToString();
+                    string _doctype= clientDocInfoItem["doctype"].ToString();
+                    var _RequestMailObject = new RequestedMailObject
+                    {
+                        Sendername = clientInfo.SenderName,
+                        DocType = _doctype,
+                        RecipientName = clientInfo.ClientName,
+                        DocLink= docUrl
+                    };
+
+
+                    var res = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
+
+
+                    // Use the docUrl as needed
+                }
+
+
+
+
+            }
+
+
+            return "Success"; // Return the appropriate response
+        }
+
+
+
+
+      
+
 
     }
 }

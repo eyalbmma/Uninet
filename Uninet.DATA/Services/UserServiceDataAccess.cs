@@ -379,8 +379,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             { "is_cancelled", item.GetProperty("is_cancelled").GetInt32() },
             { "status", item.GetProperty("status").GetInt32() },
             { "vat_id", vatid },
-            {"InternalCompanyId",InternalUserId },
-            {"InternalUserid",InternalComopanyId.ToString() }
+            {"InternalCompanyId", InternalComopanyId.ToString() },
+            {"InternalUserid",InternalUserId }
             
         };
 
@@ -799,7 +799,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     if (res[0].Verified)
                     {
                         //send mail welcome mail to user after he loged in with otp
-                        _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "Support@uninet.co.il", res[0].Email, 2, 1);
+                        _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "eyalbmma@gmail.com", res[0].Email, 2, 1);
                         
                     }
                     return new LoginWithOtpResponse()
