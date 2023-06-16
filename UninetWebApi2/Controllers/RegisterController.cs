@@ -1,0 +1,346 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Newtonsoft.Json;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Uninet.APP.Interfaces;
+using Uninet.APP.Services;
+using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Requests;
+using Uninet.Domain.StoredProcedures.Responses;
+
+namespace UninetWebApi2.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class RegisterController : ControllerBase
+    {
+        private readonly IUserServiceApp _userServiceApp;
+        private readonly ILogger<RegisterController> _logger;
+        private readonly IMailassist _mailasist;
+        private readonly IjwtAppService _jwtAppService;
+        public IConfiguration Configuration { get; }
+        public RegisterController( IUserServiceApp userServiceApp, ILogger<RegisterController> logger, IMailassist mailassist, IjwtAppService jwtAppService, IConfiguration configuration)
+        {
+           
+            _userServiceApp = userServiceApp;
+            _logger = logger;
+            _mailasist= mailassist;
+            _jwtAppService= jwtAppService;
+            Configuration = configuration;
+        }
+
+
+
+   
+
+        //Q1 to Q3
+        [Authorize]
+        [HttpPost("RegisterBusinessToUser")]
+        public async Task<ActionResult> RegisterBusinessToUser([FromBody] List<BusinessRequest> RegisterUserReq)
+        {
+            try
+            {
+                // Retrieve the User ID from the JWT token
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var UserBusinesses = new UserBusinesses
+                {
+                    BusinessRequests = RegisterUserReq,
+                    Userid =Convert.ToInt32(userId)
+                };
+                var res = await _userServiceApp.RegisterBusinessToUser(UserBusinesses);
+
+
+                return Ok(res);
+            }
+            catch (Exception ex)
+            {
+                return Ok(false);
+            }
+
+
+
+        }
+
+
+        //[AllowAnonymous]
+        //[HttpPost("VerifyEmailLink")]
+        //public async Task<ActionResult> VerifyEmailLink()
+        //{
+        //    try
+        //    {
+        //        string userguid =  HttpContext.Request.Query["userguid"];
+        //        if (string.IsNullOrEmpty(userguid))
+        //        {
+        //            return BadRequest(Ok(false));
+        //        }
+        //            else
+        //        {
+        //           var res=    await _userServiceApp.VerifyEmailLink(userguid);
+        //            return Ok(res);
+        //        }
+        //    }
+        //    catch (Exception ex) 
+        //    {
+        //        return Ok(false);
+        //    }
+        //}
+
+        //GetExternalCustomizedFieldByExternaLSystemID  ''ExternalSystemCustomizeFieldResult
+        [Authorize]
+        [HttpPost("SaveExternalCustomizedExternalSystemId")]
+        public async Task<ActionResult> SaveExternalCustomizedExternalSystemId([FromBody] SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails)
+        {
+            // Retrieve the User ID from the JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Create the JSON object
+           
+            var res = await _userServiceApp.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails, userId.ToString());
+
+            return Ok(res);
+        }
+
+
+
+        [Authorize]
+        [HttpGet("GetExternalCustomizedFieldByExternaLSystemID")]
+        public async Task<IActionResult> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId)
+        {
+            var res= await _userServiceApp.GetExternalCustomizedFieldByExternaLSystemID(ExternalSystemId);
+            return Ok(res);
+        }
+        public static string DecryptUserId(string encryptedUserId, string key, string iv)
+        {
+            byte[] decryptedBytes;
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = Encoding.UTF8.GetBytes(key);
+                aesAlg.IV = Encoding.UTF8.GetBytes(iv);
+
+                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+
+                byte[] encryptedBytes = Convert.FromBase64String(encryptedUserId);
+                decryptedBytes = decryptor.TransformFinalBlock(encryptedBytes, 0, encryptedBytes.Length);
+
+                decryptor.Dispose();
+            }
+
+            return Encoding.UTF8.GetString(decryptedBytes);
+        }
+        public static byte[] GenerateSalt(int sizeInBytes)
+        {
+            byte[] salt = new byte[sizeInBytes];
+            using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
+            {
+                rngCsp.GetBytes(salt);
+            }
+            return salt;
+        }
+        public static byte[] GenerateAesKey(string passphrase, byte[] salt)
+        {
+            const int keySizeInBits = 256;
+            const int keySizeInBytes = keySizeInBits / 8;
+
+            using (Rfc2898DeriveBytes deriveBytes = new Rfc2898DeriveBytes(passphrase, salt))
+            {
+                return deriveBytes.GetBytes(keySizeInBytes);
+            }
+        }
+        public static byte[] StringToByteArray(string hex)
+        {
+            int length = hex.Length / 2;
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+            return bytes;
+        }
+
+        public static string DecryptUserId(string encryptedUserId, string key, byte[] iv)
+        {
+            byte[] decryptedBytes;
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = StringToByteArray(key);
+                aesAlg.IV = iv;
+                aesAlg.Padding = PaddingMode.PKCS7; // Explicitly set the padding mode
+
+                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+
+                byte[] encryptedBytes = Convert.FromBase64String(encryptedUserId);
+                decryptedBytes = decryptor.TransformFinalBlock(encryptedBytes, 0, encryptedBytes.Length);
+
+                decryptor.Dispose();
+            }
+
+            return Encoding.UTF8.GetString(decryptedBytes);
+        }
+
+
+
+        public static byte[] GenerateRandomIV(int sizeInBytes)
+        {
+            byte[] iv = new byte[sizeInBytes];
+            using (RNGCryptoServiceProvider rngCsp = new RNGCryptoServiceProvider())
+            {
+                rngCsp.GetBytes(iv);
+            }
+            return iv;
+        }
+        private async Task<LoginWithOtpResponse> RetunValidUser(LoginWithOtpRequest _LoginWithOtpRequest)
+        {
+            // Check if the user's credentials are valid
+            // You can replace this with your own logic to validate the user's credentials
+            //byte[] salt = GenerateSalt(16);
+           
+            string iv = Configuration["EncryptedUserId:iv"];
+            byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+
+           
+
+
+
+            string DecryptedUserId = DecryptUserId(_LoginWithOtpRequest.EncryptedUser, Configuration["EncryptedUserId:key"], ivBytes);
+            var Res = await _userServiceApp.RegisterWithOtpAndEncryptedUser(_LoginWithOtpRequest.Otp, DecryptedUserId);
+            if (Res != null)
+            {
+                
+                return Res;
+            }
+            else
+                return null;
+
+        }
+        [HttpPost("RegisterWithOtp")]
+        [AllowAnonymous]
+        public async Task<ActionResult> RegisterWithOtp([FromBody] LoginWithOtpRequest _LoginWithOtpRequest)
+        {
+
+            var Res = await RetunValidUser(_LoginWithOtpRequest);// _userService.LoginWithOtp(_LoginWithOtpRequest.Otp);
+            if (Res != null)
+            {
+                var claims = new[]
+                {
+
+
+                   // new Claim(ClaimTypes.Name,Res.FirstName.ToString()),
+                    new Claim(ClaimTypes.NameIdentifier,Res.UserId.ToString())
+                };
+                var token = await _jwtAppService.GenerateAccessToken(claims);
+                var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Convert.ToInt32(Res.UserId));
+
+                _logger.LogInformation($"Userid [{Res.UserId.ToString()}] logged in the system.");
+
+
+                //string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
+
+
+
+                return Ok(new RegisterResult
+                {
+
+                    //Role = Res.Role.ToString(),
+                    AccessToken = token,
+                    RefreshToken = newRefreshToken,
+                    Success = true,
+                    //Userid = Res.Userid
+                });
+            }
+            else
+            {
+                return Ok(new RegisterResult
+                {
+
+                    //Role = "",
+                    AccessToken = "",
+                    RefreshToken = "",
+                    Success = false,
+                    // Userid = 0
+                });
+            }
+
+        }
+
+
+
+
+
+        [HttpPost("Register")]
+        public async Task<ActionResult> Register([FromBody] RegisterUserRequest RegisterUserReq)
+        {
+            //this register function create a new row in AdminUsers table
+            //send email to the user to verify
+            //update table AdminUsers with datetime and sent email indication
+            try
+            {
+                ApprovalMailIndication res = new ApprovalMailIndication();
+                SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
+                int CreatenewuserRowAdminUserid = await _userServiceApp.RegisterUser(RegisterUserReq);//0 exception //-1 userexist
+
+                if (CreatenewuserRowAdminUserid == 0)//fail on exception
+                {
+                    var RegisterResult = new RegisterResponse
+                    {
+
+                        Success = false,
+                        TextResponse = "User Failed to Register",
+                        EncryptedUserid = ""
+                    };
+                    return Ok(RegisterResult);
+                }
+                else if (CreatenewuserRowAdminUserid == -1)
+                {
+                    sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
+                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(CreatenewuserRowAdminUserid, sendsmtpmailres.OTP);
+                    var RegisterResult = new RegisterResponse
+                    {
+
+                        Success = false,
+                        TextResponse = "User already Exist ,Otp Sent For Verification",
+                        EncryptedUserid = ""
+                    };
+                    return Ok(RegisterResult);
+                }
+                else
+                {
+                    sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
+                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(CreatenewuserRowAdminUserid, sendsmtpmailres.OTP);
+                    var RegisterResult = new RegisterResponse
+                    {
+
+                        Success = true,
+                        TextResponse = "User Succesfuly registered , Otp Sent For Verification",
+                        EncryptedUserid = res.EncryptedUserid
+                    };
+                    return Ok(RegisterResult);
+
+                }
+
+
+
+
+            }
+            catch (Exception ex)
+            {
+                var RegisterResult = new RegisterResponse
+                {
+
+                    Success = false,
+                    TextResponse = "User failed to  registered and otp wasnt sent",
+                    EncryptedUserid = ""
+                };
+                return Ok(false);
+            }
+
+
+
+        }
+
+
+    }
+}

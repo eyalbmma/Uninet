@@ -598,7 +598,10 @@ namespace Uninet.DATA.Services
 
 
                     var res = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
+                    if (res.result)
+                    {
 
+                    }
 
                     // Use the docUrl as needed
                 }

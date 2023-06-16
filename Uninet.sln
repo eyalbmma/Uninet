@@ -3,13 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33403.182
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uninet.DATA", "Uninet.DATA\Uninet.DATA.csproj", "{54A6F762-E1F4-49FE-8954-70A4FD6CE5C9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Uninet.DATA", "Uninet.DATA\Uninet.DATA.csproj", "{54A6F762-E1F4-49FE-8954-70A4FD6CE5C9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uninet.Domain", "Uninet.Domain\Uninet.Domain.csproj", "{EE124776-94B5-4E7D-91A5-4C15725AD183}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Uninet.Domain", "Uninet.Domain\Uninet.Domain.csproj", "{EE124776-94B5-4E7D-91A5-4C15725AD183}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unint.WEBAPI", "Unint.WEBAPI\Unint.WEBAPI.csproj", "{8C00CB6E-BBED-493A-9B6D-47060F218C7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Unint.WEBAPI", "Unint.WEBAPI\Unint.WEBAPI.csproj", "{8C00CB6E-BBED-493A-9B6D-47060F218C7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uninet.APP", "Uninet.APP\Uninet.APP.csproj", "{341EFAAE-AF2E-48C3-B1E2-3DCBC1AC8FC8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Uninet.APP", "Uninet.APP\Uninet.APP.csproj", "{341EFAAE-AF2E-48C3-B1E2-3DCBC1AC8FC8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UninetWebApi2", "UninetWebApi2\UninetWebApi2.csproj", "{92B59114-6E5E-481D-8670-5B48B9EDA62E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{341EFAAE-AF2E-48C3-B1E2-3DCBC1AC8FC8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{341EFAAE-AF2E-48C3-B1E2-3DCBC1AC8FC8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{341EFAAE-AF2E-48C3-B1E2-3DCBC1AC8FC8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92B59114-6E5E-481D-8670-5B48B9EDA62E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92B59114-6E5E-481D-8670-5B48B9EDA62E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92B59114-6E5E-481D-8670-5B48B9EDA62E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92B59114-6E5E-481D-8670-5B48B9EDA62E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

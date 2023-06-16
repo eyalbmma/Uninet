@@ -194,7 +194,7 @@ namespace Uninet.DATA.Services
                     sendsmtpmailres = new SendOtpViaMailResponse
                     {
                         result = false,
-                        OTP = userOtp
+                       
                     };
                     return sendsmtpmailres;
 
@@ -205,7 +205,7 @@ namespace Uninet.DATA.Services
                 sendsmtpmailres = new SendOtpViaMailResponse
                 {
                     result = true,
-                    OTP = userOtp
+                   
                 };
                 return sendsmtpmailres;
 
