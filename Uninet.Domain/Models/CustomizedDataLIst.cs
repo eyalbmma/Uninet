@@ -16,6 +16,14 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("FieldLabelValue")]
         public string FieldLabelValue { get; set; }
 
+        [JsonPropertyName("FiledType")]
+        public int? FiledType { get; set; }
+
+        [JsonPropertyName("FieldTypeDesc")]
+        public string? FieldTypeDesc { get; set; }
+        
+
+
 
     }
 }

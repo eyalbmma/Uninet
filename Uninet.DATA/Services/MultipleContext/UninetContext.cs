@@ -26,12 +26,16 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
         public virtual DbSet<VerifyUserByOtpUserIdAndTimeStampResponse> VerifyUserByOtpUserIdAndTimeStampResponse { get; set; }
+        public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
+
         
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
+
+        public virtual DbSet<BusinessData> BusinessData { get; set; }
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
-        
-         public virtual DbSet<SaveIndicationOfSentApprovalMailToCustomerResponse> SaveIndicationOfSentApprovalMailToCustomerResponse { get; set; }
+
+        public virtual DbSet<SaveIndicationOfSentApprovalMailToCustomerResponse> SaveIndicationOfSentApprovalMailToCustomerResponse { get; set; }
         public virtual DbSet<AddBusinessToUserResult> AddBusinessToUserResult { get; set; }
 
         public virtual DbSet<AddBusinessDataToSQLFromGreenINvoiceResponse> AddBusinessDataToSQLFromGreenINvoiceResponse { get; set; }
@@ -44,7 +48,10 @@ namespace Uninet.DATA.Services.MultipleContext
 
         public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
         public virtual DbSet<GetUserIdByRefreshTokenResponse> GetUserIdByRefreshTokenResponse { get; set; }
-        
+        public DbSet<LUT_ExtrenalFieldsType> LUT_ExtrenalFieldsTypes { get; set; }
+
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
@@ -54,6 +61,11 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<CompanyPulledDataLog>().HasKey(u => new { u.CompanyVatid});
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
 
+            modelBuilder.Entity<UsersExternalSystemDynamicFields>().HasNoKey();
+
+            
+
+
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
@@ -61,6 +73,10 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
+
+            modelBuilder.Entity<BusinessData>().HasKey(u => new { u.UserId, u.BusinessId,u.JsonDocumentid });
+
+
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
             modelBuilder.Entity<SaveIndicationOfSentApprovalMailToCustomerResponse>().HasNoKey();
@@ -75,6 +91,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<LUT_UninetExternalSystems>().HasNoKey();
             modelBuilder.Entity<LutCompanies>().HasKey(u => new { u.CompanyInnerId });
             //builder.Entity<HospitalUserModel>().HasNoKey();
+            modelBuilder.Entity<LUT_ExtrenalFieldsType>().HasKey(u => new { u.FieldType });
 
             OnModelCreatingPartial(modelBuilder);
 

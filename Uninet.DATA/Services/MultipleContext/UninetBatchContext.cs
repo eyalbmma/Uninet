@@ -43,6 +43,11 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
 
         public virtual DbSet<ExternalSystemDynamicFields> ExternalSystemDynamicFields { get; set; }
+
+        public virtual DbSet<InsertBusinessData_Result> InsertBusinessData_Result { get; set; }
+        public virtual DbSet<UpdateBusinessDataEmailSent_Response> UpdateBusinessDataEmailSent_Response { get; set; }
+        
+            
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
 
@@ -67,6 +72,11 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<AddBusinessDataToSQLFromGreenINvoiceResponse>().HasNoKey();
 
             modelBuilder.Entity<OTPHtmlBody>().HasNoKey();
+
+            modelBuilder.Entity<InsertBusinessData_Result>().HasNoKey();
+            modelBuilder.Entity<UpdateBusinessDataEmailSent_Response>().HasNoKey();
+            
+                
             //builder.Entity<HospitalUserModel>().HasNoKey();
             modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
             OnModelCreatingPartial(modelBuilder);

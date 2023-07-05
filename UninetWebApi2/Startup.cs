@@ -42,12 +42,7 @@ namespace UninetWebApi2.Controllers
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Workspaces.API", Version = "v1" });
             });
             services.AddControllers();
-            services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAll",
-                    builder => { builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader(); });
-
-            });
+           
             services.AddDbContextPool<UninetContext>(options =>
             {
                 options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
@@ -85,10 +80,10 @@ namespace UninetWebApi2.Controllers
             services.AddScoped<IjwtAppService, jwtAppService>();
             services.AddScoped<IDataMailassist, DataMailassist>();
 
-            
 
-        
-           
+            services.AddScoped<IUninetOutPutAppService, UninetOutPutAppService>();
+            services.AddScoped<IUninetOutputDataAccess, UninetOutputDataAccess>();
+
             //services.AddScoped<PullUsersData>();
             services.AddScoped<IUninetInputDataAccess, UninetInputDataAccess>();
             services.AddScoped<IUninetInputAppService, UninetInputAppService>();
@@ -226,7 +221,7 @@ namespace UninetWebApi2.Controllers
             app.UseAuthentication();
             
             app.UseAuthorization();
-            app.UseCors("AllowAllOrigins");
+            
 
             app.UseEndpoints(endpoints =>
             {

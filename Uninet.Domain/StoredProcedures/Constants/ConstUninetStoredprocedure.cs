@@ -20,7 +20,8 @@ namespace Uninet.Domain.StoredProcedures.Constants
         public const string SP_InsertGreenvoiceJsonDetailsIntoDB = "SP_InsertGreenvoiceJsonDetailsIntoDB";
         public const string SP_GetHtmlBody = "SP_GetHtmlBody";
         public const string SP_SaveUsersExternalSystemDynamicFieldsData = "SP_SaveUsersExternalSystemDynamicFieldsData";
-        
+        public const string SP_InsertBusinessData = "SP_InsertBusinessData";
+        public const string SP_UpdateBusinessDataEmailSent = "SP_UpdateBusinessDataEmailSent";
 
     }
 }

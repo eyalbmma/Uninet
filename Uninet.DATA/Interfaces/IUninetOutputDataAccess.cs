@@ -1,0 +1,16 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Uninet.Domain.Models;
+
+namespace Uninet.DATA.Interfaces
+{
+    public interface IUninetOutputDataAccess
+    {
+        Task<bool> InsertUserDigitalDocToUninetSystem(ExpensesUserDoRequest expensesUserDoRequest, int userId);
+        Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(ExpensesUserDoRequest expensesUserDoRequest, int userId);
+        Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID);
+    }
+}

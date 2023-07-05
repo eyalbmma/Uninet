@@ -16,6 +16,9 @@ namespace Uninet.Domain.Models
         public string Mobile { get; set; }
 
         public string SenderName { get; set; }
+
+
+         public string BusinessSenderVatid { get; set; }
     }
    
 

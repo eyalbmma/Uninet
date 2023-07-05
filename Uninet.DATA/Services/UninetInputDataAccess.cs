@@ -89,10 +89,6 @@ namespace Uninet.DATA.Services
         {
             try
             {
-
-
-
-
                 var filter = Builders<BsonDocument>.Filter.Eq("Questionnumber", questionNumber);
                 var document = _UninetGetStaticQuestionsService.Find(filter).FirstOrDefault();
                 if (document != null)

@@ -21,6 +21,7 @@ using Uninet.Domain.StoredProcedures.Requests;
 using Twilio.Rest.Api.V2010.Account.Usage.Record;
 using static Uninet.DATA.Services.UserServiceDataAccess;
 using Amazon.Runtime.Internal.Util;
+using System.Security.Cryptography;
 
 namespace Uninet.DATA.Services
 {
@@ -529,7 +530,7 @@ namespace Uninet.DATA.Services
             foreach (var item in items)
             {
                 var clientId = item.GetValue("client_id").AsString;
-
+                var SenderBusinessId= item.GetValue("vat_id").AsString;
                 var filterClientinfo = Builders<BsonDocument>.Filter.Eq("client_info.client_id", clientId);
                 var ClientInfoitems = await _IcountClientInfoCollection.Find(filterClientinfo).ToListAsync();
 
@@ -552,7 +553,8 @@ namespace Uninet.DATA.Services
                             ClientName = clientName,
                             Email = email,
                             Mobile = mobile,
-                            SenderName = businessRequest.FirstName + " " + businessRequest.LastName
+                            SenderName = businessRequest.FirstName + " " + businessRequest.LastName,
+                            BusinessSenderVatid= SenderBusinessId
                         };
 
                         clientInfoList.Add(clientInfo);
@@ -596,12 +598,51 @@ namespace Uninet.DATA.Services
                         DocLink= docUrl
                     };
 
-
-                    var res = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
-                    if (res.result)
+                    //remark eyal need to insert to table BusinessData 
+                    var UserParam = new
                     {
 
+                        UserId = businessRequest.AdminUserid,
+                        BusinessId= businessRequest.BusinessId,
+                        BusinessVatId= clientInfo.BusinessSenderVatid,
+                        JsonDocumentid =clientDocInfoItem["_id"].ToString(),
+                        ClientVat_id= clientVatId,
+                        client_name= clientInfo.ClientName,
+                        DataSourceEnum=2,
+                        ClientEmail= clientInfo.Email,
+                        EmailSent=false
+                       
+
+                    };
+                    var result = _repository.ExecuteGetSP<InsertBusinessData_Result>(ConstUninetStoredprocedure.SP_InsertBusinessData, UserParam);
+                    try
+                    {
+                        bool spresult = result.ToList()[0].Success;
+                        if (spresult)
+                        {
+                            var resmail = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
+                            if (resmail.result)
+                            {
+                                var UserParam2 = new
+                                {
+
+                                    UserId = businessRequest.AdminUserid,
+                                    BusinessId = businessRequest.BusinessId,
+                                    JsonDocumentid = clientDocInfoItem["_id"].ToString()
+                                    
+
+
+                                };
+                                var resultupdate = _repository.ExecuteGetSP<UpdateBusinessDataEmailSent_Response>(ConstUninetStoredprocedure.SP_UpdateBusinessDataEmailSent, UserParam2).ToList();
+                            }
+                        }
                     }
+                    catch (Exception ex) { }
+
+                   
+                   
+                    
+                   
 
                     // Use the docUrl as needed
                 }

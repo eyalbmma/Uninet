@@ -2,6 +2,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic.FileIO;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
@@ -38,7 +39,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountCollection;
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
-        
+        private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
 
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
@@ -47,6 +48,7 @@ namespace Uninet.DATA.Services
 
             var database = client.GetDatabase("Uninet");
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
+            _ICountCompanyInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection= database.GetCollection<BsonDocument>("icountClientInfo");
             _repository = repository;
@@ -283,7 +285,42 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     HttpMethod methodcomopanyinfo = HttpMethod.Get;
                     var ReponsneCompanyInfo=await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
 
+                    ////this part insert a ReponsneCompanyInfo modified with new property InternalCompanyId to the new collection IcountCompanisInfo 
+                    ///
+                   
 
+                    // Parse the JSON string to a dynamic object
+                    dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
+
+                    // Add the new property to the company_info object
+                    dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+
+                    // Convert the modified object back to JSON
+                    string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
+
+                   
+
+                    // Get the vat_id value
+                    string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+                    // Check if a document with the same vat_id already exists in the collection
+                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+                    if (existingDocument == null)
+                    {
+                       
+                        // Parse the modified JSON string to a BsonDocument
+                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+                        // Insert the modified document into the collection
+                        await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+                    }
+                    else
+                    {
+                        // Document with the same vat_id already exists, handle accordingly
+                        Console.WriteLine("Document with the same vat_id already exists");
+                    }
 
 
 
@@ -411,14 +448,20 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 public string VideoLink { get; set; }
                 */
                 List<CustomizedDataLIst> listdata = new List<CustomizedDataLIst>();
-                var res = _repository.GetListOfObjects<ExternalSystemDynamicFields>(x => x.ExternalSystemId == ExternalSystemId);
-                var res_logo_video= _repository.GetFirstObject< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
+                //var res = _repository.GetListOfObjects<ExternalSystemDynamicFields>(x => x.ExternalSystemId == ExternalSystemId)
+
+                var res = _repository.GetListOfFiledObjects(ExternalSystemId);
+
+
+                var res_logo_video = _repository.GetFirstObject< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
                 foreach (var item in res)
                 {
                     var customizedData = new CustomizedDataLIst
                     {
                         FieldLabelName = item.FieldLabelName,
-                        FieldLabelValue=item.FieldLabelValue
+                        FieldLabelValue=item.FieldLabelValue,
+                        FiledType= item.FieldType,
+                        FieldTypeDesc=item.FiledTypeDesc
                     };
 
                     listdata.Add(customizedData);

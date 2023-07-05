@@ -62,22 +62,22 @@ namespace Uninet.DATA.Services
                 //3 we 
 
 
-                List<Businesses> res = _repository.GetListOfObjects<Businesses>(b => true);
-               
-                foreach (var Business in res)
-                {
-                    var businessRequest = new BusinessRequestFoeExpenses
-                    {
-                        BusinessId = Business.BusinessId.ToString(),
-                        AdminUserid = Business.AdminUserid.ToString(),
-                        FirstName = Business.FirstName,
-                        LastName= Business.LastName
+                //List<Businesses> res = _repository.GetListOfObjects<Businesses>(b => true);
 
-                    };
+                //foreach (var Business in res)
+                //{
+                //    var businessRequest = new BusinessRequestFoeExpenses
+                //    {
+                //        BusinessId = Business.BusinessId.ToString(),
+                //        AdminUserid = Business.AdminUserid.ToString(),
+                //        FirstName = Business.FirstName,
+                //        LastName = Business.LastName
 
-                    string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
-                }
-                Console.WriteLine("test");
+                //    };
+
+                //    string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
+                //}
+                //Console.WriteLine("test");
 
                 ////
             }

@@ -197,6 +197,32 @@ namespace Uninet.Domain.Classes
             return this.dbContext.Set<T>().Where(filterExpression).ToList();
         }
 
+        public List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId)
+        {
+            var query = dbContext.Set<ExternalSystemDynamicFields>()
+                .Join(
+                    dbContext.Set<LUT_ExtrenalFieldsType>(),
+                    x => x.FieldType,
+                    y => y.FieldType,
+                    (x, y) => new ExternalSystemDynamicFields
+                    {
+                        Id = x.Id,
+                        ExternalSystemId = x.ExternalSystemId,
+                        FieldLabelName = x.FieldLabelName,
+                        FieldLabelValue = x.FieldLabelValue,
+                        FieldType = x.FieldType,
+                        FiledTypeDesc = y.FieldTypeText
+                    }
+                )
+                .Where(x => x.ExternalSystemId == externalSystemId)
+                .ToList();
+
+            return query;
+        }
+
+
+
+
 
         public T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class
 

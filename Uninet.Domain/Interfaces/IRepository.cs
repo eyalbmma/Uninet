@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using Uninet.Domain.Entities;
 
 namespace Uninet.Domain.Interfaces
 {
@@ -49,5 +50,8 @@ namespace Uninet.Domain.Interfaces
        
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class;
+
+
+         List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId);
     }
 }

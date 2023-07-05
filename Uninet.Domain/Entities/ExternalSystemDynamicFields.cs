@@ -20,10 +20,10 @@ namespace Uninet.Domain.Entities
 
         public string? FieldLabelName { get; set; }
 
-        public string? FieldLabelValue { get; set; } 
+        public string? FieldLabelValue { get; set; }
 
-
-
+        public int? FieldType { get; set; }
+        public string? FiledTypeDesc { get; set; }
 
     }
 }
