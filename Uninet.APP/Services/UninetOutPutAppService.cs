@@ -20,7 +20,7 @@ namespace Uninet.APP.Services
             // _logger = logger;
             _uninetOutPutDataAccess = uninetOutPutDataAccess;
         }
-        public async Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(ExpensesUserDoRequest expensesUserDoRequest, int userId)
+        public async Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId)
         {
             try
             {
@@ -37,7 +37,7 @@ namespace Uninet.APP.Services
             catch(Exception ex) { return null; }
         }
 
-        public async Task<bool> InsertUserDigitalDocToUninetSystem(ExpensesUserDoRequest expensesUserDoRequest, int userId)
+        public async Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId)
         {
             try
             {

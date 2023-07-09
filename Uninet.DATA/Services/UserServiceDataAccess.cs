@@ -755,7 +755,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
-        public async Task<int> RegisterUser(RegisterUserRequest RegisterUserReq)
+        public async Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq)
         {
             try
             {
@@ -774,9 +774,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
                 if (result != null)
                 {
-                   // result.passwordEncrypted = RegisterUserReq.Password;
-                   // _repository.Update(result);
-                    return -1;//user exist
+                    
+
+                    var returnuser = new ReturnRegisterUser
+                    {
+                        Userid = result.AdminUserid,
+                        UserStatusIndication = 1
+                    };
+
+                    return returnuser;//user exist
                 }
                 else
                 { 
@@ -784,9 +790,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     // Retrieve the last inserted identity value
 
                     int lastInsertedId = NewUser.AdminUserid;
-                   // int lastInsertedId = _repository.GetLastInsertedId(NewUser);
+                    // int lastInsertedId = _repository.GetLastInsertedId(NewUser);
                     // Return the AdminUserId
-                    return lastInsertedId;
+
+                    var returnuser = new ReturnRegisterUser
+                    {
+                        Userid = lastInsertedId,
+                        UserStatusIndication = 0
+                    };
+                    return returnuser;
                    
                 }
                    
@@ -794,7 +806,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
             catch (Exception ex)
             {
-                return 0;//exception
+                return null;//exception
             }
         }
 
@@ -824,7 +836,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 var res1 = new VerifyUserByOtpUserIdAndTimeStampResponse();
 
-                var Otparam = new { Otp = otp, Userid= DecryptedUser, Email = res1.Email };
+                var Otparam = new { Otp = otp, Userid= DecryptedUser };
                 //var res = _repository.ExecuteGetSP<VerifyUserByOtpUserIdAndTimeStampResponse>(ConstUninetStoredprocedure.SP_VerifyUserByOtpUserIdAndTimeStamp, Otparam).ToList();
 
 
@@ -843,17 +855,31 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     {
                         //send mail welcome mail to user after he loged in with otp
                         _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "eyalbmma@gmail.com", res[0].Email, 2, 1);
-                        
-                    }
-                    return new LoginWithOtpResponse()
-                    {
-                        Verified = res[0].Verified,
-                        UserId= DecryptedUser
+                        return new LoginWithOtpResponse()
+                        {
+                            verified = res[0].Verified,
+                            description = "User has been verified Succesfully",
+                            userId = DecryptedUser
 
-                    };
+                        };
+                    }else
+                    {
+                        return new LoginWithOtpResponse()
+                        {
+                            verified = res[0].Verified,
+                            description = "User otp has passed the time limit please register again to get new otp"
+
+                        };
+                    }
+                    
                 }
                 else
-                    return null;
+                    return new LoginWithOtpResponse()
+                    {
+                        verified = res[0].Verified,
+                        description = "User otp has passed the time limit please register again to get new otp"
+
+                    };
 
 
 

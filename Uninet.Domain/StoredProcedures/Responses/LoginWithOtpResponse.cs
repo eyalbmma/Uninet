@@ -8,10 +8,12 @@ namespace Uninet.Domain.StoredProcedures.Responses
 {
     public class LoginWithOtpResponse
     {
-        public bool Verified { get; set; }
+        public bool verified { get; set; }
         
-        public string UserId { get; set; }
-       // public int Role { get; set; }
+        public string userId { get; set; }
+
+        public string description { get; set; }
+        // public int Role { get; set; }
 
 
     }

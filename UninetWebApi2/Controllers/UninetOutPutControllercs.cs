@@ -37,7 +37,7 @@ namespace UninetWebApi2.Controllers
         [Authorize]
         [HttpPost("ShowDigitalDocumentDetails")]
         
-        public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] ExpensesUserDoRequest expensesUserDoRequest)
+        public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _uninetOutPutAppService.ShowDigitalDocumentDetails(expensesUserDoRequest, Convert.ToInt32(userId));
@@ -49,7 +49,7 @@ namespace UninetWebApi2.Controllers
         [Authorize]
         [HttpPost("InsertUserDigitalDocToUninetSystem")]
         //this method gets a 
-        public async Task<ActionResult> InsertUserDigitalDocToUninetSystem([FromBody] ExpensesUserDoRequest expensesUserDoRequest)
+        public async Task<ActionResult> InsertUserDigitalDocToUninetSystem([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest,Convert.ToInt32(userId));

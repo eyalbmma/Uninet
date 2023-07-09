@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class ExpensesUserDoRequest
+    public class DigitalDocumentDInputRequest
     {
 
         //[JsonPropertyName("expense_doctype")]

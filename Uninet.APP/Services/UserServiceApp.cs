@@ -52,7 +52,7 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex) { return false; }
         }
-        public async Task<int> RegisterUser(RegisterUserRequest RegisterUserReq)
+        public async Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq)
         {
             try
             {
@@ -64,7 +64,7 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex)
             {
-                return 0;
+                return null;
             }
         }
 

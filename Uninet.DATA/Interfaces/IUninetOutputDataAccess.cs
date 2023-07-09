@@ -9,8 +9,8 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUninetOutputDataAccess
     {
-        Task<bool> InsertUserDigitalDocToUninetSystem(ExpensesUserDoRequest expensesUserDoRequest, int userId);
-        Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(ExpensesUserDoRequest expensesUserDoRequest, int userId);
+        Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId);
+        Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
         Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID);
     }
 }

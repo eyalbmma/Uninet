@@ -14,7 +14,7 @@ namespace Uninet.DATA.Interfaces
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser);
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
-        public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
+        public Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq);
 
 
         public Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);

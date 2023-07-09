@@ -9,6 +9,6 @@ namespace Uninet.Domain.StoredProcedures.Responses
     public  class VerifyUserByOtpUserIdAndTimeStampResponse
     {
         public bool Verified { get; set;}
-        public string Email { get; set; }
+        public string? Email { get; set; }
     }
 }

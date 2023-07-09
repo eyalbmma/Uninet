@@ -9,8 +9,8 @@ namespace Uninet.Domain.StoredProcedures.Responses
     public class RegisterResponse
     {
        
-        public bool? Success { get; set; }
-        public string? TextResponse { get; set; }
-        public string? EncryptedUserid { get; set; }
+        public bool? sucess { get; set; }
+        public string? textResponse { get; set; }
+        public string? encryptedUser { get; set; }
     }
 }

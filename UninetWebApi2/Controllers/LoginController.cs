@@ -65,9 +65,9 @@ namespace UninetWebApi2.Controllers
             return Ok(new RegisterResult
             {
                 //Role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty,
-                AccessToken = newJwtToken,
-                RefreshToken = newRefreshToken,
-                Success = true
+                accessToken = newJwtToken,
+                refreshToken = newRefreshToken,
+                success = true
                 
             }); ;
 
@@ -102,9 +102,9 @@ namespace UninetWebApi2.Controllers
                 {
 
                     //Role = Res.Role.ToString(),
-                    AccessToken = token,
-                    RefreshToken = newRefreshToken,
-                    Success = true,
+                    accessToken = token,
+                    refreshToken = newRefreshToken,
+                    success = true,
                     //Userid = Res.Userid
                 });
             }
@@ -114,9 +114,9 @@ namespace UninetWebApi2.Controllers
                 {
 
                     //Role = "",
-                    AccessToken = "",
-                    RefreshToken = "",
-                    Success = false,
+                    accessToken = "",
+                    refreshToken = "",
+                    success = false,
                     // Userid = 0
                 });
             }

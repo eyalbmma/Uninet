@@ -175,10 +175,11 @@ namespace Uninet.DATA.Services
             return expenseTypeList;
         }
 
-        public async Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(ExpensesUserDoRequest expensesUserDoRequest, int userId)
+        public async Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId)
         {
             try
             {
+                Int32 InternalCompanyId = 0;
                 //we need to extract InternalCompanyId from IcountCompanisInfo in order to query table UsersExternalSystemDynamicFields with companyid(InternalCompanyId) and userid
                 var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", expensesUserDoRequest.ClientVat_id);
                 var projection = Builders<BsonDocument>.Projection.Include("company_info.InternalCompanyId").Exclude("_id");
@@ -187,7 +188,7 @@ namespace Uninet.DATA.Services
 
                 if (InternalCompanyIdresult != null)
                 {
-                    var InternalCompanyId = InternalCompanyIdresult["company_info"]["InternalCompanyId"].AsInt32;
+                     InternalCompanyId = InternalCompanyIdresult["company_info"]["InternalCompanyId"].AsInt32;
 
 
                     //from this table UsersExternalSystemDynamicFields we extract the user credentials for i count api query
@@ -239,6 +240,10 @@ namespace Uninet.DATA.Services
                     var totalprojection = Builders<BsonDocument>.Projection.Include("doc_info.total").Exclude("_id");
                     var totalresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(totalprojection).FirstOrDefault();
 
+                    var docnumprojection = Builders<BsonDocument>.Projection.Include("doc_info.docnum").Exclude("_id");
+                    var docnumresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(docnumprojection).FirstOrDefault();
+
+
 
                     double total = 0;
                     if (totalresult != null)
@@ -267,7 +272,11 @@ namespace Uninet.DATA.Services
                     }
 
 
+
                     
+
+
+
                     DateTime DocDate = DateTime.MinValue; // Set a default value if needed
                     if (DocDateresult != null)
                     {
@@ -302,10 +311,19 @@ namespace Uninet.DATA.Services
 
                          Doctype = doctyperesult["doctype"].AsString;
                     }
-                    
-                        //now we should loop on the resSUpplierLIst
-                        //and find if the vatId exist in the suplier list
-                        var  ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
+
+
+                    string docnum = "";
+                    if (docnumresult != null)
+                    {
+                        docnum = docnumresult["doc_info"]["docnum"].AsString;
+
+                    }
+
+
+                    //now we should loop on the resSUpplierLIst
+                    //and find if the vatId exist in the suplier list
+                    var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
                     if (ItemFound!=null)
                     {
                         List<ExpenseType> res = await CreateExpenseCategorylist(cidvalue, uservalue, passvalue, ItemFound.supplier_id.ToString());
@@ -313,10 +331,12 @@ namespace Uninet.DATA.Services
                         {
                             Supplier_name_Sender = ItemFound.supplier_name,
                             Supplier_ID = ItemFound.supplier_id,
+                            DocNumber= docnum,
                             Doctype = Doctype,
                             DocDate = DocDate,
                             AmountAV = total,
-                            ExpenseTypeList = res
+                            ExpenseTypeList = res,
+                            internalCompanyId=InternalCompanyId
                         };
                         return expensesDigitalDocumentProp;
                     }
@@ -360,10 +380,12 @@ namespace Uninet.DATA.Services
                         {
                             Supplier_name_Sender = SuplierItemFound.supplier_name,
                             Supplier_ID = SuplierItemFound.supplier_id,
+                            DocNumber = docnum,
                             Doctype = Doctype,
                             DocDate = DocDate,
                             AmountAV = total,
-                            ExpenseTypeList = res
+                            ExpenseTypeList = res,
+                            internalCompanyId = InternalCompanyId
                         };
                         return expensesDigitalDocumentProp;
 
@@ -438,13 +460,49 @@ namespace Uninet.DATA.Services
         //    return supplierList.Any(supplier => supplier.vat_id == vatId);
         //}
 
-        public async Task<bool> InsertUserDigitalDocToUninetSystem(ExpensesUserDoRequest expensesUserDoRequest, int userId)
+        public async Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
         {
             try
             {
 
-               
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId);
 
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+
+                //from here 
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                {
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                        cidvalue = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                        uservalue = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalue = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
+                }
+                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 1076);
+                var endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                //supplier_id
+                //expense_type_id
+                //expense_doctype
+                //expense_docnum
+                //expense_sum
+
+                //https://api.icount.co.il/api/v3.php/expense/create
+           
 
 
 

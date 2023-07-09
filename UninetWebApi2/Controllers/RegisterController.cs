@@ -207,13 +207,9 @@ namespace UninetWebApi2.Controllers
 
             string DecryptedUserId = DecryptUserId(_LoginWithOtpRequest.EncryptedUser, Configuration["EncryptedUserId:key"], ivBytes);
             var Res = await _userServiceApp.RegisterWithOtpAndEncryptedUser(_LoginWithOtpRequest.Otp, DecryptedUserId);
-            if (Res != null)
-            {
-                
-                return Res;
-            }
-            else
-                return null;
+            
+            return Res;
+           
 
         }
         [HttpPost("RegisterWithOtp")]
@@ -224,32 +220,49 @@ namespace UninetWebApi2.Controllers
             var Res = await RetunValidUser(_LoginWithOtpRequest);// _userService.LoginWithOtp(_LoginWithOtpRequest.Otp);
             if (Res != null)
             {
-                var claims = new[]
+                if (Res.verified)
                 {
+                    var claims = new[]
+                    {
 
 
                    // new Claim(ClaimTypes.Name,Res.FirstName.ToString()),
-                    new Claim(ClaimTypes.NameIdentifier,Res.UserId.ToString())
+                    new Claim(ClaimTypes.NameIdentifier,Res.userId.ToString())
                 };
-                var token = await _jwtAppService.GenerateAccessToken(claims);
-                var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Convert.ToInt32(Res.UserId));
+                    var token = await _jwtAppService.GenerateAccessToken(claims);
+                    var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Convert.ToInt32(Res.userId));
 
-                _logger.LogInformation($"Userid [{Res.UserId.ToString()}] logged in the system.");
-
-
-                //string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
+                    _logger.LogInformation($"Userid [{Res.userId.ToString()}] logged in the system.");
 
 
+                    //string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
 
-                return Ok(new RegisterResult
+
+
+                    return Ok(new RegisterResult
+                    {
+
+                        //Role = Res.Role.ToString(),
+                        accessToken = token,
+                        refreshToken = newRefreshToken,
+                        success = true,
+                        //Userid = Res.Userid
+                    });
+                }
+                else
                 {
+                    return Ok(new RegisterResult
+                    {
 
-                    //Role = Res.Role.ToString(),
-                    AccessToken = token,
-                    RefreshToken = newRefreshToken,
-                    Success = true,
-                    //Userid = Res.Userid
-                });
+                        //Role = "",
+                        accessToken = "",
+                        refreshToken = "",
+                        success = false,
+                        // Userid = 0
+                    });
+
+
+                }
             }
             else
             {
@@ -257,9 +270,9 @@ namespace UninetWebApi2.Controllers
                 {
 
                     //Role = "",
-                    AccessToken = "",
-                    RefreshToken = "",
-                    Success = false,
+                    accessToken = "",
+                    refreshToken = "",
+                    success = false,
                     // Userid = 0
                 });
             }
@@ -280,42 +293,42 @@ namespace UninetWebApi2.Controllers
             {
                 ApprovalMailIndication res = new ApprovalMailIndication();
                 SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
-                int CreatenewuserRowAdminUserid = await _userServiceApp.RegisterUser(RegisterUserReq);//0 exception //-1 userexist
+                var ReturnUser = await _userServiceApp.RegisterUser(RegisterUserReq);//0 not exist //1 userexist //null exception
 
-                if (CreatenewuserRowAdminUserid == 0)//fail on exception
+                if (ReturnUser == null)//fail on exception
                 {
                     var RegisterResult = new RegisterResponse
                     {
 
-                        Success = false,
-                        TextResponse = "User Failed to Register",
-                        EncryptedUserid = ""
+                        sucess = false,
+                        textResponse = "User Failed to Register",
+                        encryptedUser = ""
                     };
                     return Ok(RegisterResult);
                 }
-                else if (CreatenewuserRowAdminUserid == -1)
+                else if (ReturnUser.UserStatusIndication == 1)
                 {
                     sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
-                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(CreatenewuserRowAdminUserid, sendsmtpmailres.OTP);
+                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.Userid, sendsmtpmailres.OTP);
                     var RegisterResult = new RegisterResponse
                     {
 
-                        Success = false,
-                        TextResponse = "User already Exist ,Otp Sent For Verification",
-                        EncryptedUserid = ""
+                        sucess = false,
+                        textResponse = "User already Exist ,Otp Sent For Verification",
+                        encryptedUser = res.EncryptedUserid
                     };
                     return Ok(RegisterResult);
                 }
                 else
                 {
                     sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
-                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(CreatenewuserRowAdminUserid, sendsmtpmailres.OTP);
+                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.Userid, sendsmtpmailres.OTP);
                     var RegisterResult = new RegisterResponse
                     {
 
-                        Success = true,
-                        TextResponse = "User Succesfuly registered , Otp Sent For Verification",
-                        EncryptedUserid = res.EncryptedUserid
+                        sucess = true,
+                        textResponse = "User Succesfuly registered , Otp Sent For Verification",
+                        encryptedUser = res.EncryptedUserid
                     };
                     return Ok(RegisterResult);
 
@@ -330,9 +343,9 @@ namespace UninetWebApi2.Controllers
                 var RegisterResult = new RegisterResponse
                 {
 
-                    Success = false,
-                    TextResponse = "User failed to  registered and otp wasnt sent",
-                    EncryptedUserid = ""
+                    sucess = false,
+                    textResponse = "User failed to  registered and otp wasnt sent",
+                    encryptedUser = ""
                 };
                 return Ok(false);
             }

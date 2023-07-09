@@ -11,7 +11,7 @@ namespace Uninet.Domain.Models
         public string Supplier_name_Sender { get; set; }
 
         public int Supplier_ID { get; set; }
-        public int DocNumber { get; set; }
+        public string DocNumber { get; set; }
         public string Doctype { get; set; }
 
         public DateTime DocDate { get; set; }
@@ -20,6 +20,8 @@ namespace Uninet.Domain.Models
 
 
         public List<ExpenseType> ExpenseTypeList { get; set; }
+
+        public Int32 internalCompanyId { get; set; }
 
     }
 }

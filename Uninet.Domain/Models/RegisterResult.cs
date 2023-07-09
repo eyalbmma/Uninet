@@ -17,13 +17,13 @@ namespace Uninet.Domain.Models
 
 
         [JsonPropertyName("accessToken")]
-        public string AccessToken { get; set; }
+        public string accessToken { get; set; }
 
         [JsonPropertyName("refreshToken")]
-        public string RefreshToken { get; set; }
+        public string refreshToken { get; set; }
 
         [JsonPropertyName("Success")]
-        public bool Success { get; set; }
+        public bool success { get; set; }
 
 
         [JsonPropertyName("Userid")]

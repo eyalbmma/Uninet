@@ -15,7 +15,7 @@ namespace Uninet.APP.Interfaces
         public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp,string EncryptedUser);
         public Task<ApprovalMailIndication> SaveIndicationOfSentApprovalMailToCustomer(int Userid, string otp);
 
-        public Task<int> RegisterUser(RegisterUserRequest RegisterUserReq);
+        public Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq);
 
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
         
