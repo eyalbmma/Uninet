@@ -8,6 +8,7 @@ using MongoDB.Driver;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -435,6 +436,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 }
             }
         }
+
+        public async Task<Dictionary<int, string>> GetExternalSystems()
+        {
+            var hashtable = _repository.GetHashtableOfExternalFields();
+
+            var dictionary = hashtable.Cast<DictionaryEntry>()
+                .ToDictionary(entry => (int)entry.Key, entry => (string)entry.Value);
+
+            return dictionary;
+        }
+
 
         public async Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId)
         {

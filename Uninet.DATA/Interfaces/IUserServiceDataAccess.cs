@@ -11,6 +11,7 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUserServiceDataAccess
     {
+        public Task<Dictionary<int, string>> GetExternalSystems();
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser);
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);

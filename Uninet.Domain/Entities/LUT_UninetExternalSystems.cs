@@ -12,13 +12,13 @@ namespace Uninet.Domain.Entities
     public class LUT_UninetExternalSystems
     {
        
-        public string SystemName { get; set; }
+        public string? SystemName { get; set; }
        
         [Key]
         public int SyestemId { get; set; }
 
-        public string Logo { get; set; }
+        public string? Logo { get; set; }
 
-        public string Video { get; set; }
+        public string? Video { get; set; }
     }
 }

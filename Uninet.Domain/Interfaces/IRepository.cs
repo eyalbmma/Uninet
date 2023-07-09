@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -51,7 +52,7 @@ namespace Uninet.Domain.Interfaces
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class;
 
-
+        Hashtable GetHashtableOfExternalFields();
          List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId);
     }
 }

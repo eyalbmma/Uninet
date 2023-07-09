@@ -18,10 +18,10 @@ namespace Uninet.APP.Interfaces
         public Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq);
 
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
-        
+
         // public Task<bool> VerifyEmailLink(string Userguid);
 
-
+        public Task<Dictionary<int, string>> GetExternalSystems();
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
 
         public Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId);

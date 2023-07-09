@@ -1,10 +1,12 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 using Uninet.Domain.Entities;
@@ -197,7 +199,31 @@ namespace Uninet.Domain.Classes
             return this.dbContext.Set<T>().Where(filterExpression).ToList();
         }
 
-        public List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId)
+
+    public Hashtable GetHashtableOfExternalFields()
+    {
+            try
+            {
+                var query = dbContext.Set<LUT_UninetExternalSystems>()
+                 .Where(item => item.SystemName != null)
+                 .ToList();
+
+                var hashtable = new Hashtable();
+                foreach (var item in query)
+                {
+                    hashtable[item.SyestemId] = item.SystemName;
+                }
+
+                return hashtable;
+
+            }
+            catch (Exception ex) {return  null; }
+
+       
+    }
+
+
+    public List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId)
         {
             var query = dbContext.Set<ExternalSystemDynamicFields>()
                 .Join(

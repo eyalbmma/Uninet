@@ -493,7 +493,7 @@ namespace Uninet.DATA.Services
                         // Use the pass value as needed
                     }
                 }
-                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 1076);
+                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 1076);//local 1076 //prod 79
                 var endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 //supplier_id
                 //expense_type_id

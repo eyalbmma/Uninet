@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -22,6 +23,17 @@ namespace Uninet.APP.Services
         {
             _userServiceDataAccess = userServiceDataAccess;
             //_loginRepository = loginRepository;
+        }
+
+        public async Task<Dictionary<int, string>> GetExternalSystems()
+        {
+            try
+            {
+               return await _userServiceDataAccess.GetExternalSystems();    
+            }
+            catch (Exception ex) { return null; }
+
+            
         }
         public async Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest)
         {

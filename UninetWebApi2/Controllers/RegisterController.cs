@@ -104,7 +104,13 @@ namespace UninetWebApi2.Controllers
             return Ok(res);
         }
 
-
+        [Authorize]
+        [HttpGet("GetExternalSystem")]
+        public async Task<IActionResult> GetExternalSystem()
+        {
+            var res = await _userServiceApp.GetExternalSystems();
+            return Ok(res);
+        }
 
         [Authorize]
         [HttpGet("GetExternalCustomizedFieldByExternaLSystemID")]
