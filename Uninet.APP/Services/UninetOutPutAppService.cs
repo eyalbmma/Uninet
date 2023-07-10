@@ -37,7 +37,7 @@ namespace Uninet.APP.Services
             catch(Exception ex) { return null; }
         }
 
-        public async Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId)
+        public async Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId)
         {
             try
             {
@@ -48,7 +48,7 @@ namespace Uninet.APP.Services
 
 
             }
-            catch (Exception ex) { return false; }
+            catch (Exception ex) { return null; }
 
         }
        

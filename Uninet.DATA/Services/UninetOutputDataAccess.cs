@@ -1,10 +1,12 @@
 ﻿using Microsoft.VisualBasic;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -35,17 +37,18 @@ namespace Uninet.DATA.Services
             _repository = repository;
             
         }
-        private async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null)
+        private async Task<string> SendRequest(string endpointUrl, HttpMethod method, string postData=null)
         {
             string result = "";
             using (HttpClient client = new HttpClient())
             {
                 HttpRequestMessage request = new HttpRequestMessage(method, endpointUrl);
 
-                // Add authorization header if jwtToken is provided
-                if (!string.IsNullOrEmpty(jwtToken))
+                // Check the HTTP method and set the appropriate request content if it's a POST request
+                if (method == HttpMethod.Post)
                 {
-                    request.Headers.Add("Authorization", $"Bearer {jwtToken}");
+                  
+                     request.Content = new StringContent(postData, Encoding.UTF8, "application/json");
                 }
 
                 HttpResponseMessage response = await client.SendAsync(request);
@@ -54,11 +57,11 @@ namespace Uninet.DATA.Services
 
                 string responseData = await response.Content.ReadAsStringAsync();
                 result = responseData;
-
             }
 
             return result;
         }
+
 
         /// <summary>
         /// this function GetClientSUpplierLIst query icount  when the client login to uninet and click on approve digitaldocument  and look for all his suppliers
@@ -460,18 +463,72 @@ namespace Uninet.DATA.Services
         //    return supplierList.Any(supplier => supplier.vat_id == vatId);
         //}
 
-        public async Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
+        //public async Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
+        //{
+        //    try
+        //    {
+
+        //        var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId);
+
+        //        string cidvalue = null;
+        //        string uservalue = null;
+        //        string passvalue = null;
+
+        //        //from here 
+        //        foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+        //        {
+        //            string fieldLabelName = dynamicField.FieldLabelName;
+        //            string fieldLabelValue = dynamicField.FieldLabelValue;
+
+        //            if (fieldLabelName == "cid")
+        //            {
+        //                cidvalue = fieldLabelValue;
+        //                // Use the cid value as needed
+        //            }
+        //            else if (fieldLabelName == "user")
+        //            {
+        //                uservalue = fieldLabelValue;
+        //                // Use the user value as needed
+        //            }
+        //            else if (fieldLabelName == "pass")
+        //            {
+        //                passvalue = fieldLabelValue;
+        //                // Use the pass value as needed
+        //            }
+        //        }
+        //        var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);
+        //        var endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+
+
+
+        //        //supplier_id
+        //        //expense_type_id
+        //        //expense_doctype
+        //        //expense_docnum
+        //        //expense_sum
+
+        //        //https://api.icount.co.il/api/v3.php/expense/create
+           
+
+
+
+
+        //        return true;
+        //    }
+        //    catch (Exception ex) { return false; }
+        //}
+
+
+        public async Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
         {
             try
             {
-
                 var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId);
 
                 string cidvalue = null;
                 string uservalue = null;
                 string passvalue = null;
 
-                //from here 
                 foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
                 {
                     string fieldLabelName = dynamicField.FieldLabelName;
@@ -493,25 +550,29 @@ namespace Uninet.DATA.Services
                         // Use the pass value as needed
                     }
                 }
-                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 1076);//local 1076 //prod 79
-                var endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-                //supplier_id
-                //expense_type_id
-                //expense_doctype
-                //expense_docnum
-                //expense_sum
+                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);
+                string endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
 
-                //https://api.icount.co.il/api/v3.php/expense/create
-           
+                // Set your POST data if needed
+                string postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + "}";
 
 
+                string result = await SendRequest(endpointExpenseCreate, method, postData);
+                createExpenseApiResponse response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result);
+                // Handle the result as needed
+               
 
-
-                return true;
+                return response;
             }
-            catch (Exception ex) { return false; }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
 
+
+       
 
 
         private async Task<int> PostAndGetSupplierId(string endpoint, Dictionary<string, string> requestBody)

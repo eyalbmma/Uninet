@@ -54,7 +54,7 @@ namespace UninetWebApi2.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest,Convert.ToInt32(userId));
 
-            return Ok(null);
+            return Ok(result);
         }
 
 

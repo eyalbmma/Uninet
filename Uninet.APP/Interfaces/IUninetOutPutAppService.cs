@@ -10,7 +10,7 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUninetOutPutAppService
     {
-        Task<bool> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest,int userId);
+        Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest,int userId);
         
             Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
         Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID);
