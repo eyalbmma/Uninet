@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -11,6 +13,7 @@ using Uninet.APP.Services;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
+using static System.Net.WebRequestMethods;
 
 namespace UninetWebApi2.Controllers
 {
@@ -110,6 +113,44 @@ namespace UninetWebApi2.Controllers
         {
             var res = await _userServiceApp.GetExternalSystems();
             return Ok(res);
+        }
+
+        //[HttpGet("GetToken")]
+        //public IActionResult GetToken()
+        //{
+        //    var secretKey = Configuration["jwtTokenConfig:secret"]; // Replace with your actual secret key
+        //    var issuer = "https://localhost:7202/api/"; // Replace with your actual issuer URL
+        //    var audience = "your-audience"; // Replace with your actual audience
+
+        //    var claims = new[]
+        //    {
+        //        new Claim(ClaimTypes.Name, "testuser"),
+        //        new Claim(ClaimTypes.Role, "user")
+        //    };
+
+        //    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        //    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        //    var token = new JwtSecurityToken(
+        //        issuer: issuer,
+        //        audience: audience,
+        //        claims: claims,
+        //        expires: DateTime.Now.AddHours(1), // Set the token expiration time
+        //        signingCredentials: credentials
+        //    );
+
+        //    var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        //    return Ok(new { Token = tokenString });
+        //}
+        [Authorize]
+        [HttpGet("Test")]
+        public async Task<IActionResult> Test()
+        {
+           
+
+            return Ok(true);
+            
         }
 
         [Authorize]
@@ -253,6 +294,7 @@ namespace UninetWebApi2.Controllers
                         refreshToken = newRefreshToken,
                         success = true,
                         //Userid = Res.Userid
+                        verified= Res.verified
                     });
                 }
                 else
@@ -264,6 +306,7 @@ namespace UninetWebApi2.Controllers
                         accessToken = "",
                         refreshToken = "",
                         success = false,
+                        verified = Res.verified
                         // Userid = 0
                     });
 
@@ -279,6 +322,7 @@ namespace UninetWebApi2.Controllers
                     accessToken = "",
                     refreshToken = "",
                     success = false,
+                    verified = false
                     // Userid = 0
                 });
             }
@@ -286,8 +330,73 @@ namespace UninetWebApi2.Controllers
         }
 
 
+        [HttpPost("ResentOtp")]
+        public async Task<ActionResult> ResentOtp([FromBody] ResentOtpRequest resentOtpRequest)
+        {
+            try
+            {
+                SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
+                string iv = Configuration["EncryptedUserId:iv"];
+                byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+                string DecryptedUserId = DecryptUserId(resentOtpRequest.EncryptedUserId, Configuration["EncryptedUserId:key"], ivBytes);
+                var ReturnUser = await _userServiceApp.ResendOtp(resentOtpRequest,Convert.ToInt32(DecryptedUserId));
+                if (ReturnUser.Success)
+                {
+                    var res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.userid, ReturnUser.otp);
+                    var resentotpresponse = new ResentOtpResponse
+                    {
 
+                        sucess = ReturnUser.Success,
+                        textResponse = ReturnUser.Desc,
+                        
+                        
+                    };
+                    return Ok(resentotpresponse);
+                }
+                else
+                {
+                    var resentotpresponse = new ResentOtpResponse
+                    {
 
+                        sucess = false,
+                        textResponse = ReturnUser.Desc,
+                       
+                    };
+                    return Ok(resentotpresponse);
+                }
+               
+            }
+            catch (Exception ex)
+            {
+                var resentotpresponse = new ResentOtpResponse
+                {
+
+                    sucess = false,
+                    textResponse = ex.Message
+                   
+                };
+                return Ok(resentotpresponse);
+            }
+        }
+        private  string EncryptUserId(string userId, string key, byte[] iv)
+        {
+            byte[] encryptedBytes;
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = StringToByteArray(key);
+                aesAlg.IV = iv;
+                aesAlg.Padding = PaddingMode.PKCS7; // Set the padding mode
+
+                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                byte[] userIdBytes = Encoding.UTF8.GetBytes(userId);
+                encryptedBytes = encryptor.TransformFinalBlock(userIdBytes, 0, userIdBytes.Length);
+
+                encryptor.Dispose();
+            }
+
+            return Convert.ToBase64String(encryptedBytes);
+        }
 
         [HttpPost("Register")]
         public async Task<ActionResult> Register([FromBody] RegisterUserRequest RegisterUserReq)
@@ -299,6 +408,14 @@ namespace UninetWebApi2.Controllers
             {
                 ApprovalMailIndication res = new ApprovalMailIndication();
                 SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
+                /*
+                     public  class ReturnRegisterUser
+                    {
+                        public int Userid { get; set; }
+                        public int UserStatusIndication { get; set; }   
+                    }
+                */
+
                 var ReturnUser = await _userServiceApp.RegisterUser(RegisterUserReq);//0 not exist //1 userexist //null exception
 
                 if (ReturnUser == null)//fail on exception
@@ -308,33 +425,40 @@ namespace UninetWebApi2.Controllers
 
                         sucess = false,
                         textResponse = "User Failed to Register",
-                        encryptedUser = ""
+                        encryptedUser = "",
+                        verified= false
                     };
                     return Ok(RegisterResult);
                 }
-                else if (ReturnUser.UserStatusIndication == 1)
+                else if (ReturnUser.UserStatusIndication == 1)//&& ReturnUser.verified==false
                 {
-                    sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
-                    res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.Userid, sendsmtpmailres.OTP);
+                    //sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
+                   // res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.Userid, sendsmtpmailres.OTP);
                     var RegisterResult = new RegisterResponse
                     {
 
                         sucess = false,
-                        textResponse = "User already Exist ,Otp Sent For Verification",
-                        encryptedUser = res.EncryptedUserid
+                        textResponse = "User already Exist ",
+                        encryptedUser = res.EncryptedUserid,
+                        verified= ReturnUser.verified
                     };
                     return Ok(RegisterResult);
                 }
                 else
                 {
-                    sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang);
+                    string iv = Configuration["EncryptedUserId:iv"];
+                    byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+                    string encryptedUserId = EncryptUserId(ReturnUser.Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+                    sendsmtpmailres = await _mailasist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", RegisterUserReq.Email, RegisterUserReq.TemplateId, RegisterUserReq.Lang, encryptedUserId);
                     res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.Userid, sendsmtpmailres.OTP);
                     var RegisterResult = new RegisterResponse
                     {
 
                         sucess = true,
                         textResponse = "User Succesfuly registered , Otp Sent For Verification",
-                        encryptedUser = res.EncryptedUserid
+                        encryptedUser = res.EncryptedUserid,
+                        verified = ReturnUser.verified,
+                        otp= sendsmtpmailres.OTP
                     };
                     return Ok(RegisterResult);
 

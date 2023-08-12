@@ -11,6 +11,9 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUserServiceDataAccess
     {
+        public Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest,int DecryptedUserId);
+        public Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest);
+        public Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest);
         public Task<Dictionary<int, string>> GetExternalSystems();
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser);
@@ -28,5 +31,6 @@ namespace Uninet.DATA.Interfaces
 
 
         public Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId);
+        public Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest);
     }
 }

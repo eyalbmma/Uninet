@@ -22,6 +22,7 @@ using Twilio.Rest.Api.V2010.Account.Usage.Record;
 using static Uninet.DATA.Services.UserServiceDataAccess;
 using Amazon.Runtime.Internal.Util;
 using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 
 namespace Uninet.DATA.Services
 {
@@ -245,7 +246,10 @@ namespace Uninet.DATA.Services
         };
 
                 // Check if the document already exists in the collection
-                var filter = Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]);
+                var filter = Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]),
+                Builders<BsonDocument>.Filter.Eq("vat_id", document["vat_id"])
+                );
                 var existingDocument = _ICountCollection.Find(filter).FirstOrDefault();
                 if (existingDocument == null)
                 {
@@ -258,7 +262,7 @@ namespace Uninet.DATA.Services
                 }
             }
         }
-        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination)
+        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
         {
             // Convert the JsonElement to a BsonDocument
             BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
@@ -267,9 +271,12 @@ namespace Uninet.DATA.Services
             if (destination == MongoDbDestination.DocinfoDB)
             {
                 var docnum = document["docnum"];
-                var filter = Builders<BsonDocument>.Filter.Eq("docnum", docnum);
+                var vatId = document["doc_info"]["vat_id"];
+                var filter = Builders<BsonDocument>.Filter.And(
+                     Builders<BsonDocument>.Filter.Eq("docnum", docnum),
+                     Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
+                 );
                 var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
-
                 if (existingDocument == null)
                 {
                     // Insert the document into the collection
@@ -286,8 +293,16 @@ namespace Uninet.DATA.Services
             {
                 var clientInfo = document["client_info"];
                 var client_id = clientInfo["client_id"].AsString;
+                var vat_id = clientInfo["vat_id"].AsString;
 
-                var filter = Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id);
+                // Add the "SupplierVat_id" property to the client_info node
+                clientInfo["SupplierVat_id"] = SupplierVat_id;
+
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id),
+                    Builders<BsonDocument>.Filter.Eq("client_info.vat_id", vat_id)
+                );
+
                 var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
 
                 if (existingDocument == null)
@@ -299,12 +314,13 @@ namespace Uninet.DATA.Services
                 {
                     // Document already exists, handle the case accordingly
                     // For example, you can update the existing document or log an error
-                    Console.WriteLine($"Document with client_id '{client_id}' already exists.");
+                    Console.WriteLine($"Document with client_id '{client_id}' and vat_id '{vat_id}' already exists.");
                 }
+
             }
 
         }
-        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
+        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue,string SupplierVat_id)
         {
             // Loop over the items in the results_list array
             foreach (JsonElement item in resultsList.EnumerateArray())
@@ -320,7 +336,7 @@ namespace Uninet.DATA.Services
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
-                InsertDocumentInfo(jsonData, destination);
+                InsertDocumentInfo(jsonData, destination, SupplierVat_id);
             }
             return true;
         }
@@ -345,7 +361,7 @@ namespace Uninet.DATA.Services
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
                 MongoDbDestination destination = MongoDbDestination.DocinfoDB;
-                InsertDocumentInfo(jsonData, destination);
+                InsertDocumentInfo(jsonData, destination,"");//i dont pass  SupplierVat_id to doc info because i dont add the attribute SupplierVat_id to the nodes of the collection
 
             }
 
@@ -419,7 +435,7 @@ namespace Uninet.DATA.Services
                 {
                     startPulldata = companyPulledDataLog.LastPullDataDate;
                 }
-
+                startPulldata= startPulldata.AddDays(-4);//added eyal becuse icount doesnt bring exact data
                 await SetLastPullDataDate(companyPulledDataLog, intVatid);
 
                 var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
@@ -432,22 +448,32 @@ namespace Uninet.DATA.Services
 
                 // insert  compay cutomer invoices to mongodb collection name icount
                 JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
-                JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
-                InsertDocumentsToMongoDB(resultsList, vatid, Userid.ToString(), Business.BusinessId);
+
+                string SupplierVat_id = vatid; //we send thie vat it to add it to the icountClientInfo so that each node of client will have its suplier_vat_id
+
+                //JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
+                if (jsonDocument.RootElement.TryGetProperty("results_list", out JsonElement resultsListElement) &&
+                                resultsListElement.ValueKind == JsonValueKind.Array && resultsListElement.GetArrayLength() > 0)
+                {
+                    // results_list exists and has items
+                    JsonElement resultsList = resultsListElement;
 
 
-                //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
-                var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
+                    InsertDocumentsToMongoDB(resultsList, vatid, Userid.ToString(), Business.BusinessId);
+
+
+                    //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                    var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue,SupplierVat_id);
 
 
 
-                //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
-                //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
-                //foreach invoce in resultsList get property value of doctype and docnum
-                var res1 = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+                    //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                    //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                    //foreach invoce in resultsList get property value of doctype and docnum
+                    var res1 = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
 
 
-
+                }
 
 
 
@@ -530,8 +556,11 @@ namespace Uninet.DATA.Services
             foreach (var item in items)
             {
                 var clientId = item.GetValue("client_id").AsString;
-                var SenderBusinessId= item.GetValue("vat_id").AsString;
-                var filterClientinfo = Builders<BsonDocument>.Filter.Eq("client_info.client_id", clientId);
+                var SenderBusinessId = item.GetValue("vat_id").AsString;
+                var filterClientinfo = Builders<BsonDocument>.Filter.And(
+    Builders<BsonDocument>.Filter.Eq("client_info.client_id", clientId),
+    Builders<BsonDocument>.Filter.Eq("client_info.SupplierVat_id", SenderBusinessId)
+);
                 var ClientInfoitems = await _IcountClientInfoCollection.Find(filterClientinfo).ToListAsync();
 
                 

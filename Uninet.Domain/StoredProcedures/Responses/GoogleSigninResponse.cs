@@ -6,11 +6,9 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-    public  class VerifyUserByOtpUserIdAndTimeStampResponse
+    public  class GoogleSigninResponse
     {
-        public bool Verified { get; set;}
-        public string? Email { get; set; }
-
-        
+        public bool Success { get; set; }
+        public string Message { get; set; }
     }
 }

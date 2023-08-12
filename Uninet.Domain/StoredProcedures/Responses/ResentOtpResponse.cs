@@ -6,15 +6,11 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-    public class RegisterResponse
+    public class ResentOtpResponse
     {
-       
         public bool? sucess { get; set; }
         public string? textResponse { get; set; }
-        public string? encryptedUser { get; set; }
+        
 
-        public bool? verified { get; set; }
-
-        public string? otp { get; set; }
     }
 }

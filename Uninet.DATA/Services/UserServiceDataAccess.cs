@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using ThirdParty.Json.LitJson;
 using Twilio;
 using Twilio.Rest.Api.V2010.Account;
+using Twilio.TwiML.Messaging;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Classes;
@@ -41,7 +42,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
-
+      
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
@@ -56,6 +57,7 @@ namespace Uninet.DATA.Services
             Configuration = configuration;
             _dataMailassist = dataMailassist;
             _UninetInputDataAccess = uninetInputDataAccess;
+            
         }
 
         protected string Generate_otp()
@@ -108,7 +110,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             DocinfoDB,
             ClientInfoDB
         }
-        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination)
+        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
         {
             // Convert the JsonElement to a BsonDocument
             BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
@@ -117,9 +119,12 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             if (destination == MongoDbDestination.DocinfoDB)
             {
                 var docnum = document["docnum"];
-                var filter = Builders<BsonDocument>.Filter.Eq("docnum", docnum);
+                var vatId = document["doc_info"]["vat_id"];
+                var filter = Builders<BsonDocument>.Filter.And(
+                     Builders<BsonDocument>.Filter.Eq("docnum", docnum),
+                     Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
+                 );
                 var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
-
                 if (existingDocument == null)
                 {
                     // Insert the document into the collection
@@ -136,8 +141,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 var clientInfo = document["client_info"];
                 var client_id = clientInfo["client_id"].AsString;
+                var vat_id = clientInfo["vat_id"].AsString;
 
-                var filter = Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id);
+                // Add the "SupplierVat_id" property to the client_info node
+                clientInfo["SupplierVat_id"] = SupplierVat_id;
+
+
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id),
+                    Builders<BsonDocument>.Filter.Eq("client_info.vat_id", vat_id)
+                );
+
                 var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
 
                 if (existingDocument == null)
@@ -149,8 +163,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     // Document already exists, handle the case accordingly
                     // For example, you can update the existing document or log an error
-                    Console.WriteLine($"Document with client_id '{client_id}' already exists.");
+                    Console.WriteLine($"Document with client_id '{client_id}' and vat_id '{vat_id}' already exists.");
                 }
+
             }
 
         }
@@ -158,7 +173,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
 
 
-        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
+        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue,string SupplierVat_id)
         {
             // Loop over the items in the results_list array
             foreach (JsonElement item in resultsList.EnumerateArray())
@@ -175,7 +190,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
-                InsertDocumentInfo(jsonData, destination);
+                InsertDocumentInfo(jsonData, destination, SupplierVat_id);
             }
             return true;
         }
@@ -198,7 +213,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
                 MongoDbDestination destination = MongoDbDestination.DocinfoDB;
-                InsertDocumentInfo(jsonData, destination);
+                InsertDocumentInfo(jsonData, destination,"");
 
             }
 
@@ -258,6 +273,12 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
                 if (spresult)
                 {
+                    ///here i need to call a function that send the welcome to uninet system 
+
+                    var BusinessesObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId));
+                    //_dataMailassist.sendsmtpmail("Welcome, you are part of Uninet network.", "eyalbmma@gmail.com", res[0].Email, 2, 1, adminuserObj.FirstName);
+
+
                     /// here comes the logic of calling web api of external system (mvp external is icount)
                     /// to get the documents of the user  that was just registered to the system
                     string cidvalue = null;
@@ -339,7 +360,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                          vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
                          startPulldata = startDate;
                          EndPulldata = DateTime.Now;
-                         EndPulldata = EndPulldata.AddDays(-7);
+                        
                         var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
                         if (companyPulledDataLog != null)
                         {
@@ -358,22 +379,40 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     {
 
                         // insert  compay cutomer invoices to mongodb collection name icount
-                        JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
-                        JsonElement resultsList = jsonDocument.RootElement.GetProperty("results_list");
-                        InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
-
-
-                        //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
-                        var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue);
+                        ///JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
 
 
 
-                        //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
-                        //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
-                        //foreach invoce in resultsList get property value of doctype and docnum
-                        var res = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+                        using (JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString()))
+                        {
+                            string SupplierVat_id = vatid; //we send thie vat it to add it to the icountClientInfo so that each node of client will have its suplier_vat_id
+
+                            if (jsonDocument.RootElement.TryGetProperty("results_list", out JsonElement resultsListElement) &&
+                                resultsListElement.ValueKind == JsonValueKind.Array && resultsListElement.GetArrayLength() > 0)
+                            {
+                                // results_list exists and has items
+                                JsonElement resultsList = resultsListElement;
+
+                                // Your logic here
+                                InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
+
+                                //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                                var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue, SupplierVat_id);
 
 
+
+                                //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                                //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                                //foreach invoce in resultsList get property value of doctype and docnum
+                                var res = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+
+                            }
+                        }
+                        
+
+
+                   
+                        
                     }
 
 
@@ -423,7 +462,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         };
 
                 // Check if the document already exists in the collection
-                var filter = Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]);
+                var filter = Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("docnum", document["docnum"]),
+                Builders<BsonDocument>.Filter.Eq("vat_id", document["vat_id"])
+                );
                 var existingDocument = _ICountCollection.Find(filter).FirstOrDefault();
                 if (existingDocument == null)
                 {
@@ -767,6 +809,151 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
+
+        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId)
+        {
+            try
+            {
+                SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
+                // Check if user already has a row in useradmin so we can send them the OTP again
+                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == resentOtpRequest.Email && x.AdminUserid== DecryptedUserId);
+                if (result == null)
+                {
+                    var res = new ResponseResendOtp
+                    {
+                        Success = false,
+                        Desc = "User didn't register yet, no OTP sent"
+                    };
+                    return res;
+                }
+                else
+                {
+                    if (result.ValidUser == false)
+                    {
+                        DateTime? lastTimeOtpSent = result.DateOtpSent;
+                        DateTime currentTime = DateTime.Now;
+
+                        // Calculate the time difference between the current time and the last OTP sent time
+                        TimeSpan timeDifference = currentTime - lastTimeOtpSent.GetValueOrDefault();
+
+                        if (timeDifference.TotalMinutes <= 5)
+                        {
+                            // Check if the OtpSentCounter is greater than or equal to 5
+                            if (result.OtpSentCounter >= 5)
+                            {
+                                var res = new ResponseResendOtp
+                                {
+                                    Success = false,
+                                    Desc = "Can't send OTP more than five times in the last five minutes",
+                                    userid = 0,
+                                    otp = null
+                                };
+                                return res;
+                            }
+                            else
+                            {
+                                // Continue to send OTP and update the necessary fields
+                                // Send OTP logic here
+
+                                // Update OtpSentCounter and DateOtpSent
+                                sendsmtpmailres = await _dataMailassist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", resentOtpRequest.Email, resentOtpRequest.TemplateId, resentOtpRequest.Lang);
+                                if (sendsmtpmailres.result)
+                                {
+                                    if (result.OtpSentCounter==null)
+                                    {
+                                        result.OtpSentCounter = 0;
+                                        result.OtpSentCounter++;
+                                        result.DateOtpSent = currentTime;
+                                        _repository.Update(result);
+                                    }
+                                    else
+                                    {
+                                        result.OtpSentCounter++;
+                                       
+                                        _repository.Update(result);
+                                    }
+                                     // Assuming you have an update method in your repository
+
+                                    var res = new ResponseResendOtp
+                                    {
+                                        Success = true,
+                                        Desc = "OTP sent successfully",
+                                        userid= result.AdminUserid,
+                                        otp= sendsmtpmailres.OTP
+                                    };
+                                    return res;
+                                }
+                                else
+                                {
+                                    var res = new ResponseResendOtp
+                                    {
+                                        Success = false,
+                                        Desc = "Mail service Failed to sent",
+                                        userid = 0,
+                                        otp = null
+                                    };
+                                    return res;
+                                }
+                               
+                            }
+                        }
+                        else
+                        {
+                            // Reset OtpSentCounter and DateOtpSent if the time difference is greater than 5 minutes
+                            result.OtpSentCounter = 1;
+                            result.DateOtpSent = currentTime;
+                            _repository.Update(result); // Assuming you have an update method in your repository
+
+                            // Send OTP logic here
+                            sendsmtpmailres = await _dataMailassist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", resentOtpRequest.Email, resentOtpRequest.TemplateId, resentOtpRequest.Lang);
+                            if (sendsmtpmailres.result)
+                            {
+                                var res = new ResponseResendOtp
+                                {
+                                    Success = true,
+                                    Desc = "OTP sent successfully",
+                                    userid = result.AdminUserid,
+                                    otp = sendsmtpmailres.OTP
+                                };
+                                return res;
+                            }
+                            else
+                            {
+                                var res = new ResponseResendOtp
+                                {
+                                    Success = false,
+                                    Desc = "Mail service Failed to sent",
+                                    userid = 0,
+                                    otp = null
+                                };
+                                return res;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var res = new ResponseResendOtp
+                        {
+                            Success = false,
+                            Desc = "user is already validated no need for otp",
+                            userid = 0,
+                            otp = null
+                        };
+                        return res;
+                    }
+                }
+            }
+            catch (Exception ex) {
+
+                var res = new ResponseResendOtp
+                {
+                    Success = true,
+                    Desc = ex.Message
+                };
+                return res;
+            }
+        }
+
         public async Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq)
         {
             try
@@ -791,7 +978,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var returnuser = new ReturnRegisterUser
                     {
                         Userid = result.AdminUserid,
-                        UserStatusIndication = 1
+                        UserStatusIndication = 1,
+                        verified= result.ValidUser
                     };
 
                     return returnuser;//user exist
@@ -805,10 +993,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     // int lastInsertedId = _repository.GetLastInsertedId(NewUser);
                     // Return the AdminUserId
 
+                   
+
                     var returnuser = new ReturnRegisterUser
                     {
                         Userid = lastInsertedId,
-                        UserStatusIndication = 0
+                        UserStatusIndication = 0,
+                        verified = false
                     };
                     return returnuser;
                    
@@ -821,19 +1012,343 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;//exception
             }
         }
+        private string GenerateRandomPassword()
+        {
+            // Implement logic to generate a random password
+            // You can use libraries like System.Security.Cryptography.RandomNumberGenerator to generate secure random passwords.
+            // For simplicity, this example generates a password with 8 characters, but you should consider a more robust solution.
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            var random = new Random();
+            return new string(Enumerable.Repeat(chars, 8)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
 
-        
+        private const string Salt = "123456789012345"; // Replace with a secure random salt
+
+        public static string EncryptPassword(string password)
+        {
+            // Combine the password and salt before hashing
+            string saltedPassword = string.Concat(password, Salt);
+
+            // Create a SHA256 hash object
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                // Compute the hash value of the salted password
+                byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(saltedPassword));
+
+                // Convert the hash bytes to a hexadecimal string representation
+                string hashedPassword = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+
+                return hashedPassword;
+            }
+        }
+
+        public async Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
+        {
+            try
+            {
+                var adminuserObj = _repository.GetFirstObject<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
+                if (adminuserObj != null) {
+
+                    if (DateTime.Now > adminuserObj.RefreshTokenExpireTime)
+                    {
+                        // The token has expired. You can return an error response or handle it as needed.
+                        return false;//BadRequest("Token has expired.");
+                    }
+                    else
+                    {
+                        adminuserObj.passwordEncrypted = resetpasswordrequest.passwordEncrypted;
+                        // Save the changes to the database
+                        await _repository.UpdateAsync(adminuserObj);
+                        return true;
+                    }
+                }
+                else
+                {
+                    return false;//user doesnt exist in database according to resetpasswordtoken
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        {
+            try
+            {
+                // Check if the user exists in the database based on the provided email
+                var user = _repository.GetFirstObject<AdminUsers>(x => x.Email == forgotPasswordRequest.Email);
+
+                if (user != null)
+                {
+                    string ResetPasswordWebAPILink = "";
+                    string UserResetPasswordToken = Guid.NewGuid().ToString();
+                    user.ResetPasswordToken = UserResetPasswordToken;
+                    DateTime now = DateTime.Now;
+                    DateTime futureTime = now.AddMinutes(10);
+                    user.ExpiredpasswordTokenDate = futureTime;
+                    
+                    // Save the changes to the database
+                    await _repository.UpdateAsync(user);
+
+
+
+
+                    // Send the password reset email
+                    _dataMailassist.sendsmtpmail("Uninet reset password", "eyalbmma@gmail.com", forgotPasswordRequest.Email, 7, 1);
+
+                    // Return true to indicate that the password reset email was sent successfully
+                    return true;
+                }
+                else
+                {
+                    // The user with the provided email doesn't exist in the database
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+        public async Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest)
+        {
+            try
+            {
+
+                string email = googlesignInrequest.Email;
+                string googleId = googlesignInrequest.GoogleId;
+
+                // 1. Check if the Google ID and email exist in the database
+                var existingUseremailandgoogleid = _repository.GetFirstObject<AdminUsers>(x => x.GoogleId == googleId && x.Email == email);
+                //var existingUser = await _dbContext.AdminUsers.FirstOrDefaultAsync(x => x.GoogleId == googleSignInResponse.GoogleId && x.Email == googleSignInResponse.Email);
+
+                if (existingUseremailandgoogleid != null)
+                {
+                    // Scenario 3: User with the provided Google ID and email exists in the database
+                    // Perform login actions and return user details or token
+                    // For example, you can use a token-based authentication and return a token.
+                    var resgoogleSignin = new GoogleSigninResponse
+                    {
+                        Success = true,
+                        Message = "email and googleid exist in DB user is verfied"
+                    };
+                        
+                    return resgoogleSignin;
+                }
+                else
+                {
+                    // Check if the email exists in the database
+                    var existingUserwithemail = _repository.GetFirstObject<AdminUsers>(u => u.Email == email);
+
+                   
+                    
+
+                    if (existingUserwithemail != null)
+                    {
+                        // If the email exists, check if the Google ID in the database is empty or null
+                        if (string.IsNullOrEmpty(existingUserwithemail.GoogleId))
+                        {
+                            // If the Google ID is empty, verify it using Google API
+                            string googleTokenUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={googleId}";
+                            using (var httpClient = new HttpClient())
+                            {
+                                var response = await httpClient.GetAsync(googleTokenUrl);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    string responseBody = await response.Content.ReadAsStringAsync();
+                                    var tokenInfo = JsonConvert.DeserializeObject<GoogleTokenInfo>(responseBody);
+
+                                    if (tokenInfo.email == email)
+                                    {
+                                        // Update the Google ID in the database
+                                        existingUserwithemail.GoogleId = googleId;
+                                        await _repository.UpdateAsync(existingUserwithemail);
+
+                                        var resgoogleSignin = new GoogleSigninResponse
+                                        {
+                                            Success = true,
+                                            Message = "Google ID verified and linked to the existing email"
+                                        };
+
+                                        return resgoogleSignin;
+                                        
+                                        //return Ok(new { Message = "Google ID verified and linked to the existing email" });
+                                    }
+                                    else
+                                    {
+                                        //return BadRequest(new { Error = "Invalid email or Google ID" });
+
+                                        var resgoogleSignin = new GoogleSigninResponse
+                                        {
+                                            Success = false,
+                                            Message = "Invalid email or Google ID"
+                                        };
+
+                                        return resgoogleSignin;
+                                       
+                                    }
+                                }
+                                else
+                                {
+                                    var resgoogleSignin = new GoogleSigninResponse
+                                    {
+                                        Success = false,
+                                        Message = "Failed to verify user with Google API"
+                                    };
+
+                                    return resgoogleSignin;
+                                    //return false; //BadRequest(new { Error = "Failed to verify user with Google API" });
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // If the Google ID is not empty, verify that the provided Google ID matches the one in the database
+                            if (existingUserwithemail.GoogleId == googleId)
+                            {
+                                var resgoogleSignin = new GoogleSigninResponse
+                                {
+                                    Success = true,
+                                    Message = "User already exists"
+                                };
+                                return resgoogleSignin;
+                                // return Ok(new { Message = "User already exists" });
+                                //return true;
+                            }
+                            else
+                            {
+                                var resgoogleSignin = new GoogleSigninResponse
+                                {
+                                    Success = false,
+                                    Message = "Google ID does not match the one associated with the email"
+                                };
+                                return resgoogleSignin;
+                                
+                                //return BadRequest(new { Error = "Google ID does not match the one associated with the email" });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // If the user does not exist in the database, verify using Google API
+                        string googleTokenUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={googleId}";
+                        using (var httpClient = new HttpClient())
+                        {
+                            var response = await httpClient.GetAsync(googleTokenUrl);
+
+                            if (response.IsSuccessStatusCode)
+                            {
+                                string responseBody = await response.Content.ReadAsStringAsync();
+                                var tokenInfo = JsonConvert.DeserializeObject<GoogleTokenInfo>(responseBody);
+
+                                if (tokenInfo.email == email)
+                                {
+                                    // Create a new row in the database
+                                    var newUser = new AdminUsers
+                                    {
+                                        DateCreated = DateTime.Now,
+                                        ValidUser = true,
+                                        Email = googlesignInrequest.Email,
+                                        GoogleId = googlesignInrequest.GoogleId
+                                        // Set other properties based on your requirement
+                                    };
+                                    // Add the new user to the database
+                                    _repository.Create<AdminUsers>(newUser);
+
+                                    var resgoogleSignin = new GoogleSigninResponse
+                                    {
+                                        Success = true,
+                                        Message = "User created successfully"
+                                    };
+                                    return resgoogleSignin;
+                                    // return CreatedAtAction(nameof(GoogleSignIn), new { Message = "User created successfully" });
+                                   // return true;
+                                }
+                                else
+                                {
+                                    // return BadRequest(new { Error = "Invalid email or Google ID" });
+                                    var resgoogleSignin = new GoogleSigninResponse
+                                    {
+                                        Success = false,
+                                        Message = "Invalid email or Google ID"
+                                    };
+                                    return resgoogleSignin;
+                                    
+                                }
+                            }
+                            else
+                            {
+                                //return BadRequest(new { Error = "Failed to verify user with Google API" });
+
+                                var resgoogleSignin = new GoogleSigninResponse
+                                {
+                                    Success = false,
+                                    Message = "Failed to verify user with Google API"
+                                };
+                                return resgoogleSignin;
+                               
+                            }
+                        }
+                    }
+
+
+                }
+           
+
+
+
+            }
+            catch (Exception ex)
+            {
+                var resgoogleSignin = new GoogleSigninResponse
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
+                return resgoogleSignin;
+                
+            }
+        }
+
         public async Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest)
         {
             try
             {
+                Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
+                UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
-                var Response = new LoginWithEmailandPasswordResponse
+                if (result != null)
                 {
-
-                    Userid = result.AdminUserid
-                };
-               return Response;
+                    q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == result.AdminUserid);
+                    if (q1q2_res != null)
+                    {
+                        q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                    }
+                    var Response = new LoginWithEmailandPasswordResponse
+                    {
+                        Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
+                        Q3_InidicationRes = q3_res != null ? true : false,
+                        Userid = result.AdminUserid,
+                        verified = result.ValidUser
+                    };
+                    return Response;
+                }
+                else
+                {
+                    var Response = new LoginWithEmailandPasswordResponse
+                    {
+                        Q1_Q2_InidicationRes =  false,
+                        Q3_InidicationRes = false,
+                        Userid = 0,
+                        verified = false
+                    };
+                    return Response;
+                }
+              
             }
             catch (Exception ex)
             {
@@ -854,19 +1369,14 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                 var res = _repository.ExecuteGetSP<VerifyUserByOtpUserIdAndTimeStampResponse>(ConstUninetStoredprocedure.SP_VerifyUserByOtpUserIdAndTimeStamp, Otparam).ToList();
 
-    
-
-
-
-
 
 
                 if (res != null)
                 {
                     if (res[0].Verified)
                     {
-                        //send mail welcome mail to user after he loged in with otp
-                        _dataMailassist.sendsmtpmail("You are a new member in Uninet network", "eyalbmma@gmail.com", res[0].Email, 2, 1);
+                        //eyal remark i removed the send mail welcome mail because it needed  to be call after Q1-Q5 completed
+                        //_dataMailassist.sendsmtpmail("You are a new member in Uninet network", "eyalbmma@gmail.com", res[0].Email, 2, 1);
                         return new LoginWithOtpResponse()
                         {
                             verified = res[0].Verified,

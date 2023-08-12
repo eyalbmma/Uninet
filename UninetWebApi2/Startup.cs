@@ -17,6 +17,7 @@ using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Classes;
 using Uninet.Domain.Interfaces;
 using Microsoft.Extensions.Hosting;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace UninetWebApi2.Controllers
 {
@@ -124,7 +125,11 @@ namespace UninetWebApi2.Controllers
             services.AddSingleton<IHostedService, PushExpensesToCompanyClient>();
             
             services.AddSingleton<IBatchDataMailassist, BatchDataMailassist>();
-
+            
+            
+            var jwtTokenConfig = Configuration.GetSection("jwtTokenConfig");
+            var secretKey = jwtTokenConfig.GetValue<string>("secret");
+            var issuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
 
             services.AddAuthentication(options =>
             {
@@ -134,7 +139,7 @@ namespace UninetWebApi2.Controllers
             {
                 options.RequireHttpsMetadata = false;
                 options.SaveToken = true;
-                options.Authority = Configuration["jwtTokenConfig:Authority"];
+                //options.Authority = Configuration["jwtTokenConfig:Authority"];
                 options.Audience = Configuration["jwtTokenConfig:Audience"];
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -142,7 +147,7 @@ namespace UninetWebApi2.Controllers
                     ValidateIssuer = false,
                     ValidateIssuerSigningKey = true,
                     //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"])),
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("REPLACE_WITH_BASE64_SECRET_FOR_LOCAL_ONLY")),
+                    IssuerSigningKey = issuerSigningKey,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero //the default for this setting is 5 minutes
                 };
@@ -159,16 +164,40 @@ namespace UninetWebApi2.Controllers
                     }
                 };
             });
-            //services.AddCors(options =>
+
+
+
+
+
+
+            
+
+            //services.AddAuthentication(options =>
             //{
-            //    options.AddPolicy("AllowAllOrigins",
-            //        builder =>
-            //        {
-            //            builder.AllowAnyOrigin()
-            //                   .AllowAnyHeader()
-            //                   .AllowAnyMethod();
-            //        });
+            //    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            //    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            //}).AddJwtBearer(options =>
+            //{
+            //    options.RequireHttpsMetadata = false; // Set to true if using HTTPS
+            //    options.SaveToken = true;
+            //    options.TokenValidationParameters = new TokenValidationParameters
+            //    {
+            //        ValidateAudience = false,
+            //        ValidateIssuer = false,
+            //        ValidateIssuerSigningKey = true,
+            //        IssuerSigningKey = issuerSigningKey, // Use the configured secret key
+            //        ValidateLifetime = true,
+            //        ClockSkew = TimeSpan.Zero // The default for this setting is 5 minutes
+            //    };
+
+                
             //});
+
+
+
+
+
+            //services.AddCors(options =>
 
             // Inside the ConfigureServices method of Startup.cs
             services.AddCors(options =>
@@ -220,8 +249,23 @@ namespace UninetWebApi2.Controllers
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Workspaces.API v1"));
             }
-            
-         
+
+            //app.Use(async (context, next) =>
+            //{
+            //    // Your token validation and inspection code here
+            //    string accessToken = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+
+            //    var handler = new JwtSecurityTokenHandler();
+            //    if (accessToken != "")
+            //    {
+            //        var token = handler.ReadJwtToken(accessToken);
+
+            //        // Perform validation and inspection logic
+
+            //        await next.Invoke();
+            //    }
+            //});
+
 
 
 

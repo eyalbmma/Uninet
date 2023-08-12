@@ -80,12 +80,12 @@ namespace Uninet.APP.Services
        
 
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From ,string To,int TemplateId,int Lang)
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From ,string To,int TemplateId,int Lang, string encryptedUserId = null)
         {
             try
             {
-                return await _dataMailassist.sendsmtpmail(subject, From, To, TemplateId, Lang);
-
+                return await _dataMailassist.sendsmtpmail(subject, From, To, TemplateId, Lang,null,null, encryptedUserId);
+               // Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang, RequestedMailObject InputMailDetails = null, string username = null, string encryptedUserId = "");
             }
             catch (Exception ex)
             {

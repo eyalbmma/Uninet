@@ -429,7 +429,7 @@ namespace Uninet.DATA.Services
                         //if its found we need to extract JsonDocumentid  and BusinessId (as the company that sent the document)
                         //and return a list of them to the client to show this waitingto approve list to insert as expenses
                         // Replace with your desired VAT ID
-                        var ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToInt32(vatId));
+                        var ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet==null);
                         foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
                             string JsonDocUrl = "";
@@ -440,7 +440,7 @@ namespace Uninet.DATA.Services
                             {
                                  JsonDocUrl = DocInforesult["doc_info"]["doc_url"].AsString;
                             }
-                            List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(vatId), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl });
+                            List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl });
 
                         }                    
                     }

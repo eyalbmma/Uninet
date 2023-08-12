@@ -10,7 +10,7 @@ namespace Uninet.APP.Interfaces
 {
     public  interface IMailassist 
     {
-        Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int TemplateId, int Lang);
+        Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int TemplateId, int Lang,string encryptedUserId = "");
 
 
 

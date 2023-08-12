@@ -29,5 +29,22 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("Userid")]
         public int Userid { get; set; }
 
+        [JsonPropertyName("Q1_Q2_InidicationRes")]
+        public bool Q1_Q2_InidicationRes { get; set; }
+
+
+
+        [JsonPropertyName("Q3_InidicationRes")]
+        public bool Q3_InidicationRes { get; set; }
+
+
+        [JsonPropertyName("verified")]
+        public bool? verified { get; set; }
+
+
+        [JsonPropertyName("EncryptedUserId")]
+        public string? EncryptedUserId { get; set; }
+        
+
     }
 }

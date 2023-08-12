@@ -9,6 +9,8 @@ namespace Uninet.Domain.Models
     public  class ReturnRegisterUser
     {
         public int Userid { get; set; }
-        public int UserStatusIndication { get; set; }   
+        public int UserStatusIndication { get; set; }
+
+        public bool? verified { get; set; }
     }
 }

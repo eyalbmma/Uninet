@@ -233,7 +233,7 @@ namespace Uninet.DATA.Services
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var jwt = new JwtSecurityToken(
-                issuer: Configuration["jwtTokenConfig:issuer"],
+                //issuer: Configuration["jwtTokenConfig:issuer"],
                 audience: Configuration["Tokens:audience"],
                 claims: claims, //the user's claims, for example new Claim[] { new Claim(ClaimTypes.Name, "The username"), //... 
                 notBefore: DateTime.UtcNow,

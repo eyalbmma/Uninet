@@ -5,6 +5,7 @@ using Uninet.DATA.Services;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
+using Uninet.Domain.Models;
 
 public class PullUsersData : IHostedService, IDisposable
 {
@@ -50,14 +51,32 @@ public class PullUsersData : IHostedService, IDisposable
 
         try
         {
-            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
+            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325);
             //foreach (var user in res)
             //{
             //    string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
             //}
 
+            //////////////////////////////////////////////////////
+            ///
 
-            ////
+
+            //here we insert data into businessdata
+            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325 );
+
+            foreach (var Business in res2)
+            {
+                var businessRequest = new BusinessRequestFoeExpenses
+                {
+                    BusinessId = Business.BusinessId.ToString(),
+                    AdminUserid = Business.AdminUserid.ToString(),
+                    FirstName = Business.FirstName,
+                    LastName = Business.LastName
+
+                };
+
+                string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
+            }
         }
         catch (Exception ex)
         {

@@ -3,14 +3,18 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Uninet.APP.Interfaces;
+using Uninet.APP.Services;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Responses;
 
@@ -74,7 +78,87 @@ namespace UninetWebApi2.Controllers
 
         }
 
+        [HttpPost("ForgotPassword")]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        {
+            try
+            {
 
+                bool forgotPasswordresponse = await _userServiceApp.ForgotPassword(forgotPasswordRequest);
+                return Ok(forgotPasswordresponse);
+          
+            }
+            catch (Exception ex)
+            {
+                // Handle the exception and return an appropriate response
+                return StatusCode(500, "An error occurred while processing the request.");
+            }
+        }
+
+
+
+        [HttpPost("GoogleSignIn")]
+        public async Task<IActionResult> GoogleSignIn(GoogleSignInModel googlesignInrequest)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                GoogleSigninResponse googleresponse = await _userServiceApp.GoogleSignIn(googlesignInrequest);
+                return Ok(googleresponse);
+
+
+            }
+            catch (Exception ex)
+            {
+                // Handle the exception and return an appropriate response
+                return StatusCode(500, "An error occurred while processing the request.");
+            }
+        }
+
+
+        [HttpPost("ResetPassword")]
+        public async Task<IActionResult> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
+        {
+            try
+            {
+                var Res = await _userServiceApp.ResetPassword(resetpasswordrequest);
+                return Ok(Res);
+
+            }
+            catch (Exception ex) { return Ok(false); }
+        }
+        public static byte[] StringToByteArray(string hex)
+        {
+            int length = hex.Length / 2;
+            byte[] bytes = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+            return bytes;
+        }
+        private string EncryptUserId(string userId, string key, byte[] iv)
+        {
+            byte[] encryptedBytes;
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = StringToByteArray(key);
+                aesAlg.IV = iv;
+                aesAlg.Padding = PaddingMode.PKCS7; // Set the padding mode
+
+                ICryptoTransform encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                byte[] userIdBytes = Encoding.UTF8.GetBytes(userId);
+                encryptedBytes = encryptor.TransformFinalBlock(userIdBytes, 0, userIdBytes.Length);
+
+                encryptor.Dispose();
+            }
+
+            return Convert.ToBase64String(encryptedBytes);
+        }
 
         [HttpPost("LoginWithEmailPassword")]
         [AllowAnonymous]
@@ -96,15 +180,23 @@ namespace UninetWebApi2.Controllers
                
                 _logger.LogInformation($"Userid [{Res.Userid.ToString()}] logged in the system.");
 
+                string iv = Configuration["EncryptedUserId:iv"];
+                byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+                string encryptedUserId = EncryptUserId(Res.Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+
                 //here i call 
-               // string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
+                // string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
                 return Ok(new RegisterResult
                 {
 
                     //Role = Res.Role.ToString(),
                     accessToken = token,
                     refreshToken = newRefreshToken,
-                    success = true,
+                    success = Res.Userid!=0?true:false,
+                    Q1_Q2_InidicationRes= Res.Q1_Q2_InidicationRes,
+                    Q3_InidicationRes=Res.Q3_InidicationRes,
+                    verified= Res.verified,
+                    EncryptedUserId= encryptedUserId
                     //Userid = Res.Userid
                 });
             }
@@ -117,6 +209,10 @@ namespace UninetWebApi2.Controllers
                     accessToken = "",
                     refreshToken = "",
                     success = false,
+                    Q1_Q2_InidicationRes = false,
+                    Q3_InidicationRes = false,
+                    verified = false,
+                    EncryptedUserId = ""
                     // Userid = 0
                 });
             }

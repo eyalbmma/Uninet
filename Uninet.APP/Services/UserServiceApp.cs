@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Threading.Tasks;
 using Uninet.APP.Interfaces;
 using Uninet.DATA.Interfaces;
 using Uninet.Domain.Classes;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Requests;
@@ -34,6 +36,66 @@ namespace Uninet.APP.Services
             catch (Exception ex) { return null; }
 
             
+        }
+        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId)
+        {
+            try
+            {
+               return  await _userServiceDataAccess.ResendOtp(resentOtpRequest, DecryptedUserId);
+            }
+            catch (Exception ex)
+            {
+
+                var res = new ResponseResendOtp
+                {
+                    Success = true,
+                    Desc = ex.Message
+                };
+                return res;
+            }
+        }
+        public async Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
+        {
+            try
+            {
+                return await _userServiceDataAccess.ResetPassword(resetpasswordrequest);
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        
+        public async Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        {
+            try
+            {
+                return await _userServiceDataAccess.ForgotPassword(forgotPasswordRequest);
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+
+        public async Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest)
+        {
+            try
+            {
+                return await _userServiceDataAccess.GoogleSignIn(googlesignInrequest);
+            }
+            catch(Exception ex)
+            {
+                var resgoogleSignin = new GoogleSigninResponse
+                {
+                    Success = true,
+                    Message = ex.Message
+                };
+
+                return resgoogleSignin;
+               
+            }
         }
         public async Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest)
         {

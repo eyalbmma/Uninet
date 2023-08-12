@@ -46,7 +46,7 @@ namespace Uninet.Domain.Interfaces
 
         T Find<T>(Expression<Func<T, bool>> expression) where T : class;
 
-
+        TDbContext GetDbContext();
 
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class;

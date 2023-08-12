@@ -38,8 +38,9 @@ namespace Uninet.DATA.Services
         {
             _logger.LogInformation("File check service is starting.");
             _isRunning = true;
-            _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
+            _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(10000));
             return Task.CompletedTask;
+            //return null;
         }
 
         private async void DoWork(object state)
@@ -56,13 +57,13 @@ namespace Uninet.DATA.Services
 
             try
             {
-                //this processes go to mongodb amd get tha invoce data for each user 
+                //this processes go to mongodb amd get tha invoce data for each user
                 //1 we need to create a function that get all registered user
                 //2 for each user need to call a function that get his system credentials
-                //3 we 
+                //3 we
 
 
-                //List<Businesses> res = _repository.GetListOfObjects<Businesses>(b => true);
+                //List < Businesses > res = _repository.GetListOfObjects<Businesses>(b =>b.AdminUserid== 326 || b.AdminUserid == 325 || b.AdminUserid == 327);
 
                 //foreach (var Business in res)
                 //{

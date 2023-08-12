@@ -28,6 +28,8 @@ namespace Uninet.Domain.Entities
         public bool? ValidUser { get; set; }
 
         public DateTime? DateOtpSent { get; set; }
+        
+        public int? OtpSentCounter { get; set; }
         public bool? Otpsent { get; set; }
 
         
@@ -38,8 +40,12 @@ namespace Uninet.Domain.Entities
         
 
 
+        public string? GoogleId { get; set; }
 
 
+        public string?  ResetPasswordToken { get; set; }
+
+        public DateTime?  ExpiredpasswordTokenDate { get; set; }
 
     }
 }

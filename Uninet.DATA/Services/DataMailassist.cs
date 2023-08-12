@@ -17,6 +17,9 @@ using Uninet.Domain.Models;
 using Uninet.DATA.Interfaces;
 using System.Reflection;
 using Amazon.Runtime.Internal.Transform;
+using Uninet.Domain.Entities;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using System.Web;
 
 namespace Uninet.DATA.Services
 {
@@ -64,19 +67,35 @@ namespace Uninet.DATA.Services
             return strrandom;
         }
 
-        public static string ReplaceDynamicPlaceholders(string html, Dictionary<string, string> placeholderValues)
+        //public static string ReplaceDynamicPlaceholders(string html, Dictionary<string, string> placeholderValues)
+        //{
+        //    foreach (var kvp in placeholderValues)
+        //    {
+        //        string placeholder = $"{{{kvp.Key}}}";
+        //        string value = kvp.Value;
+        //        html = html.Replace(placeholder, value);
+        //    }
+
+        //    return html;
+        //}
+        private string ReplaceDynamicPlaceholders(string htmlBody, Dictionary<string, string> values)
         {
-            foreach (var kvp in placeholderValues)
+            // Loop through the dictionary of values and replace placeholders in the HTML
+            foreach (var entry in values)
             {
-                string placeholder = $"{{{kvp.Key}}}";
-                string value = kvp.Value;
-                html = html.Replace(placeholder, value);
+                // To replace the placeholders in the HTML, we will use {key} as the placeholder
+                // For example, to replace {RESET_URL} with the actual URL, we will search for {RESET_URL} in the HTML and replace it with the URL value.
+                htmlBody = htmlBody.Replace("{" + entry.Key + "}", entry.Value);
             }
 
-            return html;
+            return htmlBody;
         }
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null)
+
+
+
+
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null,string username=null,string encryptedUserId="")
         {
             try
             {
@@ -92,12 +111,14 @@ namespace Uninet.DATA.Services
                 switch (ObjTemplateparam.TemplateId)
                 {
                     case 1:
-
+                        string OtpRedirectUrl = "https://uninet-app.netlify.app/verify-email?Otp=" + userOtp + "&encrypteduserid=" + encryptedUserId;
                         //recipient name
+                        string encodedUrl = HttpUtility.HtmlAttributeEncode(OtpRedirectUrl);
                         Dictionary<string, string> values1 = new Dictionary<string, string>
                         {
                             
-                            { "OTP_CODE", userOtp },
+                            { "OTP", userOtp },
+                            {"OTPREDIRECTURL",OtpRedirectUrl }
                         };
 
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values1);
@@ -106,7 +127,7 @@ namespace Uninet.DATA.Services
                         
                         Dictionary<string, string> values2 = new Dictionary<string, string>
                         {
-                            { "username", "John Doe" }
+                            { "Username", username }
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values2);
                        
@@ -157,7 +178,22 @@ namespace Uninet.DATA.Services
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values6);
                         break;
-                   
+                    case 7:
+
+                        var adminuserobject = _repository.GetFirstObject<AdminUsers>(x => x.Email == To);
+                        if (adminuserobject != null)
+                        {
+                            string ResetPasswordLandingPage = "https://uninet-app.netlify.app/reset-password?UserResetToken=" + adminuserobject.ResetPasswordToken + "&clicktracking=false";
+                            Dictionary<string, string> values7 = new Dictionary<string, string>
+                            {
+                               { "RESET_URL", ResetPasswordLandingPage },
+                           };
+
+                            message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values7);
+                        }
+
+
+                        break;
                     default:
                         // Code to handle cases other than 1 to 7
                         break;
@@ -177,6 +213,10 @@ namespace Uninet.DATA.Services
                     message.Headers.Add("Content-Type", "text/html");
                     message.BodyEncoding = Encoding.UTF8;
                     message.IsBodyHtml = true;
+
+                   
+
+
                     SmtpClient smtp = new SmtpClient("smtp.sendgrid.net", 587);//smtpout.secureserver.net //smtp-relay.sendinblue.com
                     System.Net.NetworkCredential credential = new NetworkCredential("apikey", "YOUR_EMAIL_API_KEY");
                     smtp.DeliveryMethod = SmtpDeliveryMethod.Network;

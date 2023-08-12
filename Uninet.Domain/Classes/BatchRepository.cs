@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -18,15 +19,17 @@ namespace Uninet.Domain.Classes
     {
 
         protected TDbContext dbContext;
+        private readonly IServiceProvider _serviceProvider;
 
 
-
-        public BatchRepository(TDbContext context)
-
+        public BatchRepository(TDbContext context, IServiceProvider serviceProvider)
         {
-
             dbContext = context;
-
+            _serviceProvider = serviceProvider;
+        }
+        public TDbContext GetDbContext()
+        {
+            return _serviceProvider.GetRequiredService<TDbContext>();
         }
         //public async Task<List<T>> GetAll<T>() where T : class
 
