@@ -70,11 +70,10 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("ExternalSystemId")]
         public int? ExternalSystemId { get; set; }
 
-       
 
 
-       
-        
+
+
 
 
 

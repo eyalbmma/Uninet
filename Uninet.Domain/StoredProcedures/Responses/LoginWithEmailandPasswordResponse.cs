@@ -21,8 +21,9 @@ namespace Uninet.Domain.StoredProcedures.Responses
 
         public bool? verified { get; set; }
 
-        // public int Role { get; set; }
 
+        // public int Role { get; set; }
+        
 
     }
 }

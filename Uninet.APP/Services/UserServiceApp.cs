@@ -37,24 +37,24 @@ namespace Uninet.APP.Services
 
             
         }
-        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId)
+        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId, int Lang)
         {
             try
             {
-               return  await _userServiceDataAccess.ResendOtp(resentOtpRequest, DecryptedUserId);
+               return  await _userServiceDataAccess.ResendOtp(resentOtpRequest, DecryptedUserId, Lang);
             }
             catch (Exception ex)
             {
 
                 var res = new ResponseResendOtp
                 {
-                    Success = true,
+                    Success = false,
                     Desc = ex.Message
                 };
                 return res;
             }
         }
-        public async Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
+        public async Task<ResetPasswordReponse> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
         {
             try
             {
@@ -62,12 +62,17 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex)
             {
-                return false;
+                var ResResetPassword = new ResetPasswordReponse
+                {
+                    success = false,
+                    textResponse = resetpasswordrequest.Lang == 1 ? "an eror occured" : "ארעה שדיאה הסיסמה לא אופסה "
+                };
+                return ResResetPassword;
             }
         }
 
         
-        public async Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        public async Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             try
             {
@@ -75,7 +80,13 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex)
             {
-                return false;
+                var ForgotPasswordResponse = new ForgotPasswordResponse
+                {
+                    Success = false,
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+
+                };
+                return ForgotPasswordResponse;
             }
         }
 
@@ -117,14 +128,23 @@ namespace Uninet.APP.Services
             catch (Exception ex) { return null; }
         }
 
-        public async Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
+        public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
 
             try
             {
-                return await _userServiceDataAccess.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails,  UserId);
+                return await _userServiceDataAccess.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails, UserId);
             }
-            catch (Exception ex) { return false; }
+
+            catch (Exception ex)
+            {
+                var res = new ResSaveExternalCustomized
+                {
+                    Success = false,
+                    textResponse = ""
+                };
+                return res;
+            }
         }
         public async Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq)
         {
@@ -173,11 +193,11 @@ namespace Uninet.APP.Services
         //        return false;
         //    }
         //}
-        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser)
+        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser,int Lang)
         {
             try
             {
-                return await _userServiceDataAccess.RegisterWithOtpAndEncryptedUser(otp, EncryptedUser);
+                return await _userServiceDataAccess.RegisterWithOtpAndEncryptedUser(otp, EncryptedUser, Lang);
 
 
 

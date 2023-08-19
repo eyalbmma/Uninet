@@ -7,10 +7,12 @@ using Uninet.Domain.Models;
 
 namespace Uninet.Domain.StoredProcedures.Responses
 {
-   
+
     public class AddBusinessToUserResult
     {
         public bool Result { get; set; }
         public List<BusinessRequest> BusinessRequests { get; set; }
+       
     }
+
 }

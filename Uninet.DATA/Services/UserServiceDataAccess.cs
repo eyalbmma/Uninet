@@ -2,6 +2,7 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.VisualBasic.FileIO;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -232,22 +233,38 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
             if (existingRow != null)
             {
-                existingRow.LastPullDataDate = DateTime.Now;
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+                existingRow.LastPullDataDate = israelNow;
                 await _repository.UpdateAsync(existingRow);
             }
             else
             {
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 var newRow = new CompanyPulledDataLog
                 {
                     CompanyVatid = companyVatid,
-                    LastPullDataDate = DateTime.Now
+                    LastPullDataDate = israelNow
                 };
 
                 await _repository.CreateAsync(newRow);
             }
 
         }
-        public async Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
+        public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try
             {
@@ -266,174 +283,213 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     jsonInput = jsonString
                     
                 };
+
+
+                if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
+                {
+
+                    bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
                 
-               
-
-
-                bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
+                
                 if (spresult)
                 {
-                    ///here i need to call a function that send the welcome to uninet system 
-
-                    var BusinessesObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId));
-                    //_dataMailassist.sendsmtpmail("Welcome, you are part of Uninet network.", "eyalbmma@gmail.com", res[0].Email, 2, 1, adminuserObj.FirstName);
-
-
-                    /// here comes the logic of calling web api of external system (mvp external is icount)
-                    /// to get the documents of the user  that was just registered to the system
-                    string cidvalue = null;
-                    string uservalue = null;
-                    string passvalue = null;
-                    foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
-                    {
-                        if (item.FieldLabelName == "cid")
-                        {
-                            cidvalue = item.FieldLabelValue;
-                        }
-                        else if (item.FieldLabelName == "user")
-                        {
-                            uservalue = item.FieldLabelValue;
-                        }
-                        else if (item.FieldLabelName == "pass")
-                        {
-                            passvalue = item.FieldLabelValue;
-                        }
-                    }
-
-                    ///get the comopany info to know what was the started date to get documents from this started date
-
-                    var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
-                    var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-                    HttpMethod methodcomopanyinfo = HttpMethod.Get;
-                    var ReponsneCompanyInfo=await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
-
-                    ////this part insert a ReponsneCompanyInfo modified with new property InternalCompanyId to the new collection IcountCompanisInfo 
-                    ///
-                   
-
-                    // Parse the JSON string to a dynamic object
-                    dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
-
-                    // Add the new property to the company_info object
-                    dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
-
-                    // Convert the modified object back to JSON
-                    string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
-
-                   
-
-                    // Get the vat_id value
-                    string vatId = dynamicCompanyInfo.company_info.vat_id;
-
-                    // Check if a document with the same vat_id already exists in the collection
-                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
-                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-
-                    if (existingDocument == null)
-                    {
+                        ///here i need to call a function that send the welcome to uninet system 
                        
-                        // Parse the modified JSON string to a BsonDocument
-                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
 
-                        // Insert the modified document into the collection
-                        await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
-                    }
-                    else
-                    {
-                        // Document with the same vat_id already exists, handle accordingly
-                        Console.WriteLine("Document with the same vat_id already exists");
-                    }
+                        var BusinessesObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId));
+                        //_dataMailassist.sendsmtpmail("Welcome, you are part of Uninet network.", "eyalbmma@gmail.com", res[0].Email, 2, 1, adminuserObj.FirstName);
 
 
-
-                    string vatid = "";
-                    DateTime startPulldata = new DateTime();
-                    DateTime EndPulldata = new DateTime(); 
-                    string propertyPathstart_date = "company_info.start_date";
-                    if (ReponsneCompanyInfo != null)
-                    {
-                        DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-
-
-
-                        string propertyPathVatid = "company_info.vat_id";
-                         vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
-                         startPulldata = startDate;
-                         EndPulldata = DateTime.Now;
-                        
-                        var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
-                        if (companyPulledDataLog != null)
+                        /// here comes the logic of calling web api of external system (mvp external is icount)
+                        /// to get the documents of the user  that was just registered to the system
+                        string cidvalue = null;
+                        string uservalue = null;
+                        string passvalue = null;
+                        foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
                         {
-                            startPulldata = companyPulledDataLog.LastPullDataDate;
-                        }
-
-                        await SetLastPullDataDate(Convert.ToInt32(vatid));
-                    }
-                    var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
-
-                    string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid="+ cidvalue+"&user="+uservalue+ "&pass=" + passvalue+"&start_ts="+ startPulldata.ToString()+"&end_ts="+ EndPulldata;
-                    HttpMethod methoddocsearch = HttpMethod.Get;
-                    var Reponsnedocsearch = await _UninetInputDataAccess.SendRequest(endpointUrldocsearch, methoddocsearch);
-                    
-                    if (Reponsnedocsearch != null)
-                    {
-
-                        // insert  compay cutomer invoices to mongodb collection name icount
-                        ///JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
-
-
-
-                        using (JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString()))
-                        {
-                            string SupplierVat_id = vatid; //we send thie vat it to add it to the icountClientInfo so that each node of client will have its suplier_vat_id
-
-                            if (jsonDocument.RootElement.TryGetProperty("results_list", out JsonElement resultsListElement) &&
-                                resultsListElement.ValueKind == JsonValueKind.Array && resultsListElement.GetArrayLength() > 0)
+                            if (item.FieldLabelName == "cid")
                             {
-                                // results_list exists and has items
-                                JsonElement resultsList = resultsListElement;
-
-                                // Your logic here
-                                InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
-
-                                //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
-                                var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue, SupplierVat_id);
-
-
-
-                                //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
-                                //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
-                                //foreach invoce in resultsList get property value of doctype and docnum
-                                var res = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
-
+                                cidvalue = item.FieldLabelValue;
+                            }
+                            else if (item.FieldLabelName == "user")
+                            {
+                                uservalue = item.FieldLabelValue;
+                            }
+                            else if (item.FieldLabelName == "pass")
+                            {
+                                passvalue = item.FieldLabelValue;
                             }
                         }
-                        
+
+                        ///get the comopany info to know what was the started date to get documents from this started date
+
+                        var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                        var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                        HttpMethod methodcomopanyinfo = HttpMethod.Get;
+                        var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
+
+                        ////this part insert a ReponsneCompanyInfo modified with new property InternalCompanyId to the new collection IcountCompanisInfo 
+                        ///
 
 
-                   
-                        
+                        // Parse the JSON string to a dynamic object
+                        dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
+
+                        // Add the new property to the company_info object
+                        dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+
+                        // Convert the modified object back to JSON
+                        string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
+
+
+
+                        // Get the vat_id value
+                        string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+                        // Check if a document with the same vat_id already exists in the collection
+                        var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+                        var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+                        if (existingDocument == null)
+                        {
+
+                            // Parse the modified JSON string to a BsonDocument
+                            BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+                            // Insert the modified document into the collection
+                            await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+                        }
+                        else
+                        {
+                            // Document with the same vat_id already exists, handle accordingly
+                            Console.WriteLine("Document with the same vat_id already exists");
+                        }
+
+
+
+                        string vatid = "";
+                        DateTime startPulldata = new DateTime();
+                        DateTime EndPulldata = new DateTime();
+                        string propertyPathstart_date = "company_info.start_date";
+                        if (ReponsneCompanyInfo != null)
+                        {
+                            DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
+
+                            // Define the time zone ID for Israel
+                            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                            // Get the Israel time zone
+                            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                            // Convert server's DateTime.Now to Israel local time
+                            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+                            string propertyPathVatid = "company_info.vat_id";
+                            vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
+                            startPulldata = startDate;
+                            EndPulldata = israelNow;
+
+                            var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
+                            if (companyPulledDataLog != null)
+                            {
+                                startPulldata = companyPulledDataLog.LastPullDataDate;
+                            }
+
+                            await SetLastPullDataDate(Convert.ToInt32(vatid));
+                        }
+                        var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
+
+                        string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString() + "&end_ts=" + EndPulldata;
+                        HttpMethod methoddocsearch = HttpMethod.Get;
+                        var Reponsnedocsearch = await _UninetInputDataAccess.SendRequest(endpointUrldocsearch, methoddocsearch);
+
+                        if (Reponsnedocsearch != null)
+                        {
+
+                            // insert  compay cutomer invoices to mongodb collection name icount
+                            ///JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
+
+
+
+                            using (JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString()))
+                            {
+                                string SupplierVat_id = vatid; //we send thie vat it to add it to the icountClientInfo so that each node of client will have its suplier_vat_id
+
+                                if (jsonDocument.RootElement.TryGetProperty("results_list", out JsonElement resultsListElement) &&
+                                    resultsListElement.ValueKind == JsonValueKind.Array && resultsListElement.GetArrayLength() > 0)
+                                {
+                                    // results_list exists and has items
+                                    JsonElement resultsList = resultsListElement;
+
+                                    // Your logic here
+                                    InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
+
+                                    //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
+                                    var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue, SupplierVat_id);
+
+
+
+                                    //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
+                                    //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
+                                    //foreach invoce in resultsList get property value of doctype and docnum
+                                    var resCreateListOfDetail = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+
+                                }
+                            }
+
+
+
+
+
+                        }
+
+
+
+                       
+
+
+
+                        //// Call with jwtToken provided
+                        //string jwtToken = "your-jwt-token";
+                        //string responseData2 = await SendRequest(endpointUrl, method, jwtToken);
+                        //Console.WriteLine(responseData2);
                     }
 
-
-
-
-
-
-
-                    //// Call with jwtToken provided
-                    //string jwtToken = "your-jwt-token";
-                    //string responseData2 = await SendRequest(endpointUrl, method, jwtToken);
-                    //Console.WriteLine(responseData2);
-
-
-                    //
+                    var res = new ResSaveExternalCustomized
+                    {
+                        Success = spresult,
+                        textResponse = "data was  saved ",
+                        SystemRegisteredInuninet = true
+                    };
+                    return res;
                 }
-                return spresult;
+                else//external data wasnt saved to database 
+                {
+                   
+                    
+                        var res = new ResSaveExternalCustomized
+                        {
+                            Success = false,
+                            textResponse = "data wasnt saved ",
+                            SystemRegisteredInuninet = false
+                        };
+                        return res;
+                    
+                }
+               
                 
 
             }
-            catch (Exception ex) { return false; };
+            catch (Exception ex)
+            {
+                var res = new ResSaveExternalCustomized
+                {
+                    Success = false,
+                    textResponse = "",
+                    SystemRegisteredInuninet = false
+                };
+                return res;
+            };
         }
         public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid,string InternalUserId,int InternalComopanyId )
         {
@@ -504,7 +560,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 List<CustomizedDataLIst> listdata = new List<CustomizedDataLIst>();
                 //var res = _repository.GetListOfObjects<ExternalSystemDynamicFields>(x => x.ExternalSystemId == ExternalSystemId)
 
-                var res = _repository.GetListOfFiledObjects(ExternalSystemId);
+                var res = _repository.GetListOfFiledObjects(ExternalSystemId);//eyal critical add logic to all companies
+                                                                              //select * from ExternalSystemDynamicFields
+                                                                              //select* from LUT_ExtrenalFieldsType
+                                                                              //need to add  values from this table
+                                                                              //select * from LUT_UninetExternalSystems
 
 
                 var res_logo_video = _repository.GetFirstObject< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
@@ -624,7 +684,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var result = new AddBusinessToUserResult
                         {
                             Result = false,
-                            BusinessRequests = existingBusinessRequests
+                            BusinessRequests = existingBusinessRequests,
+                            
                         };
                         return result;
                     }
@@ -676,7 +737,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var result = new AddBusinessToUserResult
                         {
                             Result = spresult,
-                            BusinessRequests = addedBusinessRequestModels
+                            BusinessRequests = addedBusinessRequestModels,
+                           
                         };
                        
 
@@ -689,6 +751,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     {
                         Result = false,
                         BusinessRequests = null
+                        
                     };
                     return result;
                 }
@@ -696,7 +759,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             catch (Exception ex)
             {
                 // Handle the exception appropriately
-                return null;
+                var result = new AddBusinessToUserResult
+                {
+                    Result = false,
+                    BusinessRequests = null
+                   
+                };
+                return result;
             }
         }
 
@@ -810,7 +879,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
         }
 
-        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId)
+        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId,int Lang)
         {
             try
             {
@@ -822,7 +891,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var res = new ResponseResendOtp
                     {
                         Success = false,
-                        Desc = "User didn't register yet, no OTP sent"
+                        Desc = Lang==1? "User didn't register yet, no OTP sent":"משתמש לא נירשם , לא נישלח קוד "
                     };
                     return res;
                 }
@@ -830,8 +899,16 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     if (result.ValidUser == false)
                     {
+                        // Define the time zone ID for Israel
+                        string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                        // Get the Israel time zone
+                        TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                        // Convert server's DateTime.Now to Israel local time
+                        DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                         DateTime? lastTimeOtpSent = result.DateOtpSent;
-                        DateTime currentTime = DateTime.Now;
+                        DateTime currentTime = israelNow;
 
                         // Calculate the time difference between the current time and the last OTP sent time
                         TimeSpan timeDifference = currentTime - lastTimeOtpSent.GetValueOrDefault();
@@ -844,7 +921,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = false,
-                                    Desc = "Can't send OTP more than five times in the last five minutes",
+                                    Desc = Lang == 1 ? "Can't send OTP more than five times in the last five minutes": "לא ניתן לבקש לשלוח סיסמה יותר מחמש פעמים בחמש דקות האחרונות",
                                     userid = 0,
                                     otp = null
                                 };
@@ -877,7 +954,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var res = new ResponseResendOtp
                                     {
                                         Success = true,
-                                        Desc = "OTP sent successfully",
+                                        Desc = Lang == 1 ? "OTP sent successfully":"קוד נשלח בהצלחה",
                                         userid= result.AdminUserid,
                                         otp= sendsmtpmailres.OTP
                                     };
@@ -888,7 +965,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var res = new ResponseResendOtp
                                     {
                                         Success = false,
-                                        Desc = "Mail service Failed to sent",
+                                        Desc = Lang == 1 ? "Error Ocured Otp wasnt sent":"ארעה שגיאה קוד לא נישלח",
                                         userid = 0,
                                         otp = null
                                     };
@@ -911,7 +988,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = true,
-                                    Desc = "OTP sent successfully",
+                                    Desc = Lang == 1 ? "OTP sent successfully" : "קוד נשלח בהצלחה",
                                     userid = result.AdminUserid,
                                     otp = sendsmtpmailres.OTP
                                 };
@@ -922,7 +999,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = false,
-                                    Desc = "Mail service Failed to sent",
+                                    Desc = Lang == 1 ? "Error Ocured Otp wasnt sent" : "ארעה שגיאה קוד לא נישלח",
                                     userid = 0,
                                     otp = null
                                 };
@@ -935,7 +1012,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var res = new ResponseResendOtp
                         {
                             Success = false,
-                            Desc = "user is already validated no need for otp",
+                            Desc = Lang==1? "user is already validated no need for otp":"המשתמש כבר אומת  אין צורך בשליחת קוד לאימות",
                             userid = 0,
                             otp = null
                         };
@@ -947,7 +1024,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                 var res = new ResponseResendOtp
                 {
-                    Success = true,
+                    Success = false,
                     Desc = ex.Message
                 };
                 return res;
@@ -958,13 +1035,21 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 var NewUser = new AdminUsers
                 {
 
                     //FirstName = RegisterUserReq.FirstName,
                     //LastName = RegisterUserReq.LastName,
                     //PhoneNumber = RegisterUserReq.PhoneNumber,
-                    DateCreated = DateTime.Now,
+                    DateCreated = israelNow,
                     ValidUser = false,
                     Email = RegisterUserReq.Email,
                     passwordEncrypted=RegisterUserReq.Password
@@ -1043,50 +1128,88 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
         }
 
-        public async Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
+        public async Task<ResetPasswordReponse> ResetPassword(ResetPasswordRequestcs resetpasswordrequest)
         {
             try
             {
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 var adminuserObj = _repository.GetFirstObject<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
                 if (adminuserObj != null) {
 
-                    if (DateTime.Now > adminuserObj.RefreshTokenExpireTime)
+                    if (israelNow > adminuserObj.RefreshTokenExpireTime)
                     {
                         // The token has expired. You can return an error response or handle it as needed.
-                        return false;//BadRequest("Token has expired.");
+
+                        var ResResetPassword = new ResetPasswordReponse
+                        {
+                            success = false,
+                            textResponse = resetpasswordrequest.Lang == 1 ? "token expired" : "הזמן למילוי הסיסמה שנשלחה אליך עבר נסה שנית"
+                        };
+                        return ResResetPassword;//BadRequest("Token has expired.");
                     }
                     else
                     {
                         adminuserObj.passwordEncrypted = resetpasswordrequest.passwordEncrypted;
                         // Save the changes to the database
                         await _repository.UpdateAsync(adminuserObj);
-                        return true;
+                        var ResResetPassword = new ResetPasswordReponse
+                        {
+                            success = true,
+                            textResponse = resetpasswordrequest.Lang == 1 ? "password updated" : "הסיסמה שונתה בהצלחה"
+                        };
+                        return ResResetPassword;
                     }
                 }
                 else
                 {
-                    return false;//user doesnt exist in database according to resetpasswordtoken
+                    //user doesnt exist in database according to resetpasswordtoken
+                    var ResResetPassword = new ResetPasswordReponse
+                    {
+                        success = false,
+                        textResponse = resetpasswordrequest.Lang == 1 ? "the user doesnt exist in our system" : "המשתמש אינו קיים במערכת "
+                    };
+                    return ResResetPassword;
+
                 }
             }
             catch (Exception ex)
             {
-                return false;
+                var ResResetPassword = new ResetPasswordReponse
+                {
+                    success = false,
+                    textResponse = resetpasswordrequest.Lang == 1 ? "an eror occured" : "ארעה שדיאה הסיסמה לא אופסה "
+                };
+                return ResResetPassword;
             }
         }
 
-        public async Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        public async Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {
             try
             {
                 // Check if the user exists in the database based on the provided email
                 var user = _repository.GetFirstObject<AdminUsers>(x => x.Email == forgotPasswordRequest.Email);
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 if (user != null)
                 {
                     string ResetPasswordWebAPILink = "";
                     string UserResetPasswordToken = Guid.NewGuid().ToString();
                     user.ResetPasswordToken = UserResetPasswordToken;
-                    DateTime now = DateTime.Now;
+                    DateTime now = israelNow;
                     DateTime futureTime = now.AddMinutes(10);
                     user.ExpiredpasswordTokenDate = futureTime;
                     
@@ -1100,17 +1223,35 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     _dataMailassist.sendsmtpmail("Uninet reset password", "eyalbmma@gmail.com", forgotPasswordRequest.Email, 7, 1);
 
                     // Return true to indicate that the password reset email was sent successfully
-                    return true;
+                    var ForgotPasswordResponse = new ForgotPasswordResponse
+                    {
+                        Success = true,
+                        textResponse = forgotPasswordRequest.Lang == 1 ? "reset password was sent to email" : "איפוס סיסמה נישלח למייל"
+
+                    };
+                    return ForgotPasswordResponse;
                 }
                 else
                 {
                     // The user with the provided email doesn't exist in the database
-                    return false;
+                    var ForgotPasswordResponse = new ForgotPasswordResponse
+                    {
+                        Success = false,
+                        textResponse = forgotPasswordRequest.Lang == 1 ? "The credentials you have supllied are wrong please try again " : "הפרטים שסיפקת אינם נכונים אנא נסה שנית "
+
+                    };
+                    return ForgotPasswordResponse;
                 }
             }
             catch (Exception ex)
             {
-                return false;
+                var ForgotPasswordResponse = new ForgotPasswordResponse
+                {
+                    Success = false,
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+
+                };
+                return ForgotPasswordResponse;
             }
         }
         public async Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest)
@@ -1142,10 +1283,6 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     // Check if the email exists in the database
                     var existingUserwithemail = _repository.GetFirstObject<AdminUsers>(u => u.Email == email);
-
-                   
-                    
-
                     if (existingUserwithemail != null)
                     {
                         // If the email exists, check if the Google ID in the database is empty or null
@@ -1220,15 +1357,57 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 //return true;
                             }
                             else
-                            {
-                                var resgoogleSignin = new GoogleSigninResponse
+                            {///this else is if requseted googleid doesnt match database googleid
+
+
+
+                                //if google id request is not empty send it to google and get from it the email 
+                                string googleTokenUrl = $"https://oauth2.googleapis.com/tokeninfo?id_token={googleId}";
+                                using (var httpClient = new HttpClient())
                                 {
-                                    Success = false,
-                                    Message = "Google ID does not match the one associated with the email"
-                                };
-                                return resgoogleSignin;
+                                    var response = await httpClient.GetAsync(googleTokenUrl);
+
+                                    if (response.IsSuccessStatusCode)
+                                    {
+                                        string responseBody = await response.Content.ReadAsStringAsync();
+                                        var tokenInfo = JsonConvert.DeserializeObject<GoogleTokenInfo>(responseBody);
+
+                                        if (tokenInfo.email == googlesignInrequest.Email)
+                                        {
+                                            // Update the Google ID in the database
+                                            existingUserwithemail.GoogleId = googlesignInrequest.GoogleId;
+                                            await _repository.UpdateAsync(existingUserwithemail);
+
+                                            var resgoogleSignin = new GoogleSigninResponse
+                                            {
+                                                Success = true,
+                                                Message = "Google ID is updated  and user is verified "
+                                            };
+
+                                            return resgoogleSignin;
+                                        }
+                                        else
+                                        {
+                                            var resgoogleSignin = new GoogleSigninResponse
+                                            {
+                                                Success = false,
+                                                Message = "google id you supplied doesnt match your credentials  "
+                                            };
+                                        }
+
+
+                                    }
+                                    else
+                                    {
+                                        var resgoogleSignin = new GoogleSigninResponse
+                                        {
+                                            Success = false,
+                                            Message = "google service authentication failed please true again   "
+                                        };
+                                    }
+
+                                }
                                 
-                                //return BadRequest(new { Error = "Google ID does not match the one associated with the email" });
                             }
                         }
                     }
@@ -1248,9 +1427,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 if (tokenInfo.email == email)
                                 {
                                     // Create a new row in the database
+                                    // Define the time zone ID for Israel
+                                    string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                                    // Get the Israel time zone
+                                    TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                                    // Convert server's DateTime.Now to Israel local time
+                                    DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                                     var newUser = new AdminUsers
                                     {
-                                        DateCreated = DateTime.Now,
+                                        DateCreated = israelNow,
                                         ValidUser = true,
                                         Email = googlesignInrequest.Email,
                                         GoogleId = googlesignInrequest.GoogleId
@@ -1297,7 +1484,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
 
                 }
-           
+                var defaultResponse = new GoogleSigninResponse
+                {
+                    Success = false,
+                    Message = "failed to verify with google account unexpected error"
+                };
+                return defaultResponse;
+
 
 
 
@@ -1357,7 +1550,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         }
        
 
-        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string DecryptedUser)
+        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string DecryptedUser,int Lng)
         {
             try
             {
@@ -1380,16 +1573,16 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         return new LoginWithOtpResponse()
                         {
                             verified = res[0].Verified,
-                            description = "User has been verified Succesfully",
+                            description = Lng == 1 ? "User has been verified Succesfully" : "המשתמש אושר בהצלחה",
                             userId = DecryptedUser
 
                         };
                     }else
                     {
-                        return new LoginWithOtpResponse()
-                        {
-                            verified = res[0].Verified,
-                            description = "User otp has passed the time limit please register again to get new otp"
+                    return new LoginWithOtpResponse()
+                    {
+                        verified = res[0].Verified,
+                        description = Lng == 1 ? "User otp has passed the time limit please register again to get new otp" : "הזמן שהוקצב לאישור הקוד אזל אנא נסה שנית "
 
                         };
                     }
@@ -1399,7 +1592,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     return new LoginWithOtpResponse()
                     {
                         verified = res[0].Verified,
-                        description = "User otp has passed the time limit please register again to get new otp"
+                        description  =Lng == 1 ? "User otp has passed the time limit please register again to get new otp" : "הזמן שהוקצב לאישור הקוד אזל אנא נסה שנית "
 
                     };
 
@@ -1409,7 +1602,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
             catch (Exception ex)
             {
-                return null;
+                return new LoginWithOtpResponse()
+                {
+                    verified = false,
+                    description = Lng == 1 ? "an error occure please try again ":"ארעה שגיאה אנא נסה שנית "
+
+                };
+
             }
         }
 

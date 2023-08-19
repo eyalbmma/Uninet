@@ -33,7 +33,7 @@ public class PullUsersData : IHostedService, IDisposable
     {
         _logger.LogInformation("File check service is starting.");
         _isRunning = true;
-        _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
+        _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(10));
         return Task.CompletedTask;
     }
 
@@ -51,18 +51,20 @@ public class PullUsersData : IHostedService, IDisposable
 
         try
         {
-            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325);
-            //foreach (var user in res)
-            //{
-            //    string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
-            //}
 
-            //////////////////////////////////////////////////////
-            ///
+            await WriteToTableAsync(1, "JobStarted", "");
+            List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325);
+            foreach (var user in res)
+            {
+                string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
+            }
+
+            ////////////////////////////////////////////////////////
 
 
-            //here we insert data into businessdata
-            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325 );
+
+            //////here we insert data into businessdata
+            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325);
 
             foreach (var Business in res2)
             {
@@ -77,6 +79,7 @@ public class PullUsersData : IHostedService, IDisposable
 
                 string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
             }
+            await WriteToTableAsync(2, "JobEnded", "");
         }
         catch (Exception ex)
         {
@@ -108,4 +111,29 @@ public class PullUsersData : IHostedService, IDisposable
     {
         _timer?.Dispose();
     }
+
+    private async Task WriteToTableAsync(int Taskid ,string TaskDesc ,string text)
+    {
+        try
+        {
+            // Define the time zone ID for Israel
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+            // Get the Israel time zone
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            // Convert server's DateTime.Now to Israel local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+            var entity = new Jobbatchlog // Replace YourTableName with the appropriate class name
+            {
+                TaskId = Taskid,
+                TaskDesc = TaskDesc,
+                date = israelNow,
+                text = text
+            };
+            await _repository.CreateAsync(entity);
+        }
+        catch(Exception ex) { }
+    }
+
 }

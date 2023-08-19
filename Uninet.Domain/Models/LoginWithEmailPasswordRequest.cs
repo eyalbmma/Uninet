@@ -20,5 +20,10 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("Password")]
         public string Password { get; set; }
 
+        [Required]
+        [JsonPropertyName("Lang")]
+        public int Lang { get; set; }
+
+
     }
 }

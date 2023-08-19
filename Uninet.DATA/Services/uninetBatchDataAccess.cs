@@ -200,12 +200,19 @@ namespace Uninet.DATA.Services
         public async Task SetLastPullDataDate(CompanyPulledDataLog companyPulledDataLog,int companyVatid)
         {
 
+            // Define the time zone ID for Israel
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
-            
+            // Get the Israel time zone
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            // Convert server's DateTime.Now to Israel local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
 
             if (companyPulledDataLog != null)
             {
-                companyPulledDataLog.LastPullDataDate = DateTime.Now;
+                companyPulledDataLog.LastPullDataDate = israelNow;
                 await _repository.UpdateAsync(companyPulledDataLog);
             }
             else
@@ -213,14 +220,15 @@ namespace Uninet.DATA.Services
                 var newRow = new CompanyPulledDataLog
                 {
                     CompanyVatid = companyVatid,
-                    LastPullDataDate = DateTime.Now
+                    LastPullDataDate = israelNow
                 };
 
                 await _repository.CreateAsync(newRow);
             }
 
         }
-        public void InsertDocumentsToMongoDB(JsonElement resultsList, string vatid, string InternalUserId, int InternalComopanyId)
+       
+        public async Task InsertDocumentsToMongoDB(JsonElement resultsList, string vatid, string InternalUserId, int InternalComopanyId)
         {
             foreach (var item in resultsList.EnumerateArray())
             {
@@ -251,9 +259,12 @@ namespace Uninet.DATA.Services
                 Builders<BsonDocument>.Filter.Eq("vat_id", document["vat_id"])
                 );
                 var existingDocument = _ICountCollection.Find(filter).FirstOrDefault();
+                string existingDocumentJson = JsonConvert.SerializeObject(existingDocument);
+                await WriteToTableAsync(7, "LookingForDocumentInICountCollection", existingDocumentJson);
                 if (existingDocument == null)
                 {
                     _ICountCollection.InsertOne(document);
+                    await WriteToTableAsync(8, "--DocumentInsertedToIcountCollection", document.ToJson());
                 }
                 else
                 {
@@ -262,62 +273,84 @@ namespace Uninet.DATA.Services
                 }
             }
         }
-        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
+        public async Task InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
         {
-            // Convert the JsonElement to a BsonDocument
-            BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
-
-            // Check if the document already exists in the collection
-            if (destination == MongoDbDestination.DocinfoDB)
+            try
             {
-                var docnum = document["docnum"];
-                var vatId = document["doc_info"]["vat_id"];
-                var filter = Builders<BsonDocument>.Filter.And(
-                     Builders<BsonDocument>.Filter.Eq("docnum", docnum),
-                     Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
-                 );
-                var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
-                if (existingDocument == null)
+                // Convert the JsonElement to a BsonDocument
+                BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
+
+                // Check if the document already exists in the collection
+                if (destination == MongoDbDestination.DocinfoDB)
                 {
-                    // Insert the document into the collection
-                    _ICountDocInfoCollection.InsertOne(document);
+                    var docnum = document["docnum"];
+                    var vatId = document["doc_info"]["vat_id"];
+                    var filter = Builders<BsonDocument>.Filter.And(
+                         Builders<BsonDocument>.Filter.Eq("docnum", docnum),
+                         Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
+                     );
+                    var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
+                    if (existingDocument != null)
+                    {
+                        BsonDocument bsonDocument = existingDocument.ToBsonDocument();
+                        string existingDocumentJson = bsonDocument.ToJson();
+                        await WriteToTableAsync(11, "DocInfoToinsertToDocInfoCollection", existingDocumentJson);
+                       
+                    }
+                    
+                    
+                    if (existingDocument == null)
+                    {
+                        // Insert the document into the collection
+                        _ICountDocInfoCollection.InsertOne(document);
+                        await WriteToTableAsync(12, "--DocInfoInsertedToDocInfoCollection", document.ToJson());
+                    }
+                    else
+                    {
+                        // Document already exists, handle the case accordingly
+                        // For example, you can update the existing document or log an error
+                        Console.WriteLine($"Document with docnum '{docnum}' already exists.");
+                    }
                 }
-                else
+                else if (destination == MongoDbDestination.ClientInfoDB)
                 {
-                    // Document already exists, handle the case accordingly
-                    // For example, you can update the existing document or log an error
-                    Console.WriteLine($"Document with docnum '{docnum}' already exists.");
+                    var clientInfo = document["client_info"];
+                    var client_id = clientInfo["client_id"].AsString;
+                    var vat_id = clientInfo["vat_id"].AsString;
+
+                    // Add the "SupplierVat_id" property to the client_info node
+                    clientInfo["SupplierVat_id"] = SupplierVat_id;
+
+                    var filter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id),
+                        Builders<BsonDocument>.Filter.Eq("client_info.vat_id", vat_id)
+                    );
+
+                    var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
+                    if (existingDocument != null)
+                    {
+                        BsonDocument bsonDocument = existingDocument.ToBsonDocument();
+                        string existingDocumentJson = bsonDocument.ToJson();
+                        await WriteToTableAsync(13, "ClientInfoToinsertToClientInfoCollection", existingDocumentJson);
+                       
+                    }
+                   
+                    
+                    if (existingDocument == null)
+                    {
+                        // Insert the document into the collection
+                        _IcountClientInfoCollection.InsertOne(document);
+                        await WriteToTableAsync(14, "--ClientInfoInseretedToClientInfoCollection", document.ToJson());
+                    }
+                    else
+                    {
+                        // Document already exists, handle the case accordingly
+                        // For example, you can update the existing document or log an error
+                        Console.WriteLine($"Document with client_id '{client_id}' and vat_id '{vat_id}' already exists.");
+                    }
+
                 }
-            }
-            else if (destination == MongoDbDestination.ClientInfoDB)
-            {
-                var clientInfo = document["client_info"];
-                var client_id = clientInfo["client_id"].AsString;
-                var vat_id = clientInfo["vat_id"].AsString;
-
-                // Add the "SupplierVat_id" property to the client_info node
-                clientInfo["SupplierVat_id"] = SupplierVat_id;
-
-                var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("client_info.client_id", client_id),
-                    Builders<BsonDocument>.Filter.Eq("client_info.vat_id", vat_id)
-                );
-
-                var existingDocument = _IcountClientInfoCollection.Find(filter).FirstOrDefault();
-
-                if (existingDocument == null)
-                {
-                    // Insert the document into the collection
-                    _IcountClientInfoCollection.InsertOne(document);
-                }
-                else
-                {
-                    // Document already exists, handle the case accordingly
-                    // For example, you can update the existing document or log an error
-                    Console.WriteLine($"Document with client_id '{client_id}' and vat_id '{vat_id}' already exists.");
-                }
-
-            }
+            }catch(Exception ex) { }
 
         }
         public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue,string SupplierVat_id)
@@ -329,14 +362,17 @@ namespace Uninet.DATA.Services
                 string clientId = item.GetProperty("client_id").GetString();
                 var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&client_id=" + clientId;
+                await WriteToTableAsync(9, "UrlendpointClinetinfo", endpointClinetinfo);
                 HttpMethod methodclientinfo = HttpMethod.Get;
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
                 var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
+                var ReponsneClientInfoJson= JsonConvert.SerializeObject(ReponsneClientInfo);
+                await WriteToTableAsync(10, "ClientinfoJsonResponse", ReponsneClientInfoJson);
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
-                InsertDocumentInfo(jsonData, destination, SupplierVat_id);
+               await InsertDocumentInfo(jsonData, destination, SupplierVat_id);
             }
             return true;
         }
@@ -354,14 +390,18 @@ namespace Uninet.DATA.Services
 
                 var DocinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 72); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointdocInfo = DocinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&doctype=" + doctype + "&docnum=" + docnum;
+
+                await WriteToTableAsync(15, "EndpointdocInfoUrlRequest", endpointdocInfo);
+
                 HttpMethod methoddocinfo = HttpMethod.Get;
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
-                var ReponsneDocInfo = await SendRequest(endpointdocInfo, methoddocinfo);
-
+                var ReponsneDocInfo = await SendRequest(endpointdocInfo, methoddocinfo);                
+                string ReponsneDocInfojson = JsonConvert.SerializeObject(ReponsneDocInfo);
+                await WriteToTableAsync(16, "ReponsneDocInfo", ReponsneDocInfojson);
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
                 MongoDbDestination destination = MongoDbDestination.DocinfoDB;
-                InsertDocumentInfo(jsonData, destination,"");//i dont pass  SupplierVat_id to doc info because i dont add the attribute SupplierVat_id to the nodes of the collection
+                await InsertDocumentInfo(jsonData, destination,"");//i dont pass  SupplierVat_id to doc info because i dont add the attribute SupplierVat_id to the nodes of the collection
 
             }
 
@@ -372,7 +412,25 @@ namespace Uninet.DATA.Services
 
 
         }
+        private async Task WriteToTableAsync(int Taskid, string TaskDesc, string text)
+        {
+             // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+            var entity = new Jobbatchlog // Replace YourTableName with the appropriate class name
+            {
+                TaskId = Taskid,
+                TaskDesc = TaskDesc,
+                date = israelNow,
+                text = text
+            };
+            await _repository.CreateAsync(entity);
+        }
         public async Task<string> PullUserDatafromExternalSystem(int Userid)
         {
             List<Businesses> res = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == Userid);
@@ -416,9 +474,11 @@ namespace Uninet.DATA.Services
                 var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod methodcomopanyinfo = HttpMethod.Get;
+                await WriteToTableAsync(3, "CompanyInfoUrlRequest", endpointcomopanyinfo);
                 var ReponsneCompanyInfo = await SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
-                //exstract the date started from companyinfo
-                // string jsonResponse = "Your JSON response goes here";
+                string reponsneCompanyInfoJson = JsonConvert.SerializeObject(ReponsneCompanyInfo);
+                await WriteToTableAsync(4, "CompanyInfoUrlResponse", reponsneCompanyInfoJson);
+               
                 string propertyPathstart_date = "company_info.start_date";
 
                 DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
@@ -427,24 +487,39 @@ namespace Uninet.DATA.Services
 
                 string propertyPathVatid = "company_info.vat_id";
                 string vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
+
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+
                 DateTime startPulldata = startDate;
-                DateTime EndPulldata = DateTime.Now;
+                DateTime EndPulldata = israelNow;
                 int intVatid = Convert.ToInt32(vatid.TrimStart('0'));
+                //eyal critical change the logic the startPulldata and  EndPulldata need to be fix mean while i remark it
                 CompanyPulledDataLog companyPulledDataLog =  _repository.GetFirstObject<CompanyPulledDataLog>(x => x.CompanyVatid == intVatid);
                 if (companyPulledDataLog != null)
                 {
                     startPulldata = companyPulledDataLog.LastPullDataDate;
                 }
-                startPulldata= startPulldata.AddDays(-4);//added eyal becuse icount doesnt bring exact data
-                await SetLastPullDataDate(companyPulledDataLog, intVatid);
+                
+                 await SetLastPullDataDate(companyPulledDataLog, intVatid);
 
                 var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
-
+                
                 string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString() + "&end_ts=" + EndPulldata;
+
+                await WriteToTableAsync(5, "DocsearchUrlRequest", endpointUrldocsearch);
+
                 HttpMethod methoddocsearch = HttpMethod.Get;
                 var Reponsnedocsearch = await SendRequest(endpointUrldocsearch, methoddocsearch);
-
-
+                string ResponsnedocsearchJson = JsonConvert.SerializeObject(Reponsnedocsearch);
+                await WriteToTableAsync(6, "DocsearchResponse", ResponsnedocsearchJson);
 
                 // insert  compay cutomer invoices to mongodb collection name icount
                 JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
@@ -459,7 +534,7 @@ namespace Uninet.DATA.Services
                     JsonElement resultsList = resultsListElement;
 
 
-                    InsertDocumentsToMongoDB(resultsList, vatid, Userid.ToString(), Business.BusinessId);
+                    await InsertDocumentsToMongoDB(resultsList, vatid, Userid.ToString(), Business.BusinessId);
 
 
                     //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
@@ -643,15 +718,22 @@ namespace Uninet.DATA.Services
                        
 
                     };
+                    string userParamJson = JsonConvert.SerializeObject(UserParam);
+                    await WriteToTableAsync(17, "ItemToinsertToBusinessDataTable", userParamJson);
                     var result = _repository.ExecuteGetSP<InsertBusinessData_Result>(ConstUninetStoredprocedure.SP_InsertBusinessData, UserParam);
+                    
+                    
                     try
                     {
                         bool spresult = result.ToList()[0].Success;
+                        //await WriteToTableAsync("the result after inserting to BusinessData is " + result + "the data is " + userParamJson);
                         if (spresult)
                         {
                             var resmail = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
                             if (resmail.result)
                             {
+                                string _RequestMailObjectJson = JsonConvert.SerializeObject(_RequestMailObject);
+                                await WriteToTableAsync(18, "MailSentToclientWithHisDocument", _RequestMailObjectJson);
                                 var UserParam2 = new
                                 {
 

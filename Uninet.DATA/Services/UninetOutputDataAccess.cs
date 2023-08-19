@@ -402,7 +402,12 @@ namespace Uninet.DATA.Services
             catch (Exception ex) { return null; }
         }
 
-        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID)
+
+
+
+
+
+        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist)
         {
             try
             {
@@ -423,13 +428,30 @@ namespace Uninet.DATA.Services
                         var vatId = result["company_info"]["vat_id"].AsString;
 
 
-                       
+
 
                         //now we go to BusinessData  table that has all digitaldocument sent to clients and check if client is there by his vat_id
                         //if its found we need to extract JsonDocumentid  and BusinessId (as the company that sent the document)
                         //and return a list of them to the client to show this waitingto approve list to insert as expenses
                         // Replace with your desired VAT ID
-                        var ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet==null);
+
+                        List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = null;
+                        switch (Typelist)
+                        {
+                            case "notApproveOrRejected":
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                                break;
+                            case "Rejected":
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
+                                break;
+                            case "Approved":
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
+                                break;
+                        }
+                       
+                        
+                        
+                        
                         foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
                             string JsonDocUrl = "";
@@ -456,6 +478,46 @@ namespace Uninet.DATA.Services
         public SupplierItem GetSupplierItemByVatId(List<SupplierItem> supplierList, int vatId)
         {
             return supplierList.FirstOrDefault(supplier => supplier.vat_id == vatId);
+        }
+
+        public async Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument)
+        {
+            try
+            {
+                var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.BusinessVatId == requestRejectDocument.BusinessVatId && x.ClientVat_id == requestRejectDocument.ClientVat_id);
+                if (businessDatarow != null) 
+                {
+                    businessDatarow.DocumentApprovedtoUninet = false;
+                    await _repository.UpdateAsync(businessDatarow);
+                    var res = new RejectDocumenResponse
+                    {
+                        Success = true,
+                        textResponse = requestRejectDocument.Lang == 1 ? "Document rejected Succesfully" : "המסמך נדחה בהצלחה"
+                    };
+                    return res;
+
+                }
+                else
+                {
+                    var res = new RejectDocumenResponse
+                    {
+                        Success = true,
+                        textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המבמך לא נדחה "
+                    };
+                    return res;
+                }
+
+               
+                
+            }
+            catch (Exception ex) {
+                var res = new RejectDocumenResponse
+                {
+                    Success = false,
+                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המבמך לא נדחה "
+                };
+                return res;
+            }
         }
 
         //public bool IsVatIdExists(List<SupplierItem> supplierList, int vatId)
@@ -508,7 +570,7 @@ namespace Uninet.DATA.Services
         //        //expense_sum
 
         //        //https://api.icount.co.il/api/v3.php/expense/create
-           
+
 
 
 

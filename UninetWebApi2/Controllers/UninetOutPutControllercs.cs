@@ -20,13 +20,13 @@ namespace UninetWebApi2.Controllers
             _uninetOutPutAppService = uninetOutPutAppService;
            
         }
-
+        //here we get all document that the client is getting to his uninet system approved rejected and not each one of them 
         [Authorize]
         [HttpGet("GetDigitalDocumentToApproveListByUser")]
-        public async Task<ActionResult> GetDigitalDocumentToApproveListByUser()
+        public async Task<ActionResult> GetDigitalDocumentToApproveListByUser(string Typelist)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId));
+            var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId), Typelist);
             return Ok(result);
 
             //return Ok(_uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId)));
@@ -47,15 +47,57 @@ namespace UninetWebApi2.Controllers
 
 
         [Authorize]
-        [HttpPost("InsertUserDigitalDocToUninetSystem")]
+        [HttpPost("RejectDocument")]
         //this method gets a 
-        public async Task<ActionResult> InsertUserDigitalDocToUninetSystem([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
+        public async Task<ActionResult> RejectDocument([FromBody] RequestRejectDocument requestRejectDocument)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest,Convert.ToInt32(userId));
+            var result = await _uninetOutPutAppService.RejectDocument(requestRejectDocument);
 
             return Ok(result);
         }
+
+        [Authorize]
+        [HttpPost("InsertUserDigitalDocToUninet")]
+        //this method gets a 
+        //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
+        public async Task<ActionResult> InsertUserDigitalDocToUninet()
+        {
+            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
+
+            return Ok(true);
+        }
+
+        [Authorize]
+        [HttpPost("AproveDoc")]
+        //this method gets a 
+        //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
+        public async Task<ActionResult> AproveDoc([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
+
+            string message = "";
+            if (result.status)
+            {
+                
+                    message = expensesUserDoRequest.Lang == 1 ? "Document transfered to Uninet Sysyem" : "המסמכים התקבלו בהצלחה במערכות יונינט";
+               
+
+
+            }
+            else
+            {
+                message = expensesUserDoRequest.Lang == 1 ? "There was An Error Document wasnt transfered to Uninet system" : "ארעה שגיאה המסמכים לא התקבלו במערכת יונינט";
+            }
+            result.textResponse= message;
+
+            return Ok(result);
+        }
+
+
+
 
 
 

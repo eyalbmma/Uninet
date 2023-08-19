@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,11 +29,28 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex) { return null; }
         }
-        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID)
+        public async Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument)
         {
             try
             {
-                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID);
+                return await _uninetOutPutDataAccess.RejectDocument(requestRejectDocument);
+            }
+            catch (Exception ex)
+            {
+                var res = new RejectDocumenResponse
+                {
+                    Success = false,
+                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המבמך לא נדחה "
+                };
+                return res;
+            }
+        }
+
+        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist)
+        {
+            try
+            {
+                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID, Typelist);
             }
             catch(Exception ex) { return null; }
         }

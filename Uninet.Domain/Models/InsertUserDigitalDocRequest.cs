@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -31,7 +32,13 @@ namespace Uninet.Domain.Models
 
         [JsonPropertyName("expense_sum")]
         public float expense_sum { get; set; }
-         
+
+
+
+        [Required]
+        [JsonPropertyName("Lang")]
+        public int Lang { get; set; }
+
 
     }
 }

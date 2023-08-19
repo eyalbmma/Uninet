@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class ForgotPasswordRequest
+    public class ResetPasswordReponse
     {
-        public string Email { get; set; }
-        public int Lang { get; set; }
+        public bool success { get; set; }
+        public string textResponse { get; set; }
     }
-
 }

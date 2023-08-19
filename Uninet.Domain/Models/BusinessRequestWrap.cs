@@ -8,22 +8,14 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class LoginWithOtpRequest
+    public  class BusinessRequestWrap
     {
         [Required]
-        [JsonPropertyName("Otp")]
-        public string Otp { get; set; }
-
-
-        [Required]
-        [JsonPropertyName("EncryptedUser")]
-        public string EncryptedUser { get; set; }
-
-
+        [JsonPropertyName("RegisterUserReq")]
+        public List<BusinessRequest> RegisterUserReq { get; set; }
 
         [Required]
         [JsonPropertyName("Lang")]
         public int Lang { get; set; }
-
     }
 }

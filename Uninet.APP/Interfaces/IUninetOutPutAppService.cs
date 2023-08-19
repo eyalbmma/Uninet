@@ -1,6 +1,7 @@
 ﻿using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,9 +11,11 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUninetOutPutAppService
     {
+
+        Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument);
         Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest,int userId);
         
             Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
-        Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID);
+        Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist);
     }
 }

@@ -246,10 +246,10 @@ namespace UninetWebApi2.Controllers
                 app.UseDeveloperExceptionPage();
                 // Inside the Configure method of Startup.cs
                
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Workspaces.API v1"));
+                
             }
-
+            app.UseSwagger();
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Workspaces.API v1"));
             //app.Use(async (context, next) =>
             //{
             //    // Your token validation and inspection code here

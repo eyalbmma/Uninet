@@ -107,7 +107,14 @@ namespace Uninet.DATA.Services
                 message.Subject = subject;
                 var ObjTemplateparam = new { TemplateId = Templateid, Lang = lang };
                 var res = _repository.ExecuteGetSP<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam).ToList();
+                // Define the time zone ID for Israel
+                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
+                // Get the Israel time zone
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                // Convert server's DateTime.Now to Israel local time
+                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 switch (ObjTemplateparam.TemplateId)
                 {
                     case 1:
@@ -171,7 +178,7 @@ namespace Uninet.DATA.Services
                         {
                             { "username", "yona" },
                             { "docType", "pdf " },
-                            { "createdDate", DateTime.Now.ToString() },
+                            { "createdDate", israelNow.ToString() },
                             { "RecipientName", "moshe  RecipientName " },
                             {"doc status","opened" }
 

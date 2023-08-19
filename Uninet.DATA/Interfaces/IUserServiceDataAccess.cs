@@ -11,12 +11,12 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUserServiceDataAccess
     {
-        public Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest,int DecryptedUserId);
-        public Task<bool> ResetPassword(ResetPasswordRequestcs resetpasswordrequest);
+        public Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest,int DecryptedUserId,int Lang);
+        public Task<ResetPasswordReponse> ResetPassword(ResetPasswordRequestcs resetpasswordrequest);
         public Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest);
         public Task<Dictionary<int, string>> GetExternalSystems();
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
-        public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser);
+        public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser, int Lang);
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
         public Task<ReturnRegisterUser> RegisterUser(RegisterUserRequest RegisterUserReq);
 
@@ -30,7 +30,7 @@ namespace Uninet.DATA.Interfaces
         public Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId);
 
 
-        public Task<bool> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId);
-        public Task<bool> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest);
+        public Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId);
+        public Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest);
     }
 }

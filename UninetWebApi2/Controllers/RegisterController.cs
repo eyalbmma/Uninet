@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.VisualBasic;
 using Newtonsoft.Json;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -43,7 +44,7 @@ namespace UninetWebApi2.Controllers
         //Q1 to Q3
         [Authorize]
         [HttpPost("RegisterBusinessToUser")]
-        public async Task<ActionResult> RegisterBusinessToUser([FromBody] List<BusinessRequest> RegisterUserReq)
+        public async Task<ActionResult> RegisterBusinessToUser([FromBody] BusinessRequestWrap RegisterUserReqWrap)
         {
             try
             {
@@ -51,13 +52,34 @@ namespace UninetWebApi2.Controllers
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var UserBusinesses = new UserBusinesses
                 {
-                    BusinessRequests = RegisterUserReq,
+                    BusinessRequests = RegisterUserReqWrap.RegisterUserReq,
                     Userid =Convert.ToInt32(userId)
                 };
                 var res = await _userServiceApp.RegisterBusinessToUser(UserBusinesses);
 
+                string message = "";
+                if (res != null)
+                {
+                    if (res.Result)
+                    {
+                        message = RegisterUserReqWrap.Lang == 1 ? "company was added successfully" : "החברה התוספה בהצלחה";
+                    }
+                    else
+                    {
+                        message = RegisterUserReqWrap.Lang == 1 ? "Error Occured Company Wasnt Added" : "החברה לא התווספה";
+                    }
 
-                return Ok(res);
+
+                }
+
+
+                var res2 = new RegisterBussnesToUserResponse
+                {
+                    addBusinessToUserResult = res,
+                    textResponse = message
+                };
+               
+;               return Ok(res2);
             }
             catch (Exception ex)
             {
@@ -103,7 +125,16 @@ namespace UninetWebApi2.Controllers
             // Create the JSON object
            
             var res = await _userServiceApp.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails, userId.ToString());
-
+            string msg = "";
+            if (res.Success)
+            {
+                res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך הצליחה" : "your credentials is saved";
+            }
+            else
+            {
+                res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך נכשלה" : "your credentials failed to save";
+            }
+            
             return Ok(res);
         }
 
@@ -253,7 +284,7 @@ namespace UninetWebApi2.Controllers
 
 
             string DecryptedUserId = DecryptUserId(_LoginWithOtpRequest.EncryptedUser, Configuration["EncryptedUserId:key"], ivBytes);
-            var Res = await _userServiceApp.RegisterWithOtpAndEncryptedUser(_LoginWithOtpRequest.Otp, DecryptedUserId);
+            var Res = await _userServiceApp.RegisterWithOtpAndEncryptedUser(_LoginWithOtpRequest.Otp, DecryptedUserId, _LoginWithOtpRequest.Lang);
             
             return Res;
            
@@ -294,7 +325,9 @@ namespace UninetWebApi2.Controllers
                         refreshToken = newRefreshToken,
                         success = true,
                         //Userid = Res.Userid
-                        verified= Res.verified
+                        verified= Res.verified,
+                        textResponse=  Res.description
+
                     });
                 }
                 else
@@ -306,7 +339,8 @@ namespace UninetWebApi2.Controllers
                         accessToken = "",
                         refreshToken = "",
                         success = false,
-                        verified = Res.verified
+                        verified = Res.verified,
+                         textResponse = Res.description
                         // Userid = 0
                     });
 
@@ -339,7 +373,7 @@ namespace UninetWebApi2.Controllers
                 string iv = Configuration["EncryptedUserId:iv"];
                 byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
                 string DecryptedUserId = DecryptUserId(resentOtpRequest.EncryptedUserId, Configuration["EncryptedUserId:key"], ivBytes);
-                var ReturnUser = await _userServiceApp.ResendOtp(resentOtpRequest,Convert.ToInt32(DecryptedUserId));
+                var ReturnUser = await _userServiceApp.ResendOtp(resentOtpRequest,Convert.ToInt32(DecryptedUserId), resentOtpRequest.Lang);
                 if (ReturnUser.Success)
                 {
                     var res = await _userServiceApp.SaveIndicationOfSentApprovalMailToCustomer(ReturnUser.userid, ReturnUser.otp);
@@ -424,7 +458,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         sucess = false,
-                        textResponse = "User Failed to Register",
+                        textResponse = RegisterUserReq.Lang==1? "User Failed to Register":"משתמש נכשל בתהליך הרישום",
                         encryptedUser = "",
                         verified= false
                     };
@@ -438,7 +472,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         sucess = false,
-                        textResponse = "User already Exist ",
+                        textResponse = RegisterUserReq.Lang == 1 ? "User already Exist ":"משתמש כבר קיים במערכת ",
                         encryptedUser = res.EncryptedUserid,
                         verified= ReturnUser.verified
                     };
@@ -455,7 +489,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         sucess = true,
-                        textResponse = "User Succesfuly registered , Otp Sent For Verification",
+                        textResponse = RegisterUserReq.Lang == 1 ? "User Succesfuly registered , Otp Sent For Verification":"הרישום הצליח קוד אימות נישלח למייל",
                         encryptedUser = res.EncryptedUserid,
                         verified = ReturnUser.verified,
                         otp= sendsmtpmailres.OTP

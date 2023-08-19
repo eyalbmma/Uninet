@@ -84,14 +84,22 @@ namespace UninetWebApi2.Controllers
             try
             {
 
-                bool forgotPasswordresponse = await _userServiceApp.ForgotPassword(forgotPasswordRequest);
-                return Ok(forgotPasswordresponse);
+                var  res = await _userServiceApp.ForgotPassword(forgotPasswordRequest);
+                return Ok(res);
+                
+               
           
             }
             catch (Exception ex)
             {
-                // Handle the exception and return an appropriate response
-                return StatusCode(500, "An error occurred while processing the request.");
+
+                var ForgotPasswordResponse = new ForgotPasswordResponse
+                {
+                    Success = false,
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+
+                };
+                return Ok(ForgotPasswordResponse);
             }
         }
 
@@ -128,7 +136,15 @@ namespace UninetWebApi2.Controllers
                 return Ok(Res);
 
             }
-            catch (Exception ex) { return Ok(false); }
+            catch (Exception ex) {
+
+                var ResResetPassword = new ResetPasswordReponse
+                {
+                    success = false,
+                    textResponse = resetpasswordrequest.Lang == 1 ? "an eror occured" : "ארעה שדיאה הסיסמה לא אופסה "
+                };
+                return Ok(ResResetPassword);
+            }
         }
         public static byte[] StringToByteArray(string hex)
         {
@@ -184,8 +200,31 @@ namespace UninetWebApi2.Controllers
                 byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
                 string encryptedUserId = EncryptUserId(Res.Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
 
-                //here i call 
-                // string tt = await _uninetInputAppService.PullUserDatafromExternalSystem(Res.Userid);
+                string Resmessage = "";
+                if (Res.Userid != 0)
+                {
+                    if (_LoginWithEmailPasswordRequest.Lang == 1)
+                    {
+                        Resmessage = "User Login Succesfully";
+                    }
+                    else
+                    {
+                        Resmessage = "המשתמש התחבר בהצלחה";
+                    }
+                }
+                else
+                {
+                    if (_LoginWithEmailPasswordRequest.Lang == 1)
+                    {
+                        Resmessage = "user failed to login";
+                    }
+                    else
+                    {
+                        Resmessage = "המשתמש נכשל בהתחברות";
+                    }
+                }
+
+
                 return Ok(new RegisterResult
                 {
 
@@ -196,7 +235,8 @@ namespace UninetWebApi2.Controllers
                     Q1_Q2_InidicationRes= Res.Q1_Q2_InidicationRes,
                     Q3_InidicationRes=Res.Q3_InidicationRes,
                     verified= Res.verified,
-                    EncryptedUserId= encryptedUserId
+                    EncryptedUserId= encryptedUserId,
+                    textResponse= Resmessage
                     //Userid = Res.Userid
                 });
             }

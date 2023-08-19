@@ -13,6 +13,7 @@ namespace Uninet.Domain.Models
         public bool status { get; set; }
         public string reason { get; set; }
         public int expense_id { get; set; }
+        public string textResponse { get; set; }
     }
 
     public class ApiData

@@ -10,6 +10,7 @@ namespace Uninet.Domain.Models
     {
         public string? ResetPasswordToken { get; set; }
         public string? passwordEncrypted { get; set; }
+        public int Lang { get; set; }
 
     }
 }

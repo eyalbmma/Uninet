@@ -26,6 +26,8 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
         
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
+        public virtual DbSet<Jobbatchlog> Jobbatchlog { get; set; }
+        
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
@@ -61,7 +63,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
-
+            modelBuilder.Entity<Jobbatchlog>().HasKey(u => new { u.id});
             
             modelBuilder.Entity<UsersExternalSystemDynamicFields>().HasKey(u => new { u.Companyid, u.Userid ,u.ExternalSystemId,u.FieldLabelName });
 

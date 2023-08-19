@@ -44,6 +44,9 @@ namespace Uninet.Domain.Models
 
         [JsonPropertyName("EncryptedUserId")]
         public string? EncryptedUserId { get; set; }
+
+        [JsonPropertyName("textResponse")]
+        public string? textResponse { get; set; }
         
 
     }
