@@ -37,7 +37,17 @@ namespace Uninet.Domain.Entities
         public DateTime? DateEmailSent { get; set; }
 
         public bool? DocumentApprovedtoUninet { get; set; }
-        
+
+
+
+        public string? supplier_name_Sender { get; set; }
+
+        public DateTime? docDate { get; set; }
+
+        public double? amountAV { get; set; }
+
+
+
 
     }
 }

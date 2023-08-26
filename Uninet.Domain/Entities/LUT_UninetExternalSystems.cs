@@ -16,6 +16,8 @@ namespace Uninet.Domain.Entities
        
         [Key]
         public int SyestemId { get; set; }
+        [Key]
+        public int Lang { get; set; }
 
         public string? Logo { get; set; }
 

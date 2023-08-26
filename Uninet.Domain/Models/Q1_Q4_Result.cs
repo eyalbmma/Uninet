@@ -2,29 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Uninet.Domain.StoredProcedures.Responses
+namespace Uninet.Domain.Models
 {
-    
-
-    public class LoginWithEmailandPasswordResponse
+    public  class Q1_Q4_Result
     {
-        public int Userid { get; set; }
         public bool Q1_Q2_InidicationRes { get; set; }
-
-
-
-
-       
         public bool Q3_InidicationRes { get; set; }
-
-        public bool? verified { get; set; }
-
         public int? BusinessID { get; set; }
-        // public int Role { get; set; }
-
 
     }
 }

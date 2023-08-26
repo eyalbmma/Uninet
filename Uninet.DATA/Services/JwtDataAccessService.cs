@@ -161,7 +161,7 @@ namespace Uninet.DATA.Services
             }
         }
 
-        public async Task<string> GenerateRefreshToken(int Userid)
+        public async Task<string> GenerateRefreshToken(int? Userid)
         {
             var randomNumber = new byte[32];
             using (var rng = RandomNumberGenerator.Create())

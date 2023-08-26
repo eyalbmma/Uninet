@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class GoogleSignInModel
+    public class LogOutRequest
     {
-        public string Email { get; set; }
-        public string GoogleId { get; set; }
-        public int lang { get; set; }
+        public int Lang { get; set; }
     }
 }

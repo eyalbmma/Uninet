@@ -47,7 +47,12 @@ namespace Uninet.Domain.Models
 
         [JsonPropertyName("textResponse")]
         public string? textResponse { get; set; }
+
+
+        [JsonPropertyName("BusinessId")]
+        public int? BusinessId { get; set; }
         
+
 
     }
 }

@@ -535,9 +535,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
         }
 
-        public async Task<Dictionary<int, string>> GetExternalSystems()
+        public async Task<Dictionary<int, string>> GetExternalSystems(int Lang)
         {
-            var hashtable = _repository.GetHashtableOfExternalFields();
+            var hashtable = _repository.GetHashtableOfExternalFields(Lang);
 
             var dictionary = hashtable.Cast<DictionaryEntry>()
                 .ToDictionary(entry => (int)entry.Key, entry => (string)entry.Value);
@@ -1143,7 +1143,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var adminuserObj = _repository.GetFirstObject<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
                 if (adminuserObj != null) {
 
-                    if (israelNow > adminuserObj.RefreshTokenExpireTime)
+                    if (israelNow > adminuserObj.ExpiredpasswordTokenDate)
                     {
                         // The token has expired. You can return an error response or handle it as needed.
 
@@ -1274,7 +1274,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var resgoogleSignin = new GoogleSigninResponse
                     {
                         Success = true,
-                        Message = "email and googleid exist in DB user is verfied"
+                        UserId= existingUseremailandgoogleid.AdminUserid,
+                        verified= existingUseremailandgoogleid.ValidUser,
+                        textResponse = googlesignInrequest.lang==1? " user is succesfully verified  ": "פרטי המשתמש אומתו בהצלחה" //email and googleid exist in DB user is
                     };
                         
                     return resgoogleSignin;
@@ -1308,7 +1310,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         var resgoogleSignin = new GoogleSigninResponse
                                         {
                                             Success = true,
-                                            Message = "Google ID verified and linked to the existing email"
+                                            UserId = existingUseremailandgoogleid.AdminUserid,
+                                            verified = existingUseremailandgoogleid.ValidUser,
+                                            textResponse = googlesignInrequest.lang == 1 ? "verfication succeed" : "הזדהות מול גוגל הצליחה"//"Google ID verified and linked to the existing email"
                                         };
 
                                         return resgoogleSignin;
@@ -1322,7 +1326,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         var resgoogleSignin = new GoogleSigninResponse
                                         {
                                             Success = false,
-                                            Message = "Invalid email or Google ID"
+                                            UserId = null,
+                                            verified = false,
+                                            textResponse = googlesignInrequest.lang == 1 ? "verfication failed1" : " האימות נכשל "  //Invalid email or Google ID
                                         };
 
                                         return resgoogleSignin;
@@ -1334,7 +1340,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var resgoogleSignin = new GoogleSigninResponse
                                     {
                                         Success = false,
-                                        Message = "Failed to verify user with Google API"
+                                        UserId = null,
+                                        verified = false,
+                                        textResponse = googlesignInrequest.lang == 1? "verfication failed" : " האימות נכשל "  ////Failed to verify user with Google API
                                     };
 
                                     return resgoogleSignin;
@@ -1350,7 +1358,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var resgoogleSignin = new GoogleSigninResponse
                                 {
                                     Success = true,
-                                    Message = "User already exists"
+                                    UserId = existingUseremailandgoogleid.AdminUserid,
+                                    verified = existingUseremailandgoogleid.ValidUser,
+                                    textResponse = googlesignInrequest.lang == 1 ? "User already exists":"משתמש כבר קיים "
                                 };
                                 return resgoogleSignin;
                                 // return Ok(new { Message = "User already exists" });
@@ -1381,7 +1391,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                             var resgoogleSignin = new GoogleSigninResponse
                                             {
                                                 Success = true,
-                                                Message = "Google ID is updated  and user is verified "
+                                                UserId = existingUserwithemail.AdminUserid,
+                                                verified = existingUserwithemail.ValidUser,
+                                                textResponse = googlesignInrequest.lang == 1 ? "Google ID is updated  and user is verified ":"משתמש גוגל עודכן ברשומות אצלינו"
                                             };
 
                                             return resgoogleSignin;
@@ -1391,7 +1403,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                             var resgoogleSignin = new GoogleSigninResponse
                                             {
                                                 Success = false,
-                                                Message = "google id you supplied doesnt match your credentials  "
+                                                UserId =null,
+                                                verified = false,
+                                                textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל " //google id you supplied doesnt match your credentials  "
                                             };
                                         }
 
@@ -1402,7 +1416,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         var resgoogleSignin = new GoogleSigninResponse
                                         {
                                             Success = false,
-                                            Message = "google service authentication failed please true again   "
+                                            UserId = null,
+                                            verified = false,
+                                            textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל " // "google service authentication failed please true again   "
                                         };
                                     }
 
@@ -1449,7 +1465,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var resgoogleSignin = new GoogleSigninResponse
                                     {
                                         Success = true,
-                                        Message = "User created successfully"
+                                        UserId = newUser.AdminUserid,
+                                        verified = newUser.ValidUser,
+                                        textResponse = googlesignInrequest.lang == 1 ? "user created succesfully" : " משתמש נוצר בהצלחה "
                                     };
                                     return resgoogleSignin;
                                     // return CreatedAtAction(nameof(GoogleSignIn), new { Message = "User created successfully" });
@@ -1461,7 +1479,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var resgoogleSignin = new GoogleSigninResponse
                                     {
                                         Success = false,
-                                        Message = "Invalid email or Google ID"
+                                        UserId =null,
+                                        verified =false,
+                                        textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל " //"Invalid email or Google ID"
                                     };
                                     return resgoogleSignin;
                                     
@@ -1474,7 +1494,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var resgoogleSignin = new GoogleSigninResponse
                                 {
                                     Success = false,
-                                    Message = "Failed to verify user with Google API"
+                                    UserId = null,
+                                    verified = false,
+                                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל "  //"Failed to verify user with Google API"
                                 };
                                 return resgoogleSignin;
                                
@@ -1487,7 +1509,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var defaultResponse = new GoogleSigninResponse
                 {
                     Success = false,
-                    Message = "failed to verify with google account unexpected error"
+                    UserId = null,
+                    verified = false,
+                    textResponse = googlesignInrequest.lang == 1 ? "failed to verify with google account unexpected error" : " האימות מול גוגל נכשל"
                 };
                 return defaultResponse;
 
@@ -1500,13 +1524,42 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var resgoogleSignin = new GoogleSigninResponse
                 {
                     Success = false,
-                    Message = ex.Message
+                    textResponse = googlesignInrequest.lang == 1? "verfication failed" + ex.InnerException + ex.Message : " האימות נכשל "
                 };
                 return resgoogleSignin;
                 
             }
         }
-
+        public async Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request)
+        {
+            try
+            {
+                Businesses q1q2_res = null;
+                UsersExternalSystemDynamicFields q3_res = null;
+                q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == q1q4request.Userid);
+                if (q1q2_res != null)
+                {
+                    q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == q1q4request.Userid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                }
+                var Response = new Q1_Q4_Result
+                {
+                    Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
+                    Q3_InidicationRes = q3_res != null ? true : false,
+                    BusinessID= q1q2_res==null?null: q1q2_res.BusinessId
+                };
+                return Response;
+            }
+            catch(Exception ex)
+            {
+                var Response = new Q1_Q4_Result
+                {
+                    Q1_Q2_InidicationRes = false,
+                    Q3_InidicationRes = false,
+                    BusinessID =null
+                };
+                return Response;
+            }
+        }
         public async Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest)
         {
             try
@@ -1526,7 +1579,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
                         Q3_InidicationRes = q3_res != null ? true : false,
                         Userid = result.AdminUserid,
-                        verified = result.ValidUser
+                        verified = result.ValidUser,
+                        BusinessID= q1q2_res == null?null: q1q2_res.BusinessId
                     };
                     return Response;
                 }

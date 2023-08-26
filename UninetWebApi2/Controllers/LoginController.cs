@@ -1,5 +1,6 @@
 ﻿
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Twilio.Jwt.AccessToken;
 using Uninet.APP.Interfaces;
 using Uninet.APP.Services;
 using Uninet.DATA.Interfaces;
@@ -115,14 +117,90 @@ namespace UninetWebApi2.Controllers
                     return BadRequest(ModelState);
                 }
                 GoogleSigninResponse googleresponse = await _userServiceApp.GoogleSignIn(googlesignInrequest);
-                return Ok(googleresponse);
+
+                if (googleresponse.Success)
+                {
+                    var claims = new[]
+                    {
+
+                         new Claim(ClaimTypes.NameIdentifier,googleresponse.UserId.ToString())
+                     };
+                    var token = await _jwtAppService.GenerateAccessToken(claims);
+                    var newRefreshToken = await _jwtAppService.GenerateRefreshToken(googleresponse.UserId);
+
+                    _logger.LogInformation($"Userid [{googleresponse.UserId.ToString()}] logged in the system.");
+
+                    string iv = Configuration["EncryptedUserId:iv"];
+                    byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+                    string encryptedUserId = EncryptUserId(googleresponse.UserId.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+                    var req1_4 = new Q1_Q4_Request
+                    {
+                        Userid = googleresponse.UserId
+
+                    };
+
+                    var res1_4 = await _userServiceApp.GetQ1_Q4_Indication(req1_4);
+
+                    return Ok(new RegisterResult
+                    {
+
+                        //Role = Res.Role.ToString(),
+                        accessToken = token,
+                        refreshToken = newRefreshToken,
+                        success = googleresponse.Success,
+                        Q1_Q2_InidicationRes = res1_4.Q1_Q2_InidicationRes,
+                        Q3_InidicationRes = res1_4.Q3_InidicationRes,
+                        verified = googleresponse.verified,
+                        EncryptedUserId = encryptedUserId,
+                        textResponse = googleresponse.textResponse,
+                        BusinessId= res1_4.BusinessID
+                        //Userid = Res.Userid
+                    });
+
+
+                }
+                else
+                {
+                    return Ok(new RegisterResult
+                    {
+
+                        //Role = Res.Role.ToString(),
+                        accessToken = null,
+                        refreshToken = null,
+                        success = googleresponse.Success,
+                        Q1_Q2_InidicationRes =false,
+                        Q3_InidicationRes = false,
+                        verified = false,
+                        EncryptedUserId = null,
+                        textResponse = googleresponse.textResponse,
+                        BusinessId =null
+                        //Userid = Res.Userid
+                    });
+                }
+
+
+
+               
 
 
             }
             catch (Exception ex)
             {
                 // Handle the exception and return an appropriate response
-                return StatusCode(500, "An error occurred while processing the request.");
+                  return Ok(new RegisterResult
+                {
+
+                    //Role = Res.Role.ToString(),
+                    accessToken = null,
+                    refreshToken = null,
+                    success = false,
+                    Q1_Q2_InidicationRes = false,
+                    Q3_InidicationRes = false,
+                    verified = false,
+                    EncryptedUserId = null,
+                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed9"+ex.InnerException +ex.Message : " האימות נכשל "
+                      //Userid = Res.Userid
+                  });
             }
         }
 
@@ -205,22 +283,22 @@ namespace UninetWebApi2.Controllers
                 {
                     if (_LoginWithEmailPasswordRequest.Lang == 1)
                     {
-                        Resmessage = "User Login Succesfully";
+                        Resmessage = "User Login Succesfully111";
                     }
                     else
                     {
-                        Resmessage = "המשתמש התחבר בהצלחה";
+                        Resmessage = "המשתמש התחבר בהצלחה111";
                     }
                 }
                 else
                 {
                     if (_LoginWithEmailPasswordRequest.Lang == 1)
                     {
-                        Resmessage = "user failed to login";
+                        Resmessage = "user failed to login222";
                     }
                     else
                     {
-                        Resmessage = "המשתמש נכשל בהתחברות";
+                        Resmessage = "המשתמש נכשל בהתחברות222";
                     }
                 }
 
@@ -236,7 +314,8 @@ namespace UninetWebApi2.Controllers
                     Q3_InidicationRes=Res.Q3_InidicationRes,
                     verified= Res.verified,
                     EncryptedUserId= encryptedUserId,
-                    textResponse= Resmessage
+                    textResponse= Resmessage,
+                    BusinessId= Res.BusinessID
                     //Userid = Res.Userid
                 });
             }
@@ -252,7 +331,8 @@ namespace UninetWebApi2.Controllers
                     Q1_Q2_InidicationRes = false,
                     Q3_InidicationRes = false,
                     verified = false,
-                    EncryptedUserId = ""
+                    EncryptedUserId = "",
+                    BusinessId = Res.BusinessID
                     // Userid = 0
                 });
             }
@@ -430,15 +510,27 @@ namespace UninetWebApi2.Controllers
         //    }
         //}
 
-     
-
-       
 
 
 
 
 
 
+
+
+        [HttpPost("Logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout(LogOutRequest logoutrequest)
+        { 
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+           
+            await HttpContext.SignOutAsync(JwtBearerDefaults.AuthenticationScheme);
+
+
+
+            return Ok(new { textResponse =  logoutrequest.Lang==1? "Logged out successfully.":"יצאת בהצלחה מהמערכת" });
+        }
 
 
 

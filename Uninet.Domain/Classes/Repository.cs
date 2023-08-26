@@ -196,16 +196,24 @@ namespace Uninet.Domain.Classes
         }
         public List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class
         {
-            return this.dbContext.Set<T>().Where(filterExpression).ToList();
+            try
+            {
+                return this.dbContext.Set<T>().Where(filterExpression).ToList();
+            }
+            catch(Exception ex)
+            {
+                return null;
+            }
+           
         }
 
 
-    public Hashtable GetHashtableOfExternalFields()
+    public Hashtable GetHashtableOfExternalFields(int Lang)
     {
             try
             {
                 var query = dbContext.Set<LUT_UninetExternalSystems>()
-                 .Where(item => item.SystemName != null)
+                 .Where(item => item.SystemName != null && item.Lang == Lang)
                  .ToList();
 
                 var hashtable = new Hashtable();

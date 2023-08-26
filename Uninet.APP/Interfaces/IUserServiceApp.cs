@@ -12,6 +12,7 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUserServiceApp
     {
+        public  Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request);
         public Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId,int Lang);
         public Task<ResetPasswordReponse> ResetPassword(ResetPasswordRequestcs resetpasswordrequest);
         public Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest);
@@ -25,7 +26,7 @@ namespace Uninet.APP.Interfaces
 
         // public Task<bool> VerifyEmailLink(string Userguid);
 
-        public Task<Dictionary<int, string>> GetExternalSystems();
+        public Task<Dictionary<int, string>> GetExternalSystems(int Lang);
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
 
         public Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId);

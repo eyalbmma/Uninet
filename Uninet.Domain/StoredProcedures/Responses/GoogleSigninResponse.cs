@@ -9,6 +9,10 @@ namespace Uninet.Domain.StoredProcedures.Responses
     public  class GoogleSigninResponse
     {
         public bool Success { get; set; }
-        public string Message { get; set; }
+        public string textResponse { get; set; }
+        public int? UserId { get; set; }
+
+        public bool? verified { get; set; }
+
     }
 }

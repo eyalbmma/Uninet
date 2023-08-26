@@ -11,7 +11,7 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUninetOutPutAppService
     {
-
+        Task<responseTest> test(int UserID, string Typelist);
         Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument);
         Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest,int userId);
         

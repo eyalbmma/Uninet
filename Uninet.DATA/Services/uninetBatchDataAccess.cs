@@ -23,6 +23,7 @@ using static Uninet.DATA.Services.UserServiceDataAccess;
 using Amazon.Runtime.Internal.Util;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
+using Microsoft.VisualBasic;
 
 namespace Uninet.DATA.Services
 {
@@ -637,9 +638,8 @@ namespace Uninet.DATA.Services
     Builders<BsonDocument>.Filter.Eq("client_info.SupplierVat_id", SenderBusinessId)
 );
                 var ClientInfoitems = await _IcountClientInfoCollection.Find(filterClientinfo).ToListAsync();
-
-                
-
+               
+                 //var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73);       
                 foreach (var Clientitem in ClientInfoitems)
                 {
                     var vatId = Clientitem["client_info"]["vat_id"].AsString;
@@ -681,6 +681,10 @@ namespace Uninet.DATA.Services
 
 
             }
+            int int_BusinessId = Convert.ToInt32(businessRequest.BusinessId);
+
+            var BusinessesObj = _repository.GetFirstObject<Businesses>(x => x.BusinessId == int_BusinessId);
+
             ///now we loop over all clientInfoList that has cliet info and for each client get his docinfo from IcountDocInfo collection
             ///and send  to the client email a mail  with a link to his pdf
             // Iterate through the clientInfoList
@@ -689,11 +693,13 @@ namespace Uninet.DATA.Services
                 string clientVatId = clientInfo.VatId; // Replace VatId with the actual property name in the clientInfo object
                 var filterClientDocinfo = Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", clientVatId);
                 var clientDocInfoItems = await _ICountDocInfoCollection.Find(filterClientDocinfo).ToListAsync();
-
+                
                 foreach (var clientDocInfoItem in clientDocInfoItems)
                 {
                     string docUrl = clientDocInfoItem["doc_info"]["doc_url"].ToString();
                     string _doctype= clientDocInfoItem["doctype"].ToString();
+                    string _totalwithvat= clientDocInfoItem["doc_info"]["total"].ToString();//amountAV
+                    string _dateissued = clientDocInfoItem["doc_info"]["dateissued"].ToString();//docDate
                     var _RequestMailObject = new RequestedMailObject
                     {
                         Sendername = clientInfo.SenderName,
@@ -714,14 +720,16 @@ namespace Uninet.DATA.Services
                         client_name= clientInfo.ClientName,
                         DataSourceEnum=2,
                         ClientEmail= clientInfo.Email,
-                        EmailSent=false
-                       
+                        EmailSent=false,
+                        supplier_name_Sender= BusinessesObj.OrganizationName,
+                        docDate= Convert.ToDateTime(_dateissued),
+                        amountAV=Convert.ToDouble(_totalwithvat)
 
                     };
                     string userParamJson = JsonConvert.SerializeObject(UserParam);
                     await WriteToTableAsync(17, "ItemToinsertToBusinessDataTable", userParamJson);
                     var result = _repository.ExecuteGetSP<InsertBusinessData_Result>(ConstUninetStoredprocedure.SP_InsertBusinessData, UserParam);
-                    
+                   
                     
                     try
                     {
@@ -729,6 +737,7 @@ namespace Uninet.DATA.Services
                         //await WriteToTableAsync("the result after inserting to BusinessData is " + result + "the data is " + userParamJson);
                         if (spresult)
                         {
+                            await WriteToTableAsync(19, "--ItemInsertedToBusinessDataTable", userParamJson);
                             var resmail = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
                             if (resmail.result)
                             {

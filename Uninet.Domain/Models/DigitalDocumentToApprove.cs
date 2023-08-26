@@ -19,6 +19,15 @@ namespace Uninet.Domain.Models
 
         public string DocInfoUrl { get; set; }
 
+
+        public string? supplier_name_Sender { get; set; }
+
+        public DateTime? docDate { get; set; }
+
+        public double? amountAV { get; set; }
+
+
+       
         //public string Supplier_name_Sender { get; set; }
 
         //public int Supplier_ID { get; set; }

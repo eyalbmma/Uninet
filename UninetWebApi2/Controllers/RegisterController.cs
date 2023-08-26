@@ -140,9 +140,9 @@ namespace UninetWebApi2.Controllers
 
         [Authorize]
         [HttpGet("GetExternalSystem")]
-        public async Task<IActionResult> GetExternalSystem()
+        public async Task<IActionResult> GetExternalSystem(int Lang)
         {
-            var res = await _userServiceApp.GetExternalSystems();
+            var res = await _userServiceApp.GetExternalSystems(Lang);
             return Ok(res);
         }
 
@@ -472,7 +472,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         sucess = false,
-                        textResponse = RegisterUserReq.Lang == 1 ? "User already Exist ":"משתמש כבר קיים במערכת ",
+                        textResponse = RegisterUserReq.Lang == 1 ? "User already exist, please log in through the sign in page " : "משתמש כבר קיים, יש להתחבר דרך מסך ההתחברות ולא ההרשמה ",
                         encryptedUser = res.EncryptedUserid,
                         verified= ReturnUser.verified
                     };

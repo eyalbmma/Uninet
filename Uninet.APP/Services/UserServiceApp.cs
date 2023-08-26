@@ -26,12 +26,27 @@ namespace Uninet.APP.Services
             _userServiceDataAccess = userServiceDataAccess;
             //_loginRepository = loginRepository;
         }
-
-        public async Task<Dictionary<int, string>> GetExternalSystems()
+        public async Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request)
         {
             try
             {
-               return await _userServiceDataAccess.GetExternalSystems();    
+                return await _userServiceDataAccess.GetQ1_Q4_Indication(q1q4request);
+            }
+            catch (Exception ex) 
+            {
+                var Response = new Q1_Q4_Result
+                {
+                    Q1_Q2_InidicationRes = false,
+                    Q3_InidicationRes = false
+                };
+                return Response;
+            }
+        }
+        public async Task<Dictionary<int, string>> GetExternalSystems(int Lang)
+        {
+            try
+            {
+               return await _userServiceDataAccess.GetExternalSystems(Lang);    
             }
             catch (Exception ex) { return null; }
 
@@ -101,7 +116,7 @@ namespace Uninet.APP.Services
                 var resgoogleSignin = new GoogleSigninResponse
                 {
                     Success = true,
-                    Message = ex.Message
+                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed8" + ex.InnerException + ex.Message : " האימות נכשל "
                 };
 
                 return resgoogleSignin;

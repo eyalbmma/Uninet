@@ -29,6 +29,15 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex) { return null; }
         }
+
+        public async Task<responseTest> test(int UserID, string Typelist)
+        {
+            try
+            {
+                return await _uninetOutPutDataAccess.test(UserID, Typelist);
+            }
+            catch (Exception ex) { return null; }
+        }
         public async Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument)
         {
             try

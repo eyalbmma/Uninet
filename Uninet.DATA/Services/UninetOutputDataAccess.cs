@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualBasic;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualBasic;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Newtonsoft.Json;
@@ -17,6 +18,7 @@ using Uninet.Domain.Entities;
 using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Uninet.DATA.Services
 {
@@ -197,7 +199,7 @@ namespace Uninet.DATA.Services
                     //from this table UsersExternalSystemDynamicFields we extract the user credentials for i count api query
                     var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId);
 
-                    string cidvalue = null;
+                        string cidvalue = null;
                     string uservalue = null;
                     string passvalue = null;
 
@@ -245,6 +247,98 @@ namespace Uninet.DATA.Services
 
                     var docnumprojection = Builders<BsonDocument>.Projection.Include("doc_info.docnum").Exclude("_id");
                     var docnumresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(docnumprojection).FirstOrDefault();
+
+                    ////////////////////////////////////////////////////////////////////////////////////////////////////
+                    ///
+                    /*
+                      "TaxId": ---זה למעשה ח"פ מספר ישות של החברה 
+                      "AmountBeforeVat"-- סכום לפני מיסוי 
+                      "Vat"--מיסוי עצמו
+                    */
+                  
+
+                    
+                    
+
+                    //vat_percent
+                   
+
+
+
+                    var TaxIdprojection = Builders<BsonDocument>.Projection.Include("doc_info.vat_id").Exclude("_id");
+                    var Taxresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(TaxIdprojection).FirstOrDefault();
+
+                    string TaxId = "";
+                    if (Taxresult != null)
+                    {
+
+                        TaxId = Taxresult["doc_info"]["vat_id"].AsString;
+                    }
+
+
+
+
+
+                    var AmountBeforeVatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalsum").Exclude("_id");
+                    var AmountBeforeVatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(AmountBeforeVatprojection).FirstOrDefault();
+                    double AmountBeforeVat = 0;
+                    if (AmountBeforeVatresult != null)
+                    {
+                        BsonValue totalValue = AmountBeforeVatresult["doc_info"]["totalsum"];
+                        if (totalValue.IsString)
+                        {
+                            string totalString = totalValue.AsString;
+                            if (double.TryParse(totalString, out double totalDouble))
+                            {
+                                AmountBeforeVat = totalDouble;
+                            }
+                            else
+                            {
+                                // Handle the case when the string cannot be parsed as a double
+                            }
+                        }
+                        else if (totalValue.IsDouble)
+                        {
+                            AmountBeforeVat = totalValue.AsDouble;
+                        }
+                        else
+                        {
+                            // Handle other data types if necessary
+                        }
+                    }
+
+
+                    var Vatprojection = Builders<BsonDocument>.Projection.Include("doc_info.vat_percent").Exclude("_id");
+                    var Vatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(Vatprojection).FirstOrDefault();
+
+
+                    double DoubleVatresult = 0;
+                    if (Vatresult != null)
+                    {
+                        BsonValue totalValue = Vatresult["doc_info"]["vat_percent"];
+                        if (totalValue.IsString)
+                        {
+                            string totalString = totalValue.AsString;
+                            if (double.TryParse(totalString, out double totalDouble))
+                            {
+                                DoubleVatresult = totalDouble;
+                            }
+                            else
+                            {
+                                // Handle the case when the string cannot be parsed as a double
+                            }
+                        }
+                        else if (totalValue.IsDouble)
+                        {
+                            DoubleVatresult = totalValue.AsDouble;
+                        }
+                        else
+                        {
+                            // Handle other data types if necessary
+                        }
+                    }
+
+
 
 
 
@@ -339,7 +433,13 @@ namespace Uninet.DATA.Services
                             DocDate = DocDate,
                             AmountAV = total,
                             ExpenseTypeList = res,
-                            internalCompanyId=InternalCompanyId
+                            internalCompanyId=InternalCompanyId,
+                            Jsondocumentid= expensesUserDoRequest.JsonDocumentid,
+                            TaxId=TaxId,
+                            AmountBeforeVat=AmountBeforeVat,
+                            Vat= DoubleVatresult
+
+
                         };
                         return expensesDigitalDocumentProp;
                     }
@@ -388,7 +488,10 @@ namespace Uninet.DATA.Services
                             DocDate = DocDate,
                             AmountAV = total,
                             ExpenseTypeList = res,
-                            internalCompanyId = InternalCompanyId
+                            internalCompanyId = InternalCompanyId,
+                            TaxId = TaxId,
+                            AmountBeforeVat = AmountBeforeVat,
+                            Vat = DoubleVatresult
                         };
                         return expensesDigitalDocumentProp;
 
@@ -405,8 +508,104 @@ namespace Uninet.DATA.Services
 
 
 
+        public async Task<responseTest> test(int UserID, string Typelist)
+        {
+            string text = "";
+            try
+            {
+               
+                string jsonResult = "";
+                text = "UserID=" + UserID + "***";
+                List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
+                var ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == UserID);
+                text= text+"result from " +System.Text.Json.JsonSerializer.Serialize(ResListOfCompaniesRelatedToLogedinUser);
+                //loop on the list of Companies for each company attached to user we need to extract her vat_id from IcountCompanisInfo 
+                foreach (var Company in ResListOfCompaniesRelatedToLogedinUser)
+                {
+
+                     text = text+ "1 ";
+                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", Company.BusinessId);
+                    var projection = Builders<BsonDocument>.Projection.Include("company_info.vat_id").Exclude("_id");
+                    text = text + "2 before filter looking for Company.BusinessId"+ Company.BusinessId+ "in IcountCompanisInfo colection";
+                    var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+                    text = text + "3 ";
+                    jsonResult = System.Text.Json.JsonSerializer.Serialize(result.ToString());
+                    text = text + "4 ";
+                    return new responseTest { text = "eyal111   "+ text };
+                    //return new responseTest { text = jsonResult + "Company.BusinessId=" + Company.BusinessId };
+                   
+
+                    //if (result != null)
+                    //{
+                    //    var vatId = result["company_info"]["vat_id"].AsString;
 
 
+
+
+                    //    //now we go to BusinessData  table that has all digitaldocument sent to clients and check if client is there by his vat_id
+                    //    //if its found we need to extract JsonDocumentid  and BusinessId (as the company that sent the document)
+                    //    //and return a list of them to the client to show this waitingto approve list to insert as expenses
+                    //    // Replace with your desired VAT ID
+
+                    //    List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = null;
+                    //    switch (Typelist)
+                    //    {
+
+                    //        //remark eyal need to get 
+                    //        //supplier_name_Sender
+                    //        //docDate
+                    //        //amountAV
+
+                    //        case "notApproveOrRejected":
+                    //            ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                    //            // ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) );
+                    //            break;
+                    //        case "Rejected":
+                    //            ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
+                    //            break;
+                    //        case "Approved":
+                    //            ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
+                    //            break;
+                    //    }
+
+                    //    //  string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfClientCompaniesThatWasSentDigitalDocument);
+
+
+                    //    foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
+                    //    {
+                    //        string JsonDocUrl = "";
+                    //        var DocInfofilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(DigitalClientRow.JsonDocumentid));
+                    //        var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url").Exclude("_id");
+                    //        var DocInforesult = _ICountDocInfoCollection.Find(DocInfofilter).Project(DocInfoprojection).FirstOrDefault();
+                    //        if (DocInforesult != null)
+                    //        {
+                    //            JsonDocUrl = DocInforesult["doc_info"]["doc_url"].AsString;
+                    //        }
+                    //        List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId, BusinessVatId = DigitalClientRow.BusinessVatId, DocInfoUrl = JsonDocUrl, supplier_name_Sender = DigitalClientRow.supplier_name_Sender, docDate = DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV });
+
+                    //    }
+                    //}
+
+                }
+
+                return new responseTest { text ="eyal222" };
+            }
+            catch (Exception ex) {
+                return new responseTest { text = ex.Message + ex.InnerException+ text };
+            }
+
+            //try 
+            //{
+            //    List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
+            //    var ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == UserID);
+            //    string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfCompaniesRelatedToLogedinUser);
+            //    return new responseTest { text= jsonResult };
+            //}
+            //catch(Exception ex)
+            //{
+            //    return null;
+            //}
+        }
         public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist)
         {
             try
@@ -438,8 +637,15 @@ namespace Uninet.DATA.Services
                         List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = null;
                         switch (Typelist)
                         {
+
+                            //remark eyal need to get 
+                            //supplier_name_Sender
+                            //docDate
+                            //amountAV
+
                             case "notApproveOrRejected":
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                                 ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                               // ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) );
                                 break;
                             case "Rejected":
                                 ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
@@ -448,10 +654,10 @@ namespace Uninet.DATA.Services
                                 ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
                                 break;
                         }
-                       
-                        
-                        
-                        
+
+                      //  string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfClientCompaniesThatWasSentDigitalDocument);
+
+
                         foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
                             string JsonDocUrl = "";
@@ -462,7 +668,7 @@ namespace Uninet.DATA.Services
                             {
                                  JsonDocUrl = DocInforesult["doc_info"]["doc_url"].AsString;
                             }
-                            List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl });
+                            List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl, supplier_name_Sender= DigitalClientRow.supplier_name_Sender, docDate= DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV  });
 
                         }                    
                     }
@@ -616,6 +822,20 @@ namespace Uninet.DATA.Services
                 string endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
 
+                /////need to add logic search supplier in the 
+                /////
+                ////we get all list of supliers for the user loged into uninet and get his suplierid and supliername
+                //var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
+                ////now we should loop on the resSUpplierLIst
+                ////and find if the vatId exist in the suplier list
+                //var BusinessVatId = _repository.GetFirstObject<BusinessData>(x => x.BusinessId == insertUserDigitalDocRequest.internalCompanyId);
+                //var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(BusinessVatId));
+               
+
+
+
+
+
                 // Set your POST data if needed
                 string postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + "}";
 
@@ -623,7 +843,18 @@ namespace Uninet.DATA.Services
                 string result = await SendRequest(endpointExpenseCreate, method, postData);
                 createExpenseApiResponse response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result);
                 // Handle the result as needed
-               
+               if (response.status)
+                {
+                    var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
+                    if (businessDatarow != null)
+                    {
+                        businessDatarow.DocumentApprovedtoUninet = true;
+                        await _repository.UpdateAsync(businessDatarow);
+                       
+
+                    }
+                }
+             
 
                 return response;
             }

@@ -33,7 +33,9 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("expense_sum")]
         public float expense_sum { get; set; }
 
-
+        [JsonPropertyName("Jsondocumentid")]
+        public string Jsondocumentid { get; set; }
+        
 
         [Required]
         [JsonPropertyName("Lang")]

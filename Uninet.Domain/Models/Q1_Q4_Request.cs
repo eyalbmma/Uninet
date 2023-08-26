@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public class GoogleSignInModel
+    public class Q1_Q4_Request
     {
-        public string Email { get; set; }
-        public string GoogleId { get; set; }
-        public int lang { get; set; }
+        public int? Userid { get; set; }
+       
     }
 }

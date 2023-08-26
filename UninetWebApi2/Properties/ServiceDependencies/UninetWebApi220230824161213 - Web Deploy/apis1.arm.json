@@ -97,11 +97,11 @@
               "type": "Microsoft.ApiManagement/service/apis",
               "name": "UnintWEBAPIapi/UnintWEBAPI",
               "properties": {
-                "displayName": "UnintWEBAPI",
+                "displayName": "Workspaces.API",
                 "apiRevision": "1",
                 "description": null,
                 "subscriptionRequired": true,
-                "serviceUrl": null,
+                "serviceUrl": "https://uninetweapi.azurewebsites.net",
                 "path": "",
                 "protocols": [
                   "https"

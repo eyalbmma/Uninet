@@ -111,7 +111,7 @@ namespace Uninet.APP.Services
             }
         }
 
-        public async Task<string> GenerateRefreshToken(int Userid)
+        public async Task<string> GenerateRefreshToken(int? Userid)
         {
             return await _JwtDataAccessService.GenerateRefreshToken( Userid);
         }

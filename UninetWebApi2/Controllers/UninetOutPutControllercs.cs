@@ -27,6 +27,8 @@ namespace UninetWebApi2.Controllers
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId), Typelist);
+
+            //var result = await _uninetOutPutAppService.test(Convert.ToInt32(userId), Typelist);
             return Ok(result);
 
             //return Ok(_uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId)));

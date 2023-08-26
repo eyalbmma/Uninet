@@ -9,6 +9,8 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUninetOutputDataAccess
     {
+
+        Task<responseTest> test(int UserID, string Typelist);
         Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument);
         Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId);
         Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
