@@ -185,12 +185,12 @@ namespace Uninet.DATA.Services
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values6);
                         break;
-                    case 7:
+                    case 9:
 
                         var adminuserobject = _repository.GetFirstObject<AdminUsers>(x => x.Email == To);
                         if (adminuserobject != null)
                         {
-                            string ResetPasswordLandingPage = "https://uninet-app.netlify.app/reset-password?UserResetToken=" + adminuserobject.ResetPasswordToken + "&clicktracking=false";
+                            string ResetPasswordLandingPage = "https://panel.uninet-io.com/reset-password?UserResetToken=" + adminuserobject.ResetPasswordToken + "&clicktracking=false";
                             Dictionary<string, string> values7 = new Dictionary<string, string>
                             {
                                { "RESET_URL", ResetPasswordLandingPage },

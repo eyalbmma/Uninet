@@ -16,6 +16,7 @@ using Uninet.Domain.Interfaces;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using Uninet.DATA.Interfaces;
+using Uninet.Domain.Models;
 
 namespace Uninet.APP.Services
 {
@@ -111,7 +112,7 @@ namespace Uninet.APP.Services
             }
         }
 
-        public async Task<string> GenerateRefreshToken(int? Userid)
+        public async Task<RefreshtokenresponseObj> GenerateRefreshToken(int? Userid)
         {
             return await _JwtDataAccessService.GenerateRefreshToken( Userid);
         }

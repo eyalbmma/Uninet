@@ -24,6 +24,8 @@ using Amazon.Runtime.Internal.Util;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.VisualBasic;
+using System.Globalization;
+using System.Collections.ObjectModel;
 
 namespace Uninet.DATA.Services
 {
@@ -35,6 +37,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountCollection;
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
         private readonly IBatchDataMailassist _batchdataMailassist;
         //private readonly IMailassist _mailasist;
         public uninetBatchDataAccess(IBatchRepository<UninetBatchContext> repository, IMongoClient client, IBatchDataMailassist batchdataMailassist)//, IloginRepository loginRepository
@@ -45,7 +48,7 @@ namespace Uninet.DATA.Services
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
-
+            _ICountCompanyInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
             var Uninetgreenvoicedocument = database.GetCollection<BsonDocument>("UninetGreenVoiceCollection");
             _Uninetgreenvoicedocument = Uninetgreenvoicedocument;
             
@@ -480,10 +483,10 @@ namespace Uninet.DATA.Services
                 string reponsneCompanyInfoJson = JsonConvert.SerializeObject(ReponsneCompanyInfo);
                 await WriteToTableAsync(4, "CompanyInfoUrlResponse", reponsneCompanyInfoJson);
                
-                string propertyPathstart_date = "company_info.start_date";
+               // string propertyPathstart_date = "company_info.start_date";
 
-                DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-
+               //DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
+                var AdminUserRow = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == Userid);
 
 
                 string propertyPathVatid = "company_info.vat_id";
@@ -499,7 +502,7 @@ namespace Uninet.DATA.Services
                 DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
 
 
-                DateTime startPulldata = startDate;
+                DateTime startPulldata = AdminUserRow.DateCreated;
                 DateTime EndPulldata = israelNow;
                 int intVatid = Convert.ToInt32(vatid.TrimStart('0'));
                 //eyal critical change the logic the startPulldata and  EndPulldata need to be fix mean while i remark it
@@ -508,12 +511,16 @@ namespace Uninet.DATA.Services
                 {
                     startPulldata = companyPulledDataLog.LastPullDataDate;
                 }
-                
-                 await SetLastPullDataDate(companyPulledDataLog, intVatid);
+
+               
+
+                await SetLastPullDataDate(companyPulledDataLog, intVatid);
 
                 var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
                 
-                string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString() + "&end_ts=" + EndPulldata;
+                
+
+                string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString("MM/dd/yyyy HH:mm:ss") + "&end_ts=" + EndPulldata.ToString("MM/dd/yyyy HH:mm:ss"); 
 
                 await WriteToTableAsync(5, "DocsearchUrlRequest", endpointUrldocsearch);
 
@@ -693,13 +700,33 @@ namespace Uninet.DATA.Services
                 string clientVatId = clientInfo.VatId; // Replace VatId with the actual property name in the clientInfo object
                 var filterClientDocinfo = Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", clientVatId);
                 var clientDocInfoItems = await _ICountDocInfoCollection.Find(filterClientDocinfo).ToListAsync();
-                
+
+                ////eyal add logic to check if clientVatId exist in companycollecion 
+                ///if it exist than set column clientvatidregisteredtonuninet column to true 
+                ///if not exist  than set column clientvatidregisteredtonuninet column to false 
+                bool ClientvatidRegisteredtOnUninet=false;
+                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("vat_id", clientVatId); // Filter for documents where "vat_id" equals "510059637"
+                var count = await _ICountCompanyInfoCollection.CountDocumentsAsync(filter);
+
+                if (count > 0)
+                {
+                    ClientvatidRegisteredtOnUninet = true;
+                }
+                else
+                {
+                    ClientvatidRegisteredtOnUninet = false;
+                }
+
+
+
+
                 foreach (var clientDocInfoItem in clientDocInfoItems)
                 {
                     string docUrl = clientDocInfoItem["doc_info"]["doc_url"].ToString();
                     string _doctype= clientDocInfoItem["doctype"].ToString();
                     string _totalwithvat= clientDocInfoItem["doc_info"]["total"].ToString();//amountAV
                     string _dateissued = clientDocInfoItem["doc_info"]["dateissued"].ToString();//docDate
+                    string _currency_code= clientDocInfoItem["doc_info"]["currency_code"].ToString();//docDate
                     var _RequestMailObject = new RequestedMailObject
                     {
                         Sendername = clientInfo.SenderName,
@@ -723,7 +750,9 @@ namespace Uninet.DATA.Services
                         EmailSent=false,
                         supplier_name_Sender= BusinessesObj.OrganizationName,
                         docDate= Convert.ToDateTime(_dateissued),
-                        amountAV=Convert.ToDouble(_totalwithvat)
+                        amountAV=Convert.ToDouble(_totalwithvat),
+                        currency_code= _currency_code,
+                        ClientvatidRegisteredtOnUninet= ClientvatidRegisteredtOnUninet
 
                     };
                     string userParamJson = JsonConvert.SerializeObject(UserParam);
@@ -738,7 +767,7 @@ namespace Uninet.DATA.Services
                         if (spresult)
                         {
                             await WriteToTableAsync(19, "--ItemInsertedToBusinessDataTable", userParamJson);
-                            var resmail = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, 4, 1, _RequestMailObject);
+                            var resmail = await _batchdataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", clientInfo.Email, ClientvatidRegisteredtOnUninet==true?7:5, 1, _RequestMailObject, businessRequest.AdminUserid, clientDocInfoItem["_id"].ToString());
                             if (resmail.result)
                             {
                                 string _RequestMailObjectJson = JsonConvert.SerializeObject(_RequestMailObject);

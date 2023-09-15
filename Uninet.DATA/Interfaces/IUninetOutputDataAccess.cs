@@ -9,11 +9,11 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUninetOutputDataAccess
     {
-
+        Task<AddGenericexpenseTypeResponse> AddexpenseType(AddexpenseTypeRequest addexpenseTypeRequest, int userId);
         Task<responseTest> test(int UserID, string Typelist);
         Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument);
         Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId);
         Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
-        Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist);
+        Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist);
     }
 }

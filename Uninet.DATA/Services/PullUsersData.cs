@@ -53,7 +53,10 @@ public class PullUsersData : IHostedService, IDisposable
         {
 
             await WriteToTableAsync(1, "JobStarted", "");
-            List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325);
+            ////List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325 || b.AdminUserid == 327);
+            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 553);
+            List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
+
             foreach (var user in res)
             {
                 string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
@@ -64,7 +67,9 @@ public class PullUsersData : IHostedService, IDisposable
 
 
             //////here we insert data into businessdata
-            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325);
+            // List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325 || b.AdminUserid==327);
+            //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 553);
+            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => true);
 
             foreach (var Business in res2)
             {

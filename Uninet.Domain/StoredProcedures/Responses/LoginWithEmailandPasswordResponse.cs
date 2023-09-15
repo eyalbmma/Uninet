@@ -23,6 +23,9 @@ namespace Uninet.Domain.StoredProcedures.Responses
         public bool? verified { get; set; }
 
         public int? BusinessID { get; set; }
+
+        public string FullName { get; set; }
+        public DateTime? RefreshTokenExpiredTime { get; set; }
         // public int Role { get; set; }
 
 

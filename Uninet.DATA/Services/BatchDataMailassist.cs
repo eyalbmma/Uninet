@@ -12,6 +12,9 @@ using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using Uninet.Domain.Classes;
+using Uninet.Domain.Entities;
+using Microsoft.Extensions.Configuration;
+using Amazon.Runtime.Internal.Transform;
 
 namespace Uninet.DATA.Services
 {
@@ -19,11 +22,12 @@ namespace Uninet.DATA.Services
     {
         
         private readonly IBatchRepository<UninetBatchContext> _batchrepository;
-
-        public BatchDataMailassist(IBatchRepository<UninetBatchContext> batchrepository)//, IloginRepository loginRepository
+        public IConfiguration Configuration { get; }
+        public BatchDataMailassist(IBatchRepository<UninetBatchContext> batchrepository, IConfiguration configuration)//, IloginRepository loginRepository
         {
 
             _batchrepository = batchrepository;
+            Configuration= configuration;
 
         }
 
@@ -72,7 +76,61 @@ namespace Uninet.DATA.Services
             return html;
         }
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang, RequestedMailObject InputMailDetails = null)
+        private async Task WriteToTableAsync(int Taskid, string TaskDesc, string text)
+        {
+            // Define the time zone ID for Israel
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+            // Get the Israel time zone
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            // Convert server's DateTime.Now to Israel local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+            var entity = new Jobbatchlog // Replace YourTableName with the appropriate class name
+            {
+                TaskId = Taskid,
+                TaskDesc = TaskDesc,
+                date = israelNow,
+                text = text
+            };
+            await _batchrepository.CreateAsync(entity);
+        }
+        public async Task<string> GenerateGuidForEmailVerification(string Userid)
+        {
+            try
+            {
+                var Adminuserres = _batchrepository.GetFirstObject<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(Userid));
+                if (Adminuserres != null)
+                {
+
+
+                   if (Adminuserres.EmailGuidVerification == null)
+                    {
+                        string emailGuidVerification = Guid.NewGuid().ToString();
+                        Adminuserres.EmailGuidVerification = emailGuidVerification;
+                        await _batchrepository.UpdateAsync(Adminuserres);
+                        await WriteToTableAsync(22, "--adminusertableupdated ", Userid + " " + emailGuidVerification);
+                        return emailGuidVerification;
+                    }
+                    else 
+                    {
+                        return Adminuserres.EmailGuidVerification;
+                    }
+                }
+                else
+                {
+                    return "";
+                }
+               
+                
+            }
+            catch(Exception ex)
+            {
+                return "";
+            }
+        }
+
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang, RequestedMailObject InputMailDetails = null,string Userid = "", string JsonDocumentid = "")
         {
             try
             {
@@ -127,27 +185,80 @@ namespace Uninet.DATA.Services
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);
 
                         break;
-                    case 4:
-                        Dictionary<string, string> values4 = new Dictionary<string, string>
-                        {
-                            { "recipient name", InputMailDetails.RecipientName },
-                            { "Sender name",InputMailDetails.Sendername },
-                             { "doc type", InputMailDetails.DocType },
-                              { "DocLink", InputMailDetails.DocLink }
+                    case 7:
 
-                        };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
+                        //string EmailGuidVerification = await GenerateGuidForEmailVerification(Userid);
+                       
+                            var RedirectUrl = Configuration.GetValue<string>("UrlRedirect:Console");
+                            // string emailLink = $"{RedirectUrl}?activeKey=Entered&jsonDocumentid={JsonDocumentid}"&EmailGuidVerification="{EmailGuidVerification}";
+                            var jsonObj = _batchrepository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == JsonDocumentid);
+                            if (jsonObj != null)
+                            {
+                                string ActiveKy = "";
+                                switch(jsonObj.DocumentApprovedtoUninet)
+                                {
+                                    case null:
+                                        ActiveKy = "Inbox";
+                                        break;
+                                    case false:
+                                        ActiveKy = "Rejected";
+                                        break;
+                                    case true:
+                                        ActiveKy = "Entered";
+                                        break;
+                                }
+
+                                string emailLink = $"{RedirectUrl}?activeKey={ActiveKy}&jsonDocumentid={JsonDocumentid}";
+
+                                Dictionary<string, string> values4 = new Dictionary<string, string>
+                                {
+                                         { "recipient name", InputMailDetails.RecipientName },
+                                         { "Sender name",InputMailDetails.Sendername },
+                                         { "doc type", InputMailDetails.DocType },
+                                         { "DocLink", emailLink },
+
+                                };
+                                message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
+                            }
+                      
                         break;
                     case 5:
-                        Dictionary<string, string> values5 = new Dictionary<string, string>
-                        {
-                            { "recipient name", "eyal berda" },
-                            { "Sender name", "yosi mualem " },
-                             { "doc type", "pdf " },
-                             { "docID", "111 " }
+                        //string EmailGuidVerification = await GenerateGuidForEmailVerification(Userid);
 
-                        };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values5);
+                        var RedirectUrlUnsigned = Configuration.GetValue<string>("UrlRedirect:SignUp");
+                        // string emailLink = $"{RedirectUrl}?activeKey=Entered&jsonDocumentid={JsonDocumentid}"&EmailGuidVerification="{EmailGuidVerification}";
+                        
+                        var HomepageUnsigned = Configuration.GetValue<string>("UrlRedirect:Homepage");
+                        var jsonObjunsigned = _batchrepository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == JsonDocumentid);
+                        if (jsonObjunsigned != null)
+                        {
+                            string ActiveKy = "";
+                            switch (jsonObjunsigned.DocumentApprovedtoUninet)
+                            {
+                                case null:
+                                    ActiveKy = "Inbox";
+                                    break;
+                                case false:
+                                    ActiveKy = "Rejected";
+                                    break;
+                                case true:
+                                    ActiveKy = "Entered";
+                                    break;
+                            }
+
+                            string Signup = $"{RedirectUrlUnsigned}";
+                            string HomepageLink= $"{HomepageUnsigned}";
+                            Dictionary<string, string> values4 = new Dictionary<string, string>
+                                {
+                                         { "recipient name", InputMailDetails.RecipientName },
+                                         { "Sender name",InputMailDetails.Sendername },
+                                         { "doc type", InputMailDetails.DocType },
+                                         { "Signup", Signup },
+                                         {"Homepage",HomepageLink }
+
+                                };
+                            message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
+                        }
                         break;
                     case 6:
                         Dictionary<string, string> values6 = new Dictionary<string, string>

@@ -20,5 +20,9 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("Lang")]
         public int Lang { get; set; }
 
+
+        [JsonPropertyName("Jsondocumentid")]
+        public string Jsondocumentid { get; set; }
+
     }
 }

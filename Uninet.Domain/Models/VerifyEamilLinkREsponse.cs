@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
-    public  class ResSaveExternalCustomized
+    public  class VerifyEamilLinkREsponse
     {
+        public string accessToken { get; set; }
+        public string refreshToken { get; set; }
+
         public bool Success { get; set; }
-        public string textResponse { get; set; }
-        public bool SystemRegisteredInuninet { get; set; }
-        public bool? ValidExternalsystemCredenatials { get; set; }
-        public string FullName { get; set; }
+       
     }
 }

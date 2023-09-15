@@ -46,7 +46,7 @@ namespace Uninet.Domain.Entities
 
         public double? amountAV { get; set; }
 
-
+        public string? currency_code { get; set; }
 
 
     }

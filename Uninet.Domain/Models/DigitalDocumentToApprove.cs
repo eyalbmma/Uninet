@@ -26,8 +26,8 @@ namespace Uninet.Domain.Models
 
         public double? amountAV { get; set; }
 
+        public string? currency_code { get; set; }
 
-       
         //public string Supplier_name_Sender { get; set; }
 
         //public int Supplier_ID { get; set; }

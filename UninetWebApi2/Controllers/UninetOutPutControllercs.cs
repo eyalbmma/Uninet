@@ -71,6 +71,21 @@ namespace UninetWebApi2.Controllers
             return Ok(true);
         }
 
+
+        [Authorize]
+        [HttpPost("AddexpenseType")]
+        //this method gets a 
+        //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
+        public async Task<ActionResult> AddexpenseType([FromBody] AddexpenseTypeRequest addexpenseTypeRequest)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _uninetOutPutAppService.AddexpenseType(addexpenseTypeRequest, Convert.ToInt32(userId));
+            return Ok(result);
+        }
+
+
+
+
         [Authorize]
         [HttpPost("AproveDoc")]
         //this method gets a 

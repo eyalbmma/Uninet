@@ -37,9 +37,27 @@ namespace UninetWebApi2.Controllers
             Configuration = configuration;
         }
 
+        [Authorize]
+        [HttpPost("InviteBusinessPartners")]
+        public async Task<ActionResult> InviteBusinessPartners(int Lang)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var res = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang);
+                return Ok(res);
+            }
+            catch (Exception ex)
+            {
+                var res = new InviteBusinessPartnerResult
+                {
+                    Success = false,
+                    textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
+                };
+                return Ok(res);
+            }
+        }
 
-
-   
 
         //Q1 to Q3
         [Authorize]
@@ -125,15 +143,15 @@ namespace UninetWebApi2.Controllers
             // Create the JSON object
            
             var res = await _userServiceApp.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails, userId.ToString());
-            string msg = "";
-            if (res.Success)
-            {
-                res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך הצליחה" : "your credentials is saved";
-            }
-            else
-            {
-                res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך נכשלה" : "your credentials failed to save";
-            }
+            //string msg = "";
+            //if (res.Success)
+            //{
+            //    res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך הצליחה" : "your credentials is saved";
+            //}
+            //else
+            //{
+            //    res.textResponse = spInputExternalSystemCompanyDetails.Lang == 2 ? "שמירת ההרשאות שלך נכשלה" : "your credentials failed to save";
+            //}
             
             return Ok(res);
         }
@@ -322,7 +340,7 @@ namespace UninetWebApi2.Controllers
 
                         //Role = Res.Role.ToString(),
                         accessToken = token,
-                        refreshToken = newRefreshToken,
+                        refreshToken = newRefreshToken.RefreshToken,
                         success = true,
                         //Userid = Res.Userid
                         verified= Res.verified,
@@ -362,6 +380,110 @@ namespace UninetWebApi2.Controllers
             }
 
         }
+
+        [HttpPost("GetActiveTab")]
+        [Authorize]
+        public async Task<ActionResult> GetActiveTab([FromBody] GetActiveTabRequest getActiveTabRequest)
+        {
+            var res = await _userServiceApp.GetActiveTab(getActiveTabRequest);
+            return Ok(res);
+        }
+
+
+        [HttpPost("VerifyEmailLink")]
+        [AllowAnonymous]
+        public async Task<ActionResult> VerifyEmailLink([FromBody] VerifyEmailLinkRequest verifyEmailLinkRequest)
+        {
+
+            var Res = await _userServiceApp.VerifyEmailLink(verifyEmailLinkRequest.EmailGuidVerification);  // _userService.LoginWithOtp(_LoginWithOtpRequest.Otp);
+            if (Res != null)
+            {
+                var claims = new[]
+                {
+
+
+
+                    new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString())
+                };
+                var token = await _jwtAppService.GenerateAccessToken(claims);
+                var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Res.Userid);
+
+                _logger.LogInformation($"Userid [{Res.Userid.ToString()}] logged in the system.");
+
+                string iv = Configuration["EncryptedUserId:iv"];
+                byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+                string encryptedUserId = EncryptUserId(Res.Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+
+                string Resmessage = "";
+                if (Res.Userid != 0)
+                {
+                    if (verifyEmailLinkRequest.Lang == 1)
+                    {
+                        Resmessage = "EmailLink verified Succesfully";
+                    }
+                    else
+                    {
+                        Resmessage = "אימות האי מייל נעשה בהצלחה";
+                    }
+                }
+                else
+                {
+                    if (verifyEmailLinkRequest.Lang == 1)
+                    {
+                        Resmessage = "EmailLink failed to verified";
+                    }
+                    else
+                    {
+                        Resmessage = "אימות המייל נכשל";
+                    }
+                }
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var accessToken = tokenHandler.ReadJwtToken(token);
+                var expirationTime = accessToken.ValidTo;
+                return Ok(new RegisterResult
+                {
+
+                    //Role = Res.Role.ToString(),
+                    accessToken = token,
+                    refreshToken = newRefreshToken.RefreshToken,
+                    success = Res.Userid != 0 ? true : false,
+                    Q1_Q2_InidicationRes = Res.Q1_Q2_InidicationRes,
+                    Q3_InidicationRes = Res.Q3_InidicationRes,
+                    verified = Res.verified,
+                    EncryptedUserId = encryptedUserId,
+                    textResponse = Resmessage,
+                    BusinessId = Res.BusinessID,
+                    Fullname = Res.FullName,
+                    AccesstokenExpiredTime = expirationTime,
+                    RefreshTokenExpiredTime = Res.RefreshTokenExpiredTime
+                    //Userid = Res.Userid
+                });
+            }
+            else
+            {
+                return Ok(new RegisterResult
+                {
+
+                    //Role = "",
+                    accessToken = "",
+                    refreshToken = "",
+                    success = false,
+                    Q1_Q2_InidicationRes = false,
+                    Q3_InidicationRes = false,
+                    verified = false,
+                    EncryptedUserId = "",
+                    BusinessId = Res.BusinessID,
+                    Fullname = Res.FullName,
+                    AccesstokenExpiredTime = null,
+                    RefreshTokenExpiredTime = null
+                    // Userid = 0
+                });
+            }
+
+        }
+
+
 
 
         [HttpPost("ResentOtp")]
@@ -431,6 +553,9 @@ namespace UninetWebApi2.Controllers
 
             return Convert.ToBase64String(encryptedBytes);
         }
+
+
+
 
         [HttpPost("Register")]
         public async Task<ActionResult> Register([FromBody] RegisterUserRequest RegisterUserReq)

@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Uninet.Domain.StoredProcedures.Responses
+namespace Uninet.Domain.Models
 {
-    public  class SaveRefreshTokenResponse
+    public class RefreshtokenresponseObj
     {
-        public bool Result { get; set; }
         public DateTime RefreshTokenExpireTime { get; set; }
+        public string RefreshToken { get; set; }
     }
 }

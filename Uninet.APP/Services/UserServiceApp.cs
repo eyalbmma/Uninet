@@ -26,6 +26,51 @@ namespace Uninet.APP.Services
             _userServiceDataAccess = userServiceDataAccess;
             //_loginRepository = loginRepository;
         }
+        public async Task<LoginWithEmailandPasswordResponse> VerifyEmailLink(string EmailGuidVerification)
+        {
+            try
+            {
+                return await _userServiceDataAccess.VerifyEmailLink(EmailGuidVerification);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+
+        public async Task<ActiveTabResponse> GetActiveTab(GetActiveTabRequest getActiveTabRequest)
+        {
+            try
+            {
+                return await _userServiceDataAccess.GetActiveTab(getActiveTabRequest);
+            }
+            catch(Exception ex)
+            {
+                var res = new ActiveTabResponse
+                {
+                    ActiveTabNaem = "",
+                    textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retriev active tab" : "כשלון באיחזור טאב פעיל "
+                };
+                return res;
+            }
+        }
+        public async Task<InviteBusinessPartnerResult> InviteBusinessPartners(int userid, int Lang)
+        {
+            try
+            {
+                return await _userServiceDataAccess.InviteBusinessPartners(userid, Lang);
+            }
+            catch
+            {
+                var res = new InviteBusinessPartnerResult
+                {
+                    Success = false,
+                    textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
+                };
+                return res;
+            }
+        }
         public async Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request)
         {
             try

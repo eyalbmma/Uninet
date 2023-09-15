@@ -10,7 +10,7 @@ namespace Uninet.Domain.Models
     public class RegisterResult
     {
 
-
+        
         //[JsonPropertyName("role")]
         //public string Role { get; set; }
 
@@ -51,7 +51,19 @@ namespace Uninet.Domain.Models
 
         [JsonPropertyName("BusinessId")]
         public int? BusinessId { get; set; }
+
+        [JsonPropertyName("Fullname")]
+        public string? Fullname { get; set; }
+
         
+        [JsonPropertyName("RefreshTokenExpiredTime")]
+        public DateTime? RefreshTokenExpiredTime { get; set; }
+
+
+        [JsonPropertyName("AccesstokenExpiredTime")]
+        public DateTime? AccesstokenExpiredTime { get; set; }
+        
+
 
 
     }

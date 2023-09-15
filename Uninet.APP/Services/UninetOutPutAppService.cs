@@ -38,6 +38,20 @@ namespace Uninet.APP.Services
             }
             catch (Exception ex) { return null; }
         }
+
+        public async Task<AddGenericexpenseTypeResponse> AddexpenseType(AddexpenseTypeRequest addexpenseTypeRequest, int userId)
+        {
+            try
+            {
+                return await _uninetOutPutDataAccess.AddexpenseType(addexpenseTypeRequest, userId);
+            }
+            catch (Exception ex)
+            {
+                
+                return null;
+            }
+        }
+
         public async Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument)
         {
             try
@@ -55,7 +69,7 @@ namespace Uninet.APP.Services
             }
         }
 
-        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist)
+        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist)
         {
             try
             {

@@ -12,5 +12,7 @@ namespace Uninet.Domain.Models
         public bool Q3_InidicationRes { get; set; }
         public int? BusinessID { get; set; }
 
+        public string Fullname { get; set; }
+
     }
 }

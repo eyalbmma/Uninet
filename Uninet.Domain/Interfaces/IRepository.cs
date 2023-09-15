@@ -29,7 +29,7 @@ namespace Uninet.Domain.Interfaces
 
         Task UpdateAsync<T>(T entity) where T : class;
 
-        Task DeleteAsync<T>(T entity) where T : class;
+        Task DeleteAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class;
 
         int Delete<T>(T entity) where T : class;
 

@@ -24,6 +24,7 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
+        public virtual DbSet<BusinessData> BusinessData { get; set; }
         
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
         public virtual DbSet<Jobbatchlog> Jobbatchlog { get; set; }
@@ -62,6 +63,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
+            modelBuilder.Entity<BusinessData>().HasKey(u => new { u.UserId, u.BusinessId, u.JsonDocumentid });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
             modelBuilder.Entity<Jobbatchlog>().HasKey(u => new { u.id});
             
@@ -81,6 +83,9 @@ namespace Uninet.DATA.Services.MultipleContext
                 
             //builder.Entity<HospitalUserModel>().HasNoKey();
             modelBuilder.Entity<ExternalSystemDynamicFields>().HasNoKey();
+
+
+
             OnModelCreatingPartial(modelBuilder);
         }
 

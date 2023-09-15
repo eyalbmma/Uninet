@@ -14,5 +14,9 @@ namespace Uninet.Domain.StoredProcedures.Responses
 
         public bool? verified { get; set; }
 
+
+
+        public DateTime? RefreshTokenExpiredTime { get; set; }
+
     }
 }

@@ -24,7 +24,7 @@ namespace Uninet.Domain.Entities
         
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public DateTime? DateCreated { get; set; }
+        public DateTime DateCreated { get; set; }
         public bool? ValidUser { get; set; }
 
         public DateTime? DateOtpSent { get; set; }
@@ -46,6 +46,20 @@ namespace Uninet.Domain.Entities
         public string?  ResetPasswordToken { get; set; }
 
         public DateTime?  ExpiredpasswordTokenDate { get; set; }
+
+
+
+
+
+
+        public bool? ClickedButtonToInviteBusinessPartners { get; set; }
+
+        public bool? EmailSentToBusinessPartners { get; set; }
+
+        public DateTime? DateSentoBusinessPartners { get; set; }
+
+
+        public string? EmailGuidVerification { get; set; }
 
     }
 }

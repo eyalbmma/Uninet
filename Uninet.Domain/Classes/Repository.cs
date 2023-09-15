@@ -100,17 +100,15 @@ namespace Uninet.Domain.Classes
 
         }
 
-        public async Task DeleteAsync<T>(T entity) where T : class
-
+        public async Task DeleteAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class
         {
+            var entitiesToDelete = this.dbContext.Set<T>().Where(filterExpression);
 
-            this.dbContext.Set<T>().Remove(entity);
-
-
+            this.dbContext.Set<T>().RemoveRange(entitiesToDelete);
 
             _ = await this.dbContext.SaveChangesAsync();
-
         }
+
 
 
 

@@ -74,7 +74,8 @@ namespace Uninet.DATA.Services
         /// <returns></returns>
         private async Task<List<SupplierItem>> GetClientSupplierList(string cidvalue, string uservalue, string passvalue)
         {
-            var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);
+           
+            var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
             var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
             HttpMethod methodclientinfo = HttpMethod.Get;
             var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
@@ -109,7 +110,7 @@ namespace Uninet.DATA.Services
         private async Task<List<ExpenseType>> CreateExpenseCategorylist(string cidvalue, string uservalue,string  passvalue,string supplierId= null)
         {
             var expenseTypeList = new List<ExpenseType>();
-            var ExpenseSearchObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 77);
+            var ExpenseSearchObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 77);//api.icount.co.il/api/v3.php/expense/search
             var ExpenseSearchEndpoint = ExpenseSearchObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&supplier_id=" + supplierId.ToString();
             HttpMethod methodexpenseserach = HttpMethod.Get;
             var ReponsneExpenseSearch = await SendRequest(ExpenseSearchEndpoint, methodexpenseserach);
@@ -142,7 +143,15 @@ namespace Uninet.DATA.Services
 
                         expenseType.ExpenseTypeDesc = expenseTypeElement.Value.GetProperty("expense_type_name").GetString();
                         expenseType.IsDefault = true;
-                        expenseTypeList.Add(expenseType);
+
+                        // Check if an ExpenseType with the same ExpenseTypeId already exists
+                        bool expenseTypeExists = expenseTypeList.Any(et => et.ExpenseTypeId == expenseType.ExpenseTypeId);
+
+                        if (!expenseTypeExists)
+                        {
+                            expenseTypeList.Add(expenseType);
+                        }
+                       
                     }
                     catch (Exception ex)
                     {
@@ -152,7 +161,7 @@ namespace Uninet.DATA.Services
 
             }
             /////////////////////get all expenses into expenseTypeList
-            var AllExpensesTypeObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 78);
+            var AllExpensesTypeObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 78);//api.icount.co.il/api/v3.php/expense/types
             var AllExpensesEndpoint = AllExpensesTypeObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
             HttpMethod AllExpensesMethod = HttpMethod.Get;
             var ReponsneAllExpenses = await SendRequest(AllExpensesEndpoint, AllExpensesMethod);
@@ -172,6 +181,7 @@ namespace Uninet.DATA.Services
                         var expenseType = new ExpenseType();
                         expenseType.ExpenseTypeId = expenseTypeId;
                         expenseType.ExpenseTypeDesc = expenseTypeName;
+
                         expenseTypeList.Add(expenseType);
                     }
                 }
@@ -199,7 +209,7 @@ namespace Uninet.DATA.Services
                     //from this table UsersExternalSystemDynamicFields we extract the user credentials for i count api query
                     var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId);
 
-                        string cidvalue = null;
+                    string cidvalue = null;
                     string uservalue = null;
                     string passvalue = null;
 
@@ -308,14 +318,14 @@ namespace Uninet.DATA.Services
                     }
 
 
-                    var Vatprojection = Builders<BsonDocument>.Projection.Include("doc_info.vat_percent").Exclude("_id");
+                    var Vatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalvat").Exclude("_id");
                     var Vatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(Vatprojection).FirstOrDefault();
 
-
+                    //totalvat eyal to deploy 
                     double DoubleVatresult = 0;
                     if (Vatresult != null)
                     {
-                        BsonValue totalValue = Vatresult["doc_info"]["vat_percent"];
+                        BsonValue totalValue = Vatresult["doc_info"]["totalvat"];
                         if (totalValue.IsString)
                         {
                             string totalString = totalValue.AsString;
@@ -606,11 +616,13 @@ namespace Uninet.DATA.Services
             //    return null;
             //}
         }
-        public async Task<List<DigitalDocumentToApprove>> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist)
+        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist)
         {
             try
             {
-                List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
+               // List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
+                DigitalDocumentToApproveObj resObj = new DigitalDocumentToApproveObj();
+                resObj.listDigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
                 var ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == UserID);
 
                 //loop on the list of Companies for each company attached to user we need to extract her vat_id from IcountCompanisInfo 
@@ -668,14 +680,18 @@ namespace Uninet.DATA.Services
                             {
                                  JsonDocUrl = DocInforesult["doc_info"]["doc_url"].AsString;
                             }
-                            List_DigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl, supplier_name_Sender= DigitalClientRow.supplier_name_Sender, docDate= DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV  });
+                            resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl, supplier_name_Sender= DigitalClientRow.supplier_name_Sender, docDate= DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV , currency_code= DigitalClientRow.currency_code});
 
                         }                    
                     }
 
                  }
-
-                return List_DigitalDocumentToApprove;
+                var Objres = new DigitalDocumentToApproveObj
+                {
+                    listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
+                    fullname = ResListOfCompaniesRelatedToLogedinUser[0].FirstName+" "+ ResListOfCompaniesRelatedToLogedinUser[0].LastName
+                };
+                return Objres;
             }
             catch (Exception ex) { return null; }
         }
@@ -690,7 +706,7 @@ namespace Uninet.DATA.Services
         {
             try
             {
-                var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.BusinessVatId == requestRejectDocument.BusinessVatId && x.ClientVat_id == requestRejectDocument.ClientVat_id);
+                var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.BusinessVatId == requestRejectDocument.BusinessVatId && x.ClientVat_id == requestRejectDocument.ClientVat_id && x.JsonDocumentid== requestRejectDocument.Jsondocumentid);
                 if (businessDatarow != null) 
                 {
                     businessDatarow.DocumentApprovedtoUninet = false;
@@ -786,7 +802,89 @@ namespace Uninet.DATA.Services
         //    catch (Exception ex) { return false; }
         //}
 
+        public async Task<AddGenericexpenseTypeResponse> AddexpenseType(AddexpenseTypeRequest addexpenseTypeRequest, int userId)
+        {
+            try
+            {
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == addexpenseTypeRequest.internalCompanyId && x.Userid == userId);
 
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                {
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                        cidvalue = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                        uservalue = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalue = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
+                }
+                var AddexpenseTypeEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 80);
+                string EndpointAddexpenseType = AddexpenseTypeEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
+
+
+
+
+
+
+                // Set your POST data if needed
+                //string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense + ", \"expense_type_name\": " + addexpenseTypeRequest.expense_type_name + ", \"deductable_vat\": \"" + addexpenseTypeRequest.deductable_vat + "\", \"deductable_expense\": \"" + addexpenseTypeRequest.deductable_expense + "}";
+                //string postData = Newtonsoft.Json.JsonConvert.SerializeObject(addexpenseTypeRequest);
+
+                string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense.ToString().ToLower() + ", \"expense_type_name\": \"" + addexpenseTypeRequest.expense_type_name + "\", \"deductable_vat\": " + addexpenseTypeRequest.deductable_vat + ", \"deductable_expense\": " + addexpenseTypeRequest.deductable_expense + "}";
+
+                string result = await SendRequest(EndpointAddexpenseType, method, postData);
+                AddexpenseTypeResponse response = JsonConvert.DeserializeObject<AddexpenseTypeResponse>(result);
+                // Handle the result as needed
+                List<ExpenseType> res = new List<ExpenseType>();
+                if (response.status)
+                {
+                    //when return from  creating the new  expensetype  we need to call icount again to retrieve the new list of expensetype
+                     res = await CreateExpenseCategorylist(cidvalue, uservalue, passvalue, addexpenseTypeRequest.supplier_ID);
+
+                    var res2= new AddGenericexpenseTypeResponse
+                    {
+                        textResponse = addexpenseTypeRequest.Lang == 1 ? "expense type added succesfully" : "סוג הוצאה התווספה בהצלחה",
+                        ExpenseTypeList = res
+                    };
+                    return res2;
+
+
+
+                }
+                else
+                {
+                    var res2 = new AddGenericexpenseTypeResponse
+                    {
+                        textResponse = addexpenseTypeRequest.Lang == 1 ? "failed to AddexpenseType from icount" : "נכשל ביצירת הוצאה באייקוינט",
+                        ExpenseTypeList = res
+                    };
+                    return res2;
+                }
+
+
+               
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
         public async Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
         {
             try

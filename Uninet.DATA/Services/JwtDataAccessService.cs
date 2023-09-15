@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Interfaces;
+using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 
@@ -161,7 +162,7 @@ namespace Uninet.DATA.Services
             }
         }
 
-        public async Task<string> GenerateRefreshToken(int? Userid)
+        public async Task<RefreshtokenresponseObj> GenerateRefreshToken(int? Userid)
         {
             var randomNumber = new byte[32];
             using (var rng = RandomNumberGenerator.Create())
@@ -179,17 +180,29 @@ namespace Uninet.DATA.Services
                 };
                 var result = _repository.ExecuteGetSP<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
                 var res = result.ToList();
-                if (res[0].res)
+
+                if (res.Count > 0 && res[0].Result )
                 {
-                    return refreshtoken;
+                    // Extract the RefreshTokenExpireTime from the result
+                    DateTime refreshTokenExpireTime = res[0].RefreshTokenExpireTime;
+
+                    // Create and return the RefreshtokenresponseObj
+                    var refreshtokenresponse = new RefreshtokenresponseObj
+                    {
+                        RefreshTokenExpireTime = refreshTokenExpireTime,
+                        RefreshToken = refreshtoken
+                    };
+
+                    return refreshtokenresponse;
                 }
                 else
                 {
-                    return "";
+                    // Return null or handle the error as needed
+                    return null;
                 }
-                    
-                
-                
+
+
+
             }
         }
         public async Task<string> GenerateAccessToken(IEnumerable<Claim> claims)

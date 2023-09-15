@@ -29,6 +29,7 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
 
         
+         public virtual DbSet<InviteBusinessPartnerResult> InviteBusinessPartnerResult { get; set; }
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
 
@@ -61,11 +62,12 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<CompanyPulledDataLog>().HasKey(u => new { u.CompanyVatid});
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
 
-            modelBuilder.Entity<UsersExternalSystemDynamicFields>().HasNoKey();
+            modelBuilder.Entity<UsersExternalSystemDynamicFields>()
+        .HasKey(e => new { e.Companyid, e.Userid, e.ExternalSystemId, e.FieldLabelName });
+
 
             
-
-
+            modelBuilder.Entity<InviteBusinessPartnerResult>().HasNoKey();
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
