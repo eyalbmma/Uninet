@@ -656,14 +656,26 @@ namespace Uninet.DATA.Services
                             //amountAV
 
                             case "notApproveOrRejected":
-                                 ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
-                               // ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) );
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
+                                .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null)
+                                .OrderByDescending(x => x.docDate)
+                                .ToList();
+
+                                // ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) );
                                 break;
                             case "Rejected":
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
+                                
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
+                                .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false)
+                                .OrderByDescending(x => x.docDate)
+                                .ToList();
+
                                 break;
                             case "Approved":
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
+                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
+                               .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true)
+                               .OrderByDescending(x => x.docDate)
+                               .ToList();
                                 break;
                         }
 

@@ -118,7 +118,7 @@ namespace Uninet.APP.Services
         }
 
 
-        public async Task<string> GenerateAccessToken(IEnumerable<Claim> claims)
+        public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         {
             return await _JwtDataAccessService.GenerateAccessToken(claims);
         }

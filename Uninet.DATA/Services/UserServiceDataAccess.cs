@@ -1750,6 +1750,16 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
                 UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
+                string israelTimeZoneId = "Israel Standard Time";
+                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                DateTime? refreshTokenExpireTime = result.RefreshTokenExpireTime; // Assuming result.RefreshTokenExpireTime is of type DateTime?
+
+                // Use the null-conditional operator to handle nullable DateTime
+                DateTime israelRefreshTokenNow = refreshTokenExpireTime?.ToUniversalTime() ?? DateTime.UtcNow;
+                israelRefreshTokenNow = TimeZoneInfo.ConvertTimeFromUtc(israelRefreshTokenNow, israelTimeZone);
+
+
                 if (result != null)
                 {
                     q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == result.AdminUserid);
@@ -1765,7 +1775,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         verified = result.ValidUser,
                         BusinessID= q1q2_res == null?null: q1q2_res.BusinessId,
                         FullName= q1q2_res == null ?"": q1q2_res.FirstName + " "+ q1q2_res.LastName,
-                        RefreshTokenExpiredTime= result.RefreshTokenExpireTime
+                        RefreshTokenExpiredTime= israelRefreshTokenNow
                     };
                     return Response;
                 }

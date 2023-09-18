@@ -72,7 +72,7 @@ namespace UninetWebApi2.Controllers
             return Ok(new RegisterResult
             {
                 //Role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty,
-                accessToken = newJwtToken,
+                accessToken = newJwtToken.Accesstoken,
                 refreshToken = newRefreshToken.RefreshToken,
                 success = true
                 
@@ -141,14 +141,13 @@ namespace UninetWebApi2.Controllers
                     };
 
                     var res1_4 = await _userServiceApp.GetQ1_Q4_Indication(req1_4);
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    var accessToken = tokenHandler.ReadJwtToken(token);
-                    var expirationTime = accessToken.ValidTo;
+                    
+
                     return Ok(new RegisterResult
                     {
 
                         //Role = Res.Role.ToString(),
-                        accessToken = token,
+                        accessToken = token.Accesstoken,
                         refreshToken = newRefreshToken.RefreshToken,
                         success = googleresponse.Success,
                         Q1_Q2_InidicationRes = res1_4.Q1_Q2_InidicationRes,
@@ -158,7 +157,7 @@ namespace UninetWebApi2.Controllers
                         textResponse = googleresponse.textResponse,
                         BusinessId= res1_4.BusinessID,
                         Fullname= res1_4.Fullname,
-                        AccesstokenExpiredTime = expirationTime,
+                        AccesstokenExpiredTime = token.ExpirationDateAccesstoken,
                         RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime
                         //Userid = Res.Userid
                     });
@@ -284,7 +283,7 @@ namespace UninetWebApi2.Controllers
 
                         new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString())
                     };
-                    var token = await _jwtAppService.GenerateAccessToken(claims);
+                    AccesstokenReturnObj token = await _jwtAppService.GenerateAccessToken(claims);
                     var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Res.Userid);
 
                     _logger.LogInformation($"Userid [{Res.Userid.ToString()}] logged in the system.");
@@ -303,15 +302,22 @@ namespace UninetWebApi2.Controllers
                         Resmessage = "המשתמש התחבר בהצלחה";
                     }
 
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    var accessToken = tokenHandler.ReadJwtToken(token);
-                    var expirationTime = accessToken.ValidTo;
+
+
+
+
+                   
+                   
+
+
+
+
 
                     return Ok(new RegisterResult
                     {
 
                         //Role = Res.Role.ToString(),
-                        accessToken = token,
+                        accessToken = token.Accesstoken,
                         refreshToken = newRefreshToken.RefreshToken,
                         success = Res.Userid != 0 ? true : false,
                         Q1_Q2_InidicationRes = Res.Q1_Q2_InidicationRes,
@@ -321,8 +327,8 @@ namespace UninetWebApi2.Controllers
                         textResponse = Resmessage,
                         BusinessId = Res.BusinessID,
                         Fullname = Res.FullName,
-                        AccesstokenExpiredTime = expirationTime,
-                        RefreshTokenExpiredTime = Res.RefreshTokenExpiredTime
+                        AccesstokenExpiredTime = Convert.ToDateTime(token.ExpirationDateAccesstoken),
+                        RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime
                         //Userid = Res.Userid
                     });
 

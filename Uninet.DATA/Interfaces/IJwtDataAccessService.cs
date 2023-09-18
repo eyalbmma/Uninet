@@ -19,7 +19,7 @@ namespace Uninet.DATA.Interfaces
         Task<string> GenerateAccessTokenFromClaims(IEnumerable<Claim> claims);
         Task<RefreshtokenresponseObj> GenerateRefreshToken(int? Userid);
         //Task<string> GenerateAccessToken(string userId);
-        Task<string> GenerateAccessToken(IEnumerable<Claim> claims);
+        Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims);
         Task<int> SaveRefreshToken(int Userid, string refreshToken);
     }
 }

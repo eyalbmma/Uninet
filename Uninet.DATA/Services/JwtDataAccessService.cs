@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Azure.Core;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System;
@@ -205,21 +206,67 @@ namespace Uninet.DATA.Services
 
             }
         }
-        public async Task<string> GenerateAccessToken(IEnumerable<Claim> claims)
+        public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+
+            //string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+            //// Get the Israel time zone
+            //TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            //// Convert server's DateTime.Now to Israel local time
+            //DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+            //// Calculate the expiration time in Israel time
+            //DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+
+
+
+            // Create a JWT token with the calculated expiration time
+            //var jwt = new JwtSecurityToken(
+            //    issuer: Configuration["jwtTokenConfig:issuer"],
+            //    audience: Configuration["Tokens:audience"],
+            //    claims: claims,
+            //    notBefore: israelNow,
+            //    expires: expirationTime,
+            //    signingCredentials: credentials
+            //);
+
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+            // Get the Israel time zone
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            // Convert server's DateTime.Now to Israel local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+            DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+            //DateTime expirationTime = DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+
 
             var jwt = new JwtSecurityToken(
                 issuer: Configuration["jwtTokenConfig:issuer"],
                 audience: Configuration["Tokens:audience"],
                 claims: claims, //the user's claims, for example new Claim[] { new Claim(ClaimTypes.Name, "The username"), //... 
                 notBefore: DateTime.UtcNow,
-                expires: DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"])),
+                //expires: DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"])),
+                expires: expirationTime,
                 signingCredentials: credentials
             );
+            var res = new AccesstokenReturnObj
+            {
+                Accesstoken = new JwtSecurityTokenHandler().WriteToken(jwt),
+                ExpirationDateAccesstoken = expirationTime
 
-            return new JwtSecurityTokenHandler().WriteToken(jwt); //the method is called WriteToken but returns a string
+            };
+            return res;
+
         }
 
 
@@ -245,14 +292,28 @@ namespace Uninet.DATA.Services
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+            // Get the Israel time zone
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+            // Convert server's DateTime.Now to Israel local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+            // Calculate the expiration time in Israel time
+            DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+            // Create a JWT token with the calculated expiration time
             var jwt = new JwtSecurityToken(
-                //issuer: Configuration["jwtTokenConfig:issuer"],
+                issuer: Configuration["jwtTokenConfig:issuer"],
                 audience: Configuration["Tokens:audience"],
-                claims: claims, //the user's claims, for example new Claim[] { new Claim(ClaimTypes.Name, "The username"), //... 
-                notBefore: DateTime.UtcNow,
-                expires: DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"])),
+                claims: claims,
+                notBefore: israelNow,
+                expires: expirationTime,
                 signingCredentials: credentials
             );
+
 
             return new JwtSecurityTokenHandler().WriteToken(jwt); //the method is called WriteToken but returns a string
         }

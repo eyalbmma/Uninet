@@ -339,7 +339,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         //Role = Res.Role.ToString(),
-                        accessToken = token,
+                        accessToken = token.Accesstoken,
                         refreshToken = newRefreshToken.RefreshToken,
                         success = true,
                         //Userid = Res.Userid
@@ -438,14 +438,12 @@ namespace UninetWebApi2.Controllers
                     }
                 }
 
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var accessToken = tokenHandler.ReadJwtToken(token);
-                var expirationTime = accessToken.ValidTo;
+                
                 return Ok(new RegisterResult
                 {
 
                     //Role = Res.Role.ToString(),
-                    accessToken = token,
+                    accessToken = token.Accesstoken,
                     refreshToken = newRefreshToken.RefreshToken,
                     success = Res.Userid != 0 ? true : false,
                     Q1_Q2_InidicationRes = Res.Q1_Q2_InidicationRes,
@@ -455,7 +453,7 @@ namespace UninetWebApi2.Controllers
                     textResponse = Resmessage,
                     BusinessId = Res.BusinessID,
                     Fullname = Res.FullName,
-                    AccesstokenExpiredTime = expirationTime,
+                    AccesstokenExpiredTime = token.ExpirationDateAccesstoken,
                     RefreshTokenExpiredTime = Res.RefreshTokenExpiredTime
                     //Userid = Res.Userid
                 });
