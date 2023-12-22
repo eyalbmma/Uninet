@@ -49,5 +49,7 @@ namespace Uninet.Domain.Entities
         public string? currency_code { get; set; }
 
 
+        public bool ClientvatidRegisteredtOnUninet { get; set; }
+
     }
 }

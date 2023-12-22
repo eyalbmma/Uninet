@@ -301,6 +301,29 @@ namespace Uninet.DATA.Services
             catch (Exception ex) 
             { }
         }
+
+        public async Task<string>  ConvertUrl(string Inputurl)
+        {
+            string finalUrl = "";
+            using (var httpClient = new HttpClient())
+            {
+                //string url = "https://app.icount.co.il/hash/p_print.php?code=MXVNUmk2WWY4bDUvQ2JYVHcwUlIxZm8rSnRJWlh3TGRramJwQUlqbUFVa2JrMXhQekJ3eHR3PT0%3D";
+                // Send an HTTP GET request to the original URL
+                HttpResponseMessage response =await  httpClient.GetAsync(Inputurl);
+               
+                // Check if the request was successful
+                if (response.IsSuccessStatusCode)
+                {
+                    // Get the final URL from the response
+                     finalUrl = response.RequestMessage.RequestUri.ToString();
+
+                }
+
+               
+            }
+            return finalUrl;
+        }
+
         public async Task InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
         {
             try
@@ -317,6 +340,12 @@ namespace Uninet.DATA.Services
                          Builders<BsonDocument>.Filter.Eq("docnum", docnum),
                          Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
                      );
+
+                    var temp_url = document["doc_info"]["doc_url"];
+
+                    string finalUrl = await ConvertUrl(temp_url.ToString());
+                    document["doc_info"].AsBsonDocument.Add("doc_url_copy", finalUrl);
+
                     var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
                     if (existingDocument != null)
                     {

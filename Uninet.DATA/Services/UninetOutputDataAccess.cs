@@ -22,24 +22,30 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace Uninet.DATA.Services
 {
-    public class UninetOutputDataAccess: IUninetOutputDataAccess
+    public class UninetOutputDataAccess : IUninetOutputDataAccess
     {
         private readonly IRepository<UninetContext> _repository;
         private readonly IMongoCollection<BsonDocument> _ICountCollection;
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountCompaniesInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _IcountClientSuppliers;
+        private readonly IMongoCollection<BsonDocument> _IcountExpenses;
+        private readonly IMongoCollection<BsonDocument> _IcountExpensesTypes;
         public UninetOutputDataAccess(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
-            _IcountCompaniesInfoCollection= database.GetCollection<BsonDocument>("IcountCompanisInfo");
+            _IcountCompaniesInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
+            _IcountClientSuppliers = database.GetCollection<BsonDocument>("icountClientSuppliers");
+            _IcountExpenses = database.GetCollection<BsonDocument>("IcountExpenses");
+            _IcountExpensesTypes= database.GetCollection<BsonDocument>("IcountExpensesTypes");
             _repository = repository;
-            
+
         }
-        private async Task<string> SendRequest(string endpointUrl, HttpMethod method, string postData=null)
+        private async Task<string> SendRequest(string endpointUrl, HttpMethod method, string postData = null)
         {
             string result = "";
             using (HttpClient client = new HttpClient())
@@ -49,8 +55,8 @@ namespace Uninet.DATA.Services
                 // Check the HTTP method and set the appropriate request content if it's a POST request
                 if (method == HttpMethod.Post)
                 {
-                  
-                     request.Content = new StringContent(postData, Encoding.UTF8, "application/json");
+
+                    request.Content = new StringContent(postData, Encoding.UTF8, "application/json");
                 }
 
                 HttpResponseMessage response = await client.SendAsync(request);
@@ -72,120 +78,137 @@ namespace Uninet.DATA.Services
         /// <param name="uservalue"></param>
         /// <param name="passvalue"></param>
         /// <returns></returns>
-        private async Task<List<SupplierItem>> GetClientSupplierList(string cidvalue, string uservalue, string passvalue)
+        private async Task<List<SupplierItem>> GetClientSupplierList(int Userid)
         {
-           
-            var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
-            var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-            HttpMethod methodclientinfo = HttpMethod.Get;
-            var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
+            var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Userid);
 
-            // Parse the JSON response
-            var jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
-            var jsonData = jsonDocument.RootElement;
-            var suppliersData = jsonData.GetProperty("suppliers");
+            var filter = Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
+                Builders<BsonDocument>.Filter.Eq("UserID", Userid)
+            );
 
-            // Create a list to store SupplierItem objects
-            var supplierList = new List<SupplierItem>();
-
-            // Loop through the suppliers data and map it to SupplierItem objects
-            foreach (var supplier in suppliersData.EnumerateObject())
+            var document = await _IcountClientSuppliers.Find(filter).FirstOrDefaultAsync();
+            if (document != null)
             {
-                var supplierItem = new SupplierItem
+                var suppliersData = document["suppliers"].AsBsonDocument;
+                var supplierList = new List<SupplierItem>();
+
+                // Loop through the suppliers data and map it to SupplierItem objects
+                foreach (var supplier in suppliersData)
                 {
-                    supplier_id = Convert.ToInt32(supplier.Name),
-                    vat_id = Convert.ToInt32(supplier.Value.GetProperty("vat_id").GetString()),
-                    supplier_name = supplier.Value.GetProperty("supplier_name").GetString(),
-                    company_name = supplier.Value.GetProperty("company_name").GetString(),
-                };
+                    if (supplier.Value is BsonDocument supplierObject)
+                    {
+                        var vatIdValue = supplierObject.TryGetValue("vat_id", out var vatId) ? vatId.AsString : null;
 
-                supplierList.Add(supplierItem);
+                        var supplierItem = new SupplierItem
+                        {
+                            supplier_id = Convert.ToInt32(supplier.Name),
+                            vat_id = string.IsNullOrEmpty(vatIdValue) ? 0 : Convert.ToInt32(vatIdValue),
+                            supplier_name = supplierObject.TryGetValue("supplier_name", out var supplierName) ? supplierName.AsString : null,
+                            company_name = supplierObject.TryGetValue("company_name", out var companyName) ? companyName.AsString : null
+                        };
+
+                        supplierList.Add(supplierItem);
+                    }
+                }
+
+                return supplierList;
             }
-
-            return supplierList;
+            else
+            {
+                return null;
+            }
         }
 
 
 
-        private async Task<List<ExpenseType>> CreateExpenseCategorylist(string cidvalue, string uservalue,string  passvalue,string supplierId= null)
+        private async Task<List<ExpenseType>> CreateExpenseCategorylist(int userId, string supplierId = null)
         {
+
+            var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
+            var filter = Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
+                Builders<BsonDocument>.Filter.Eq("UserID", userId)
+            );
+
+            var documents = _IcountExpenses.Find(filter).ToList();
             var expenseTypeList = new List<ExpenseType>();
-            var ExpenseSearchObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 77);//api.icount.co.il/api/v3.php/expense/search
-            var ExpenseSearchEndpoint = ExpenseSearchObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&supplier_id=" + supplierId.ToString();
-            HttpMethod methodexpenseserach = HttpMethod.Get;
-            var ReponsneExpenseSearch = await SendRequest(ExpenseSearchEndpoint, methodexpenseserach);
-            var ExpenseSearchjsonDocument = JsonDocument.Parse(ReponsneExpenseSearch);
-             expenseTypeList = new List<ExpenseType>();
-            
-            
-            if (ExpenseSearchjsonDocument.RootElement.TryGetProperty("results_list", out var resultsListElement))
+
+            foreach (var document in documents)
             {
-                foreach (var expenseTypeElement in resultsListElement.EnumerateObject())
+                // Get the "results_list" field as a BsonDocument
+                var resultsList = document["results_list"].AsBsonDocument;
+
+                foreach (var item in resultsList)
                 {
                     try
                     {
-                        var expenseType = new ExpenseType();
-                        var expenseTypeIdProperty = expenseTypeElement.Value.GetProperty("expense_type_id");
+                        // Extract "expense_type_id" and "expense_type_name" from the current item
+                        var expenseTypeId = item.Value["expense_type_id"].AsString;
+                        var expenseTypeName = item.Value["expense_type_name"].AsString;
 
-                        if (expenseTypeIdProperty.ValueKind == JsonValueKind.String &&
-                            int.TryParse(expenseTypeIdProperty.GetString(), out int expenseTypeId))
+                        var expenseType = new ExpenseType
                         {
-                            expenseType.ExpenseTypeId = expenseTypeId;
-                        }
-                        else if (expenseTypeIdProperty.ValueKind == JsonValueKind.Number)
-                        {
-                            expenseType.ExpenseTypeId = expenseTypeIdProperty.GetInt32();
-                        }
-                        else
-                        {
-                            // Handle the case when the property value is neither a string nor a number
-                        }
-
-                        expenseType.ExpenseTypeDesc = expenseTypeElement.Value.GetProperty("expense_type_name").GetString();
-                        expenseType.IsDefault = true;
+                            ExpenseTypeId = Convert.ToInt32(expenseTypeId),
+                            ExpenseTypeDesc = expenseTypeName
+                        };
 
                         // Check if an ExpenseType with the same ExpenseTypeId already exists
+
+                        //expenseType.IsDefault = true;
                         bool expenseTypeExists = expenseTypeList.Any(et => et.ExpenseTypeId == expenseType.ExpenseTypeId);
 
                         if (!expenseTypeExists)
                         {
                             expenseTypeList.Add(expenseType);
                         }
-                       
                     }
-                    catch (Exception ex)
-                    {
-                        // Handle the exception or log the error if needed
+                    catch(Exception ex) 
+                    { 
+                    
                     }
-                }
+               }
 
-            }
+           }
+
+
+
             /////////////////////get all expenses into expenseTypeList
-            var AllExpensesTypeObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 78);//api.icount.co.il/api/v3.php/expense/types
-            var AllExpensesEndpoint = AllExpensesTypeObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-            HttpMethod AllExpensesMethod = HttpMethod.Get;
-            var ReponsneAllExpenses = await SendRequest(AllExpensesEndpoint, AllExpensesMethod);
-            var ReponsneExpenseSearchjsonDocument = JsonDocument.Parse(ReponsneAllExpenses);
-            if (ReponsneExpenseSearchjsonDocument.RootElement.TryGetProperty("expense_types", out var expenseTypesElement))
+            var documentexpensetypes = _IcountExpensesTypes.Find(filter).ToList();
+
+            foreach (var document in documentexpensetypes)
             {
-                foreach (var expenseTypeElement in expenseTypesElement.EnumerateObject())
+                // Get the "results_list" field as a BsonDocument
+                var resultsListexpensetypes = document["expense_types"].AsBsonDocument;
+
+                foreach (var item in resultsListexpensetypes)
                 {
-                    int expenseTypeId = expenseTypeElement.Value.GetProperty("expense_type_id").GetInt32();
-                    string expenseTypeName = expenseTypeElement.Value.GetProperty("expense_type_name").GetString();
-
-                    // Check if the item already exists in the expenseTypeList
-                    bool itemExists = expenseTypeList.Any(expenseType => expenseType.ExpenseTypeId == expenseTypeId);
-
-                    if (!itemExists)
+                    try
                     {
-                        var expenseType = new ExpenseType();
-                        expenseType.ExpenseTypeId = expenseTypeId;
-                        expenseType.ExpenseTypeDesc = expenseTypeName;
+                        var expenseTypeId = item.Value["expense_type_id"].AsInt32;
+                        var expenseTypeName = item.Value["expense_type_name"].AsString;
 
-                        expenseTypeList.Add(expenseType);
+                        bool itemExists = expenseTypeList.Any(expenseType => expenseType.ExpenseTypeId == Convert.ToInt32(expenseTypeId));
+
+                        if (!itemExists)
+                        {
+                            var expenseType = new ExpenseType();
+                            expenseType.ExpenseTypeId = Convert.ToInt32(expenseTypeId);
+                            expenseType.ExpenseTypeDesc = expenseTypeName.ToString();
+
+                            expenseTypeList.Add(expenseType);
+                        }
+
+
                     }
+                    catch (Exception ex) { }
+
                 }
+
             }
+
+
+         
 
             return expenseTypeList;
         }
@@ -195,56 +218,16 @@ namespace Uninet.DATA.Services
             try
             {
                 Int32 InternalCompanyId = 0;
-                //we need to extract InternalCompanyId from IcountCompanisInfo in order to query table UsersExternalSystemDynamicFields with companyid(InternalCompanyId) and userid
-                var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", expensesUserDoRequest.ClientVat_id);
-                var projection = Builders<BsonDocument>.Projection.Include("company_info.InternalCompanyId").Exclude("_id");
+           
 
-                var InternalCompanyIdresult = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+                //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
 
-                if (InternalCompanyIdresult != null)
-                {
-                     InternalCompanyId = InternalCompanyIdresult["company_info"]["InternalCompanyId"].AsInt32;
+                //var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
 
+                var resSUpplierLIst = await GetClientSupplierList(userId);
 
-                    //from this table UsersExternalSystemDynamicFields we extract the user credentials for i count api query
-                    var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId);
-
-                    string cidvalue = null;
-                    string uservalue = null;
-                    string passvalue = null;
-
-                    //from here 
-                    foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
-                    {
-                        string fieldLabelName = dynamicField.FieldLabelName;
-                        string fieldLabelValue = dynamicField.FieldLabelValue;
-
-                        if (fieldLabelName == "cid")
-                        {
-                            cidvalue = fieldLabelValue;
-                            // Use the cid value as needed
-                        }
-                        else if (fieldLabelName == "user")
-                        {
-                            uservalue = fieldLabelValue;
-                            // Use the user value as needed
-                        }
-                        else if (fieldLabelName == "pass")
-                        {
-                            passvalue = fieldLabelValue;
-                            // Use the pass value as needed
-                        }
-                    }
-
-
-                    //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
-
-                    var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
-
-
-
-                    //extract doctype,DocDate,total from IcountDocInfo
-                    var Documentidfilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(expensesUserDoRequest.JsonDocumentid));
+                //extract doctype,DocDate,total from IcountDocInfo
+                var Documentidfilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(expensesUserDoRequest.JsonDocumentid));
                     var doctypeprojection = Builders<BsonDocument>.Projection.Include("doctype").Exclude("_id");
                     var doctyperesult = _ICountDocInfoCollection.Find(Documentidfilter).Project(doctypeprojection).FirstOrDefault();
 
@@ -431,9 +414,10 @@ namespace Uninet.DATA.Services
                     //now we should loop on the resSUpplierLIst
                     //and find if the vatId exist in the suplier list
                     var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
-                    if (ItemFound!=null)
+               
+                if (ItemFound!=null)
                     {
-                        List<ExpenseType> res = await CreateExpenseCategorylist(cidvalue, uservalue, passvalue, ItemFound.supplier_id.ToString());
+                        List<ExpenseType> res = await CreateExpenseCategorylist(userId, ItemFound.supplier_id.ToString());
                         var expensesDigitalDocumentProp = new ExpensesDigitalDocumentProp
                         {
                             Supplier_name_Sender = ItemFound.supplier_name,
@@ -445,7 +429,7 @@ namespace Uninet.DATA.Services
                             ExpenseTypeList = res,
                             internalCompanyId=InternalCompanyId,
                             Jsondocumentid= expensesUserDoRequest.JsonDocumentid,
-                            TaxId=TaxId,
+                            TaxId= expensesUserDoRequest.BusinessVatId,
                             AmountBeforeVat=AmountBeforeVat,
                             Vat= DoubleVatresult
 
@@ -460,9 +444,7 @@ namespace Uninet.DATA.Services
 
                         var requestBody = new Dictionary<string, string>
                         {
-                            { "cid", cidvalue },
-                            { "user", uservalue },
-                            { "pass", passvalue },
+                          
                             { "supplier_name", "provider" },
                             { "vat_id", expensesUserDoRequest.BusinessVatId },
                             { "fname", "" },
@@ -487,7 +469,7 @@ namespace Uninet.DATA.Services
 
                         var supplierId = await PostAndGetSupplierId(endpointClinetinfo, requestBody);
 
-                        List<ExpenseType> res=await CreateExpenseCategorylist(cidvalue, uservalue, passvalue, supplierId.ToString());
+                        List<ExpenseType> res=await CreateExpenseCategorylist(userId, supplierId.ToString());
                         var SuplierItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
                         var expensesDigitalDocumentProp = new ExpensesDigitalDocumentProp
                         {
@@ -508,7 +490,7 @@ namespace Uninet.DATA.Services
                     }
 
 
-                }
+                //}
                 return null;
                 
             }
@@ -682,15 +664,18 @@ namespace Uninet.DATA.Services
                       //  string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfClientCompaniesThatWasSentDigitalDocument);
 
 
+
+
+
                         foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
                             string JsonDocUrl = "";
                             var DocInfofilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(DigitalClientRow.JsonDocumentid));
-                            var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url").Exclude("_id");
+                            var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url_copy").Exclude("_id");
                             var DocInforesult = _ICountDocInfoCollection.Find(DocInfofilter).Project(DocInfoprojection).FirstOrDefault();
                             if (DocInforesult != null)
                             {
-                                 JsonDocUrl = DocInforesult["doc_info"]["doc_url"].AsString;
+                                 JsonDocUrl = DocInforesult["doc_info"]["doc_url_copy"].AsString;
                             }
                             resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl, supplier_name_Sender= DigitalClientRow.supplier_name_Sender, docDate= DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV , currency_code= DigitalClientRow.currency_code});
 
@@ -698,6 +683,150 @@ namespace Uninet.DATA.Services
                     }
 
                  }
+
+                //here added logic eyal to add a  new collection to icountClientSuppliers mongodb collection
+                foreach (var Company in ResListOfCompaniesRelatedToLogedinUser)
+                {
+                    var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == Company.BusinessId && x.Userid == UserID);
+
+                    string cidvalue = null;
+                    string uservalue = null;
+                    string passvalue = null;
+
+                    //from here 
+                    foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                    {
+                        string fieldLabelName = dynamicField.FieldLabelName;
+                        string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                        if (fieldLabelName == "cid")
+                        {
+                            cidvalue = fieldLabelValue;
+                            // Use the cid value as needed
+                        }
+                        else if (fieldLabelName == "user")
+                        {
+                            uservalue = fieldLabelValue;
+                            // Use the user value as needed
+                        }
+                        else if (fieldLabelName == "pass")
+                        {
+                            passvalue = fieldLabelValue;
+                            // Use the pass value as needed
+                        }
+                    }
+                    var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
+                    var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                    HttpMethod methodclientinfo = HttpMethod.Get;
+                    var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
+
+                    // Parse the JSON response
+                    var jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
+                    var jsonData = jsonDocument.RootElement;
+
+                   
+
+                    var bsonDocument = BsonDocument.Parse(jsonData.ToString());
+                    // Add "internalcompanid" and "UserID" properties
+                    bsonDocument.Add("internalcompanid", Company.BusinessId);
+                    bsonDocument.Add("UserID", UserID);
+
+
+                    // Define the query to find and delete the existing document
+                    var filter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("internalcompanid", Company.BusinessId),
+                        Builders<BsonDocument>.Filter.Eq("UserID", UserID)
+                    );
+
+                    // Check if a document with the specified internalcompanid and UserID exists
+                    var existingDocument = await _IcountClientSuppliers.Find(filter).FirstOrDefaultAsync();
+
+                    if (existingDocument != null)
+                    {
+                        // If the document exists, delete it
+                         _IcountClientSuppliers.DeleteOne(filter);
+                        _IcountClientSuppliers.InsertOne(bsonDocument);
+                    }
+                    else
+                    {
+                        _IcountClientSuppliers.InsertOne(bsonDocument);
+                    }
+                    
+
+                    
+
+                    //added logic eyal to add json to expensesmongodb
+                    var ExpenseSearchObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 77);//api.icount.co.il/api/v3.php/expense/search
+                    var ExpenseSearchEndpoint = ExpenseSearchObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue; //+ "&supplier_id=" + supplierId.ToString();
+                    HttpMethod methodexpenseserach = HttpMethod.Get;
+                    var ReponsneExpenseSearch = await SendRequest(ExpenseSearchEndpoint, methodexpenseserach);
+                    var jsonDocumentReponsneExpenseSearch = JsonDocument.Parse(ReponsneExpenseSearch);
+                    var jsonDataExpenseSearch = jsonDocumentReponsneExpenseSearch.RootElement;
+                    var bsonDocumentExpenseSearch = BsonDocument.Parse(jsonDataExpenseSearch.ToString());
+                    // Add "internalcompanid" and "UserID" properties
+                    bsonDocumentExpenseSearch.Add("internalcompanid", Company.BusinessId);
+                    bsonDocumentExpenseSearch.Add("UserID", UserID);
+
+
+                    // Define the query to find and delete the existing document
+                    var filterExpenseSearch = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("internalcompanid", Company.BusinessId),
+                        Builders<BsonDocument>.Filter.Eq("UserID", UserID)
+                    );
+
+                    var ExpenseexistingDocument = await _IcountExpenses.Find(filterExpenseSearch).FirstOrDefaultAsync();
+                    if (ExpenseexistingDocument != null)
+                    {
+                        // If the document exists, delete it
+                        _IcountExpenses.DeleteOne(filterExpenseSearch);
+                        _IcountExpenses.InsertOne(bsonDocumentExpenseSearch);
+                    }
+                    else
+                    {
+                        _IcountExpenses.InsertOne(bsonDocumentExpenseSearch);
+                    }
+
+                    /////end added logic eyal to add json to expensesmongodb
+
+
+
+                    //start add logic add json to _IcountExpensesTypes
+                    var AllExpensesTypeObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 78);//api.icount.co.il/api/v3.php/expense/types
+                    var AllExpensesEndpoint = AllExpensesTypeObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                    HttpMethod AllExpensesMethod = HttpMethod.Get;
+                    var ReponsneAllExpensesTypes = await SendRequest(AllExpensesEndpoint, AllExpensesMethod);
+                    var ReponsneExpenseTypesjsonDocument = JsonDocument.Parse(ReponsneAllExpensesTypes);
+                    var jsonDataExpensetypes = ReponsneExpenseTypesjsonDocument.RootElement;
+                    var bsonDocumentExpensetypes = BsonDocument.Parse(jsonDataExpensetypes.ToString());
+                    bsonDocumentExpensetypes.Add("internalcompanid", Company.BusinessId);
+                    bsonDocumentExpensetypes.Add("UserID", UserID);
+
+                    // Define the query to find and delete the existing document
+                    var filterExpensetypes = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("internalcompanid", Company.BusinessId),
+                        Builders<BsonDocument>.Filter.Eq("UserID", UserID)
+                    );
+
+                    var ExpensetypesexistingDocument = await _IcountExpensesTypes.Find(filterExpensetypes).FirstOrDefaultAsync();
+                    if (ExpensetypesexistingDocument != null)
+                    {
+                        // If the document exists, delete it
+                        _IcountExpensesTypes.DeleteOne(filterExpensetypes);
+                        _IcountExpensesTypes.InsertOne(bsonDocumentExpensetypes);
+                    }
+                    else
+                    {
+                        _IcountExpensesTypes.InsertOne(bsonDocumentExpensetypes);
+                    }
+                    //end add logic add json to _IcountExpensesTypes
+
+
+
+
+
+                }
+
+
                 var Objres = new DigitalDocumentToApproveObj
                 {
                     listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
@@ -867,7 +996,7 @@ namespace Uninet.DATA.Services
                 if (response.status)
                 {
                     //when return from  creating the new  expensetype  we need to call icount again to retrieve the new list of expensetype
-                     res = await CreateExpenseCategorylist(cidvalue, uservalue, passvalue, addexpenseTypeRequest.supplier_ID);
+                     res = await CreateExpenseCategorylist(userId, addexpenseTypeRequest.supplier_ID);
 
                     var res2= new AddGenericexpenseTypeResponse
                     {

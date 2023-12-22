@@ -73,7 +73,17 @@ namespace Uninet.Domain.Classes
         //}
 
 
+        public async Task<T> CreateAsyncReturnEntity<T>(T entity) where T : class
 
+        {
+
+            this.dbContext.Set<T>().Add(entity);
+
+            await this.dbContext.SaveChangesAsync();
+
+            return entity; // Return the inserted entity
+
+        }
 
 
         public async Task CreateAsync<T>(T entity) where T : class
@@ -361,19 +371,30 @@ namespace Uninet.Domain.Classes
 
         /// <returns></returns>
 
-        public Task<List<TRes>> ExecuteGetSPAsync<TRes>(string spName, object parameters = null) where TRes : class
-
+        public async Task<List<TRes>> ExecuteGetSPAsync<TRes>(string spName, object parameters = null) where TRes : class
         {
-
             var paramsArr = new Collection<object>();
-
             var spStringCommand = BuildSpCommand(spName, ref paramsArr, parameters);
 
-
-
-            return this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
-
+            return await this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
         }
+
+
+
+
+        //public Task<List<TRes>> ExecuteGetSPAsync<TRes>(string spName, object parameters = null) where TRes : class
+
+        //{
+
+        //    var paramsArr = new Collection<object>();
+
+        //    var spStringCommand = BuildSpCommand(spName, ref paramsArr, parameters);
+
+
+
+        //    return  this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
+
+        //}
 
 
 

@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.VisualBasic.FileIO;
@@ -44,7 +46,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
-      
+        private readonly IMongoCollection<BsonDocument> _IcountClientSuppliersCollection;
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
@@ -55,6 +57,7 @@ namespace Uninet.DATA.Services
             _ICountCompanyInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection= database.GetCollection<BsonDocument>("icountClientInfo");
+            _IcountClientSuppliersCollection = database.GetCollection<BsonDocument>("icountClientSuppliers");
             _repository = repository;
             Configuration = configuration;
             _dataMailassist = dataMailassist;
@@ -112,7 +115,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             DocinfoDB,
             ClientInfoDB
         }
-        public void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
+
+        public async void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
         {
             // Convert the JsonElement to a BsonDocument
             BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
@@ -126,6 +130,12 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                      Builders<BsonDocument>.Filter.Eq("docnum", docnum),
                      Builders<BsonDocument>.Filter.Eq("doc_info.vat_id", vatId)
                  );
+
+                var temp_url = document["doc_info"]["doc_url"];
+
+                string finalUrl = await ConvertUrl(temp_url.ToString());
+                document["doc_info"].AsBsonDocument.Add("doc_url_copy", finalUrl);
+
                 var existingDocument = _ICountDocInfoCollection.Find(filter).FirstOrDefault();
                 if (existingDocument == null)
                 {
@@ -172,8 +182,28 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
         }
 
+        public async Task<string> ConvertUrl(string Inputurl)
+        {
+            string finalUrl = "";
+            using (var httpClient = new HttpClient())
+            {
+                //string url = "https://app.icount.co.il/hash/p_print.php?code=MXVNUmk2WWY4bDUvQ2JYVHcwUlIxZm8rSnRJWlh3TGRramJwQUlqbUFVa2JrMXhQekJ3eHR3PT0%3D";
+                // Send an HTTP GET request to the original URL
+                HttpResponseMessage response = await httpClient.GetAsync(Inputurl);
 
-        
+                // Check if the request was successful
+                if (response.IsSuccessStatusCode)
+                {
+                    // Get the final URL from the response
+                    finalUrl = response.RequestMessage.RequestUri.ToString();
+
+                }
+
+
+            }
+            return finalUrl;
+        }
+
         public async Task<InviteBusinessPartnerResult> InviteBusinessPartners(int userid, int Lang)
         {
             var existingUser =  _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userid); /// ca
@@ -220,7 +250,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
-                InsertDocumentInfo(jsonData, destination, SupplierVat_id);
+                  InsertDocumentInfo(jsonData, destination, SupplierVat_id);
             }
             return true;
         }
@@ -243,7 +273,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
                 MongoDbDestination destination = MongoDbDestination.DocinfoDB;
-                InsertDocumentInfo(jsonData, destination,"");
+                 InsertDocumentInfo(jsonData, destination,"");
 
             }
 
@@ -293,6 +323,24 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
 
         }
+
+
+        public async Task<JsonDocument> CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMapping row,string icountWebhookEndpointEdited)
+        {
+            try
+            {
+                int WebHookSourceid = row.WebHookSourceid;
+                var IcountWebhookEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 82);//https://api.icount.co.il/api/v3.php/webhook/add
+                var IcountWebhookEndpointEdited = IcountWebhookEndpoint.Endpoint + icountWebhookEndpointEdited+ WebHookSourceid + "&action=doc.create";
+                HttpMethod methodIcountWebhookEndpoint = HttpMethod.Post;
+                var ReponsneIcountWebhookEndpoint = await _UninetInputDataAccess.SendRequest(IcountWebhookEndpointEdited, methodIcountWebhookEndpoint);
+
+                // Deserialize the JSON response
+               return  JsonDocument.Parse(ReponsneIcountWebhookEndpoint);
+            }
+            catch(Exception ex) { return null; };
+        }
+
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try
@@ -355,10 +403,62 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                     if (statusValue)
                     {
+                       
+
                         bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
                         if (spresult)
                         {
+                            //here i need to insert the logic that call to 
+                            //https://api.icount.co.il/api/v3.php/webhook/add
+                            //but before calling i need to find out if it already exist in our database related to an internal companyid
+                            //start logic of addig webhook to icount
+                            var LUTIcountSourceWebhookCompanyMappingRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid);
+
+                            string url = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220230824161213.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+                            JsonElement rootWebhookEndpointjsonDocument;
+                            if (LUTIcountSourceWebhookCompanyMappingRow!=null)
+                            {
+                               
+
+                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow,url);
+                                 rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+
+                            }
+                            else
+                            {
+                                var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+                                {
+
+                                    Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid
+                                };
+
+                                var insertedRow= await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
+
+                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, url);
+                                 rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+                            }
+
+
+
+                            bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
+                            int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
+
+                            if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
+                            {
+                                var LUTIcountSourceWebhookCompanyMappingnewRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid);
+                                if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
+                                {
+                                    LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
+
+                                    // Call your UpdateAsync method to save the changes
+                                    await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+                                }
+                            }
+
+                            ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
+
+
 
                             // Parse the JSON string to a dynamic object
                             dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
@@ -1750,47 +1850,64 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
                 UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
-                string israelTimeZoneId = "Israel Standard Time";
-                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
-
-                DateTime? refreshTokenExpireTime = result.RefreshTokenExpireTime; // Assuming result.RefreshTokenExpireTime is of type DateTime?
-
-                // Use the null-conditional operator to handle nullable DateTime
-                DateTime israelRefreshTokenNow = refreshTokenExpireTime?.ToUniversalTime() ?? DateTime.UtcNow;
-                israelRefreshTokenNow = TimeZoneInfo.ConvertTimeFromUtc(israelRefreshTokenNow, israelTimeZone);
-
-
                 if (result != null)
                 {
-                    q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == result.AdminUserid);
-                    if (q1q2_res != null)
+                    string israelTimeZoneId = "Israel Standard Time";
+                    TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+                    DateTime? refreshTokenExpireTime = result.RefreshTokenExpireTime; // Assuming result.RefreshTokenExpireTime is of type DateTime?
+
+                    // Use the null-conditional operator to handle nullable DateTime
+                    DateTime israelRefreshTokenNow = refreshTokenExpireTime?.ToUniversalTime() ?? DateTime.UtcNow;
+                    israelRefreshTokenNow = TimeZoneInfo.ConvertTimeFromUtc(israelRefreshTokenNow, israelTimeZone);
+
+
+                    if (result != null)
                     {
-                        q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                        q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == result.AdminUserid);
+                        if (q1q2_res != null)
+                        {
+                            q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                        }
+                        var Response = new LoginWithEmailandPasswordResponse
+                        {
+                            Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
+                            Q3_InidicationRes = q3_res != null ? true : false,
+                            Userid = result.AdminUserid,
+                            verified = result.ValidUser,
+                            BusinessID = q1q2_res == null ? null : q1q2_res.BusinessId,
+                            FullName = q1q2_res == null ? "" : q1q2_res.FirstName + " " + q1q2_res.LastName,
+                            RefreshTokenExpiredTime = israelRefreshTokenNow
+                        };
+                        return Response;
                     }
-                    var Response = new LoginWithEmailandPasswordResponse
+                    else
                     {
-                        Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
-                        Q3_InidicationRes = q3_res != null ? true : false,
-                        Userid = result.AdminUserid,
-                        verified = result.ValidUser,
-                        BusinessID= q1q2_res == null?null: q1q2_res.BusinessId,
-                        FullName= q1q2_res == null ?"": q1q2_res.FirstName + " "+ q1q2_res.LastName,
-                        RefreshTokenExpiredTime= israelRefreshTokenNow
-                    };
-                    return Response;
+                        var Response = new LoginWithEmailandPasswordResponse
+                        {
+                            Q1_Q2_InidicationRes = false,
+                            Q3_InidicationRes = false,
+                            Userid = 0,
+                            verified = false,
+                            FullName = "",
+                            RefreshTokenExpiredTime = null
+                        };
+                        return Response;
+                    }
                 }
                 else
                 {
                     var Response = new LoginWithEmailandPasswordResponse
                     {
-                        Q1_Q2_InidicationRes =  false,
+                        Q1_Q2_InidicationRes = false,
                         Q3_InidicationRes = false,
                         Userid = 0,
                         verified = false,
-                        FullName ="",
-                        RefreshTokenExpiredTime=null
+                        FullName = "",
+                        RefreshTokenExpiredTime = null
                     };
                     return Response;
+
                 }
               
             }

@@ -20,6 +20,6 @@ namespace Uninet.DATA.Interfaces
         public Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null);
         //public Task<string> PullUserDatafromExternalSystem(int Userid);
 
-
+        Task<bool> ReceiveWebhook(string json, string webhookSourceId);//
     }
 }

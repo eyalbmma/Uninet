@@ -52,15 +52,31 @@ public class PullUsersData : IHostedService, IDisposable
         try
         {
 
-            await WriteToTableAsync(1, "JobStarted", "");
+            //await WriteToTableAsync(1, "JobStarted", "");
             ////List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 325 || b.AdminUserid == 327);
-            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 553);
-            List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
 
-            foreach (var user in res)
-            {
-                string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
-            }
+
+            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => b.AdminUserid == 563);
+            //remark eya;
+            /*
+             AdminUserid 563 is eliavh25@gmail.comthe sign in to uninet 
+             his company is 1322 also known as 025482111 
+             this is the company detials
+                uninetsuplier
+                ת.ז./ע.מ./ח.פ.: 025482111
+
+                this means that the prcess behind the scene
+                get all dicument created by this company and insert  them into BusinessData table
+                and the job loops on this table and send  to their clients email  regarding their digital document that was created 
+
+
+             */
+
+            //List<AdminUsers> res = _repository.GetListOfObjects<AdminUsers>(b => true);
+            //foreach (var user in res)
+            //{
+            //    string tt = await _uninetBatchDataAccess.PullUserDatafromExternalSystem(user.AdminUserid);
+            //}
 
             ////////////////////////////////////////////////////////
 
@@ -68,23 +84,24 @@ public class PullUsersData : IHostedService, IDisposable
 
             //////here we insert data into businessdata
             // List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325 || b.AdminUserid==327);
-            //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 553);
-            List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => true);
+             //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 563);
 
-            foreach (var Business in res2)
-            {
-                var businessRequest = new BusinessRequestFoeExpenses
-                {
-                    BusinessId = Business.BusinessId.ToString(),
-                    AdminUserid = Business.AdminUserid.ToString(),
-                    FirstName = Business.FirstName,
-                    LastName = Business.LastName
+            //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => true);
 
-                };
+            //foreach (var Business in res2)
+            //{
+            //    var businessRequest = new BusinessRequestFoeExpenses
+            //    {
+            //        BusinessId = Business.BusinessId.ToString(),
+            //        AdminUserid = Business.AdminUserid.ToString(),
+            //        FirstName = Business.FirstName,
+            //        LastName = Business.LastName
 
-                string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
-            }
-            await WriteToTableAsync(2, "JobEnded", "");
+            //    };
+
+            //    string tt = await _uninetBatchDataAccess.ExtractUserCompanyLogicExpensesAndSendAsExpensesToSideB(businessRequest);
+            //}
+            //await WriteToTableAsync(2, "JobEnded", "");
         }
         catch (Exception ex)
         {

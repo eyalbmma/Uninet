@@ -99,7 +99,7 @@ namespace UninetWebApi2.Controllers
             if (result.status)
             {
                 
-                    message = expensesUserDoRequest.Lang == 1 ? "Document transfered to Uninet Sysyem" : "המסמכים התקבלו בהצלחה במערכות יונינט";
+                    message = expensesUserDoRequest.Lang == 1 ? "Document transfered to Uninet System" : "המסמכים התקבלו בהצלחה במערכות יונינט";
                
 
 

@@ -30,7 +30,19 @@ namespace Uninet.APP.Services
 
         }
 
+        public async Task<bool> ReceiveWebhook(string json, string webhookSourceId)//
+        {
+            try
+            {
 
+
+                return await _uninetInputDataAccess.ReceiveWebhook(json, webhookSourceId);//
+
+
+
+            }
+            catch (Exception ex) { return false; }
+        }
         public async Task<bool> SavegreenvoicedocumentIntoUninet(List<BsonDocument> InputData)
         {
             try

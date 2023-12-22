@@ -24,7 +24,13 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
+
+
+        public virtual DbSet<InsertdatatoJobbatchlogResult> InsertdatatoJobbatchlogResult { get; set; }
+
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
+        public virtual DbSet<LUTIcountSourceWebhookCompanyMapping> LUTIcountSourceWebhookCompanyMapping { get; set; }
+        public virtual DbSet<Jobbatchlog> Jobbatchlog { get; set; }
         public virtual DbSet<VerifyUserByOtpUserIdAndTimeStampResponse> VerifyUserByOtpUserIdAndTimeStampResponse { get; set; }
         public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
 
@@ -65,8 +71,9 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<UsersExternalSystemDynamicFields>()
         .HasKey(e => new { e.Companyid, e.Userid, e.ExternalSystemId, e.FieldLabelName });
 
-
             
+
+                modelBuilder.Entity<InsertdatatoJobbatchlogResult>().HasNoKey();
             modelBuilder.Entity<InviteBusinessPartnerResult>().HasNoKey();
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
@@ -75,6 +82,9 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
+            modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
+
+            
 
             modelBuilder.Entity<BusinessData>().HasKey(u => new { u.UserId, u.BusinessId,u.JsonDocumentid });
 
@@ -94,7 +104,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<LutCompanies>().HasKey(u => new { u.CompanyInnerId });
             //builder.Entity<HospitalUserModel>().HasNoKey();
             modelBuilder.Entity<LUT_ExtrenalFieldsType>().HasKey(u => new { u.FieldType });
-
+            modelBuilder.Entity<Jobbatchlog>().HasKey(u => new { u.id });
             OnModelCreatingPartial(modelBuilder);
 
 

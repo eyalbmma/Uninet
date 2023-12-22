@@ -17,6 +17,8 @@ namespace Uninet.APP.Interfaces
          Task<BsonDocument> GetQuestion(int questionNumber, string language);
         Task<List<BsonDocument>> GetLandingPageContent(string language);
 
-         //Task<string> PullUserDatafromExternalSystem(int Userid);
+        
+        Task<bool> ReceiveWebhook(string json, string webhookSourceId);//
+        //Task<string> PullUserDatafromExternalSystem(int Userid);
     }
 }

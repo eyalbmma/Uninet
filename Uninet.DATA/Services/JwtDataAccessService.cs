@@ -206,84 +206,71 @@ namespace Uninet.DATA.Services
 
             }
         }
+        //public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
+        //{
+        //    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
+        //    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+
+
+        //    string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+
+        //    // Get the Israel time zone
+        //    TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
+
+        //    // Convert server's DateTime.Now to Israel local time
+        //    DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+        //    DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+        //    //DateTime expirationTime = DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+
+
+        //    var jwt = new JwtSecurityToken(
+        //        issuer: Configuration["jwtTokenConfig:issuer"],
+        //        audience: Configuration["Tokens:audience"],
+        //        claims: claims, //the user's claims, for example new Claim[] { new Claim(ClaimTypes.Name, "The username"), //... 
+        //        notBefore: DateTime.UtcNow,
+        //        //expires: DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"])),
+        //        expires: expirationTime,
+        //        signingCredentials: credentials
+        //    );
+        //    var res = new AccesstokenReturnObj
+        //    {
+        //        Accesstoken = new JwtSecurityTokenHandler().WriteToken(jwt),
+        //        ExpirationDateAccesstoken = expirationTime
+
+        //    };
+        //    return res;
+
+        //}
+
         public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-
-            //string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
-
-            //// Get the Israel time zone
-            //TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
-
-            //// Convert server's DateTime.Now to Israel local time
-            //DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
-
-            //// Calculate the expiration time in Israel time
-            //DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
-
-
-
-
-            // Create a JWT token with the calculated expiration time
-            //var jwt = new JwtSecurityToken(
-            //    issuer: Configuration["jwtTokenConfig:issuer"],
-            //    audience: Configuration["Tokens:audience"],
-            //    claims: claims,
-            //    notBefore: israelNow,
-            //    expires: expirationTime,
-            //    signingCredentials: credentials
-            //);
-
-            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
-
-            // Get the Israel time zone
-            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
-
-            // Convert server's DateTime.Now to Israel local time
-            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
-
-            DateTime expirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
-
-            //DateTime expirationTime = DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
-
-
+            // Calculate the token expiration time in your local time zone
+            DateTime localExpirationTime = DateTime.Now.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
 
             var jwt = new JwtSecurityToken(
                 issuer: Configuration["jwtTokenConfig:issuer"],
                 audience: Configuration["Tokens:audience"],
-                claims: claims, //the user's claims, for example new Claim[] { new Claim(ClaimTypes.Name, "The username"), //... 
+                claims: claims,
                 notBefore: DateTime.UtcNow,
-                //expires: DateTime.UtcNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"])),
-                expires: expirationTime,
+                expires: localExpirationTime,
                 signingCredentials: credentials
             );
+
             var res = new AccesstokenReturnObj
             {
                 Accesstoken = new JwtSecurityTokenHandler().WriteToken(jwt),
-                ExpirationDateAccesstoken = expirationTime
-
+                ExpirationDateAccesstoken = localExpirationTime
             };
             return res;
-
         }
 
-
-        //public async Task<string> GenerateAccessToken(string userId)
-        //{
-        //    var tokenHandler = new JwtSecurityTokenHandler();
-        //    var key = Convert.FromBase64String(Configuration.GetValue<string>("jwtTokenConfig:secret"));
-        //    var tokenDescriptor = new SecurityTokenDescriptor
-        //    {
-        //        Subject = new ClaimsIdentity(new[] { new Claim("userId", userId) }),
-        //        Issuer = Configuration.GetValue<string>("jwtTokenConfig:issuer"),
-        //        Expires = DateTime.UtcNow.AddMinutes(Configuration.GetValue<double>("jwtTokenConfig:accessTokenExpiration")),
-        //        SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-        //    };
-        //    var token = tokenHandler.CreateToken(tokenDescriptor);
-        //    return tokenHandler.WriteToken(token);
-        //}
 
 
 
