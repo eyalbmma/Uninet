@@ -415,7 +415,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             //start logic of addig webhook to icount
                             var LUTIcountSourceWebhookCompanyMappingRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid);
 
-                            string url = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220230824161213.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+                            string url = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
                             JsonElement rootWebhookEndpointjsonDocument;
                             if (LUTIcountSourceWebhookCompanyMappingRow!=null)
                             {

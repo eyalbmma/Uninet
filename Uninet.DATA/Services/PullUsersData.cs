@@ -33,7 +33,7 @@ public class PullUsersData : IHostedService, IDisposable
     {
         _logger.LogInformation("File check service is starting.");
         _isRunning = true;
-        _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(10));
+        _timer = new Timer(DoWork, null, TimeSpan.Zero, TimeSpan.FromMinutes(100));
         return Task.CompletedTask;
     }
 
@@ -84,7 +84,7 @@ public class PullUsersData : IHostedService, IDisposable
 
             //////here we insert data into businessdata
             // List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 325 || b.AdminUserid==327);
-             //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 563);
+            //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => b.AdminUserid == 563);
 
             //List<Businesses> res2 = _repository.GetListOfObjects<Businesses>(b => true);
 

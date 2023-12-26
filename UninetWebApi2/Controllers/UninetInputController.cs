@@ -121,45 +121,28 @@ namespace UninetWebApi2.Controllers
         }
 
         [HttpPost("ReceiveWebhook")]
-        public async Task<IActionResult> ReceiveWebhook()
-        {
-            try
-            {
-                //string expectedSecret = Configuration.GetValue<string>("Icount:WebhookHeader");
+        //public async Task<IActionResult> ReceiveWebhook()
+        //{
+        //    try
+        //    {
+               
+        //        string webhookSourceId = HttpContext.Request.Query["webhooksourceid"].ToString();
 
-                //// Get the value of the X-iCount-Secret header from the request
-                //string actualSecret = Request.Headers["X-iCount-Secret"];
 
-                //if (actualSecret != expectedSecret)
-                //{
-                //    // The headers don't match, so return an unauthorized response
-                //    return Unauthorized("Unauthorized access");
-                //}
+        //        using (StreamReader reader = new StreamReader(Request.Body))
+        //        {
+        //            string json = await reader.ReadToEndAsync();
 
-                // Extract the 'webhooksourceid' query parameter from the request URL
-                string webhookSourceId = HttpContext.Request.Query["webhooksourceid"].ToString();
-                
+        //            var res = await _uninetInputAppService.ReceiveWebhook(json, webhookSourceId);//
 
-                using (StreamReader reader = new StreamReader(Request.Body))
-                {
-                    string json = await reader.ReadToEndAsync();
-                    // Parse the JSON parameter
-                    //JObject webhookData = JObject.Parse(json);
-                    var res = await _uninetInputAppService.ReceiveWebhook(json,webhookSourceId);//
-                    // You can now access the parsed JSON data as needed
-                    // For example, you can extract specific fields:
-                    //string value = webhookData["doc_info"]["totalwithvat"].ToString();
-
-                    // Do something with the parsed data
-                    // ...
-                    return Ok(res);
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Failed to process webhook: {ex.Message}");
-            }
-        }
+        //            return Ok(res);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest($"Failed to process webhook: {ex.Message}");
+        //    }
+        //}
 
 
 

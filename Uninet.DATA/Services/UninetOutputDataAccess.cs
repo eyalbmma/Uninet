@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -6,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -32,6 +34,8 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _IcountClientSuppliers;
         private readonly IMongoCollection<BsonDocument> _IcountExpenses;
         private readonly IMongoCollection<BsonDocument> _IcountExpensesTypes;
+        private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
+        //IcountWebhookData
         public UninetOutputDataAccess(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
@@ -42,6 +46,7 @@ namespace Uninet.DATA.Services
             _IcountClientSuppliers = database.GetCollection<BsonDocument>("icountClientSuppliers");
             _IcountExpenses = database.GetCollection<BsonDocument>("IcountExpenses");
             _IcountExpensesTypes= database.GetCollection<BsonDocument>("IcountExpensesTypes");
+            _IcountWebhookData= database.GetCollection<BsonDocument>("IcountWebhookData");
             _repository = repository;
 
         }
@@ -226,190 +231,251 @@ namespace Uninet.DATA.Services
 
                 var resSUpplierLIst = await GetClientSupplierList(userId);
 
+                //BusinessData
+                var RowBusinessData = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == expensesUserDoRequest.JsonDocumentid);
                 //extract doctype,DocDate,total from IcountDocInfo
-                var Documentidfilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(expensesUserDoRequest.JsonDocumentid));
-                    var doctypeprojection = Builders<BsonDocument>.Projection.Include("doctype").Exclude("_id");
-                    var doctyperesult = _ICountDocInfoCollection.Find(Documentidfilter).Project(doctypeprojection).FirstOrDefault();
+                string docnum = "";
+                string Doctype = "";
+                string dateissuedstr = "";
+                DateTime DocDate = DateTime.MinValue;
+                string totalstr = "";
+                double total = 0;
+                double AmountBeforeVat = 0;
+                string AmountBeforeVatstr = "";
+                double DoubleVatresult = 0;
+                string DoubleVatresultstr = "";
+                string TaxId = "";
+                if (RowBusinessData != null)
+                {
 
-                    var DocDateprojection = Builders<BsonDocument>.Projection.Include("doc_info.dateissued").Exclude("_id");
-                    var DocDateresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(DocDateprojection).FirstOrDefault();
+                    if (RowBusinessData.DataSourceType == 1)
+                    {
+                        var Documentidfilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(expensesUserDoRequest.JsonDocumentid));
+                        var doctypeprojection = Builders<BsonDocument>.Projection.Include("doctype").Exclude("_id");
+                        var doctyperesult = _ICountDocInfoCollection.Find(Documentidfilter).Project(doctypeprojection).FirstOrDefault();
+
+                        var DocDateprojection = Builders<BsonDocument>.Projection.Include("doc_info.dateissued").Exclude("_id");
+                        var DocDateresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(DocDateprojection).FirstOrDefault();
 
 
-                    var totalprojection = Builders<BsonDocument>.Projection.Include("doc_info.total").Exclude("_id");
-                    var totalresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(totalprojection).FirstOrDefault();
+                        var totalprojection = Builders<BsonDocument>.Projection.Include("doc_info.total").Exclude("_id");
+                        var totalresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(totalprojection).FirstOrDefault();
 
-                    var docnumprojection = Builders<BsonDocument>.Projection.Include("doc_info.docnum").Exclude("_id");
-                    var docnumresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(docnumprojection).FirstOrDefault();
+                        var docnumprojection = Builders<BsonDocument>.Projection.Include("doc_info.docnum").Exclude("_id");
+                        var docnumresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(docnumprojection).FirstOrDefault();
 
-                    ////////////////////////////////////////////////////////////////////////////////////////////////////
-                    ///
-                    /*
-                      "TaxId": ---זה למעשה ח"פ מספר ישות של החברה 
-                      "AmountBeforeVat"-- סכום לפני מיסוי 
-                      "Vat"--מיסוי עצמו
-                    */
-                  
+                        ////////////////////////////////////////////////////////////////////////////////////////////////////
+                        ///
+                        /*
+                          "TaxId": ---זה למעשה ח"פ מספר ישות של החברה 
+                          "AmountBeforeVat"-- סכום לפני מיסוי 
+                          "Vat"--מיסוי עצמו
+                        */
+
+
+
+
+
+                        //vat_percent
+
+
+
+
+                        var TaxIdprojection = Builders<BsonDocument>.Projection.Include("doc_info.vat_id").Exclude("_id");
+                        var Taxresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(TaxIdprojection).FirstOrDefault();
+
+                        
+                        if (Taxresult != null)
+                        {
+
+                            TaxId = Taxresult["doc_info"]["vat_id"].AsString;
+                        }
+
+
+
+
+
+                        var AmountBeforeVatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalsum").Exclude("_id");
+                        var AmountBeforeVatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(AmountBeforeVatprojection).FirstOrDefault();
+                       
+                        if (AmountBeforeVatresult != null)
+                        {
+                            BsonValue totalValue = AmountBeforeVatresult["doc_info"]["totalsum"];
+                            if (totalValue.IsString)
+                            {
+                                string totalString = totalValue.AsString;
+                                if (double.TryParse(totalString, out double totalDouble))
+                                {
+                                    AmountBeforeVat = totalDouble;
+                                }
+                                else
+                                {
+                                    // Handle the case when the string cannot be parsed as a double
+                                }
+                            }
+                            else if (totalValue.IsDouble)
+                            {
+                                AmountBeforeVat = totalValue.AsDouble;
+                            }
+                            else
+                            {
+                                // Handle other data types if necessary
+                            }
+                        }
+
+
+                        var Vatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalvat").Exclude("_id");
+                        var Vatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(Vatprojection).FirstOrDefault();
+
+                        //totalvat eyal to deploy 
+                       
+                        if (Vatresult != null)
+                        {
+                            BsonValue totalValue = Vatresult["doc_info"]["totalvat"];
+                            if (totalValue.IsString)
+                            {
+                                string totalString = totalValue.AsString;
+                                if (double.TryParse(totalString, out double totalDouble))
+                                {
+                                    DoubleVatresult = totalDouble;
+                                }
+                                else
+                                {
+                                    // Handle the case when the string cannot be parsed as a double
+                                }
+                            }
+                            else if (totalValue.IsDouble)
+                            {
+                                DoubleVatresult = totalValue.AsDouble;
+                            }
+                            else
+                            {
+                                // Handle other data types if necessary
+                            }
+                        }
+
+
+
+
+
+                       
+                        if (totalresult != null)
+                        {
+                            BsonValue totalValue = totalresult["doc_info"]["total"];
+                            if (totalValue.IsString)
+                            {
+                                string totalString = totalValue.AsString;
+                                if (double.TryParse(totalString, out double totalDouble))
+                                {
+                                    total = totalDouble;
+                                }
+                                else
+                                {
+                                    // Handle the case when the string cannot be parsed as a double
+                                }
+                            }
+                            else if (totalValue.IsDouble)
+                            {
+                                total = totalValue.AsDouble;
+                            }
+                            else
+                            {
+                                // Handle other data types if necessary
+                            }
+                        }
+
+
+
+
+
+
+
+                       
+                        if (DocDateresult != null)
+                        {
+                            BsonValue dateValue = DocDateresult["doc_info"]["dateissued"];
+                            if (dateValue.IsString)
+                            {
+                                string dateString = dateValue.AsString;
+                                if (DateTime.TryParse(dateString, out DateTime parsedDate))
+                                {
+                                    DocDate = parsedDate;
+                                }
+                                else
+                                {
+                                    // Handle the case when the string cannot be parsed as a DateTime
+                                }
+                            }
+                            else if (dateValue.IsDateTime)
+                            {
+                                DocDate = dateValue.AsDateTime;
+                            }
+                            else
+                            {
+                                // Handle other data types if necessary
+                            }
+                        }
+
+
+
+                       
+                        if (doctyperesult != null)
+                        {
+
+                            Doctype = doctyperesult["doctype"].AsString;
+                        }
+
+
+                       
+                        if (docnumresult != null)
+                        {
+                            docnum = docnumresult["doc_info"]["docnum"].AsString;
+
+                        }
+                    }
+                    if (RowBusinessData.DataSourceType == 2)
+                    {
+                        var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(expensesUserDoRequest.JsonDocumentid));
+                        var webhookdoc = _IcountWebhookData.Find(filter).FirstOrDefault();
+                        
+                        if (webhookdoc != null)
+                        {
+                            
+                            docnum = webhookdoc["doc_info"]["docnum"].AsString;
+                           
+                            Doctype = webhookdoc["doc_info"]["doctype"].AsString;
+
+
+                            dateissuedstr = webhookdoc["doc_info"]["dateissued"].AsString;
+                            DateTime date = DateTime.ParseExact(dateissuedstr, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+                            DocDate = date;
+
+                            totalstr = webhookdoc["doc_info"]["total"].AsString;
+                            total = Convert.ToDouble(totalstr);
+
+
+
+                            AmountBeforeVatstr = webhookdoc["doc_info"]["totalsum"].AsString;
+                            AmountBeforeVat= Convert.ToDouble(AmountBeforeVatstr);
+
+
+
+                            DoubleVatresultstr = webhookdoc["doc_info"]["totalvat"].AsString;
+                            DoubleVatresult=Convert.ToDouble(DoubleVatresultstr);
+                                
+
+
+
+                            }
+                    }
+
+            
+                        
+
 
                     
-                    
-
-                    //vat_percent
-                   
-
-
-
-                    var TaxIdprojection = Builders<BsonDocument>.Projection.Include("doc_info.vat_id").Exclude("_id");
-                    var Taxresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(TaxIdprojection).FirstOrDefault();
-
-                    string TaxId = "";
-                    if (Taxresult != null)
-                    {
-
-                        TaxId = Taxresult["doc_info"]["vat_id"].AsString;
-                    }
-
-
-
-
-
-                    var AmountBeforeVatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalsum").Exclude("_id");
-                    var AmountBeforeVatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(AmountBeforeVatprojection).FirstOrDefault();
-                    double AmountBeforeVat = 0;
-                    if (AmountBeforeVatresult != null)
-                    {
-                        BsonValue totalValue = AmountBeforeVatresult["doc_info"]["totalsum"];
-                        if (totalValue.IsString)
-                        {
-                            string totalString = totalValue.AsString;
-                            if (double.TryParse(totalString, out double totalDouble))
-                            {
-                                AmountBeforeVat = totalDouble;
-                            }
-                            else
-                            {
-                                // Handle the case when the string cannot be parsed as a double
-                            }
-                        }
-                        else if (totalValue.IsDouble)
-                        {
-                            AmountBeforeVat = totalValue.AsDouble;
-                        }
-                        else
-                        {
-                            // Handle other data types if necessary
-                        }
-                    }
-
-
-                    var Vatprojection = Builders<BsonDocument>.Projection.Include("doc_info.totalvat").Exclude("_id");
-                    var Vatresult = _ICountDocInfoCollection.Find(Documentidfilter).Project(Vatprojection).FirstOrDefault();
-
-                    //totalvat eyal to deploy 
-                    double DoubleVatresult = 0;
-                    if (Vatresult != null)
-                    {
-                        BsonValue totalValue = Vatresult["doc_info"]["totalvat"];
-                        if (totalValue.IsString)
-                        {
-                            string totalString = totalValue.AsString;
-                            if (double.TryParse(totalString, out double totalDouble))
-                            {
-                                DoubleVatresult = totalDouble;
-                            }
-                            else
-                            {
-                                // Handle the case when the string cannot be parsed as a double
-                            }
-                        }
-                        else if (totalValue.IsDouble)
-                        {
-                            DoubleVatresult = totalValue.AsDouble;
-                        }
-                        else
-                        {
-                            // Handle other data types if necessary
-                        }
-                    }
-
-
-
-
-
-                    double total = 0;
-                    if (totalresult != null)
-                    {
-                        BsonValue totalValue = totalresult["doc_info"]["total"];
-                        if (totalValue.IsString)
-                        {
-                            string totalString = totalValue.AsString;
-                            if (double.TryParse(totalString, out double totalDouble))
-                            {
-                                total = totalDouble;
-                            }
-                            else
-                            {
-                                // Handle the case when the string cannot be parsed as a double
-                            }
-                        }
-                        else if (totalValue.IsDouble)
-                        {
-                            total = totalValue.AsDouble;
-                        }
-                        else
-                        {
-                            // Handle other data types if necessary
-                        }
-                    }
-
-
-
-                    
-
-
-
-                    DateTime DocDate = DateTime.MinValue; // Set a default value if needed
-                    if (DocDateresult != null)
-                    {
-                        BsonValue dateValue = DocDateresult["doc_info"]["dateissued"];
-                        if (dateValue.IsString)
-                        {
-                            string dateString = dateValue.AsString;
-                            if (DateTime.TryParse(dateString, out DateTime parsedDate))
-                            {
-                                DocDate = parsedDate;
-                            }
-                            else
-                            {
-                                // Handle the case when the string cannot be parsed as a DateTime
-                            }
-                        }
-                        else if (dateValue.IsDateTime)
-                        {
-                            DocDate = dateValue.AsDateTime;
-                        }
-                        else
-                        {
-                            // Handle other data types if necessary
-                        }
-                    }
-
-
-
-                    string Doctype = "";
-                    if (doctyperesult != null)
-                    {
-
-                         Doctype = doctyperesult["doctype"].AsString;
-                    }
-
-
-                    string docnum = "";
-                    if (docnumresult != null)
-                    {
-                        docnum = docnumresult["doc_info"]["docnum"].AsString;
-
-                    }
-
+                }
 
                     //now we should loop on the resSUpplierLIst
                     //and find if the vatId exist in the suplier list
@@ -669,16 +735,31 @@ namespace Uninet.DATA.Services
 
                         foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
-                            string JsonDocUrl = "";
-                            var DocInfofilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(DigitalClientRow.JsonDocumentid));
-                            var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url_copy").Exclude("_id");
-                            var DocInforesult = _ICountDocInfoCollection.Find(DocInfofilter).Project(DocInfoprojection).FirstOrDefault();
-                            if (DocInforesult != null)
-                            {
-                                 JsonDocUrl = DocInforesult["doc_info"]["doc_url_copy"].AsString;
-                            }
-                            resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId , BusinessVatId= DigitalClientRow.BusinessVatId ,DocInfoUrl= JsonDocUrl, supplier_name_Sender= DigitalClientRow.supplier_name_Sender, docDate= DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV , currency_code= DigitalClientRow.currency_code});
 
+                            if (DigitalClientRow.DataSourceType == 1)
+                            {
+                                string JsonDocUrl = "";
+                                var DocInfofilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(DigitalClientRow.JsonDocumentid));
+                                var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url_copy").Exclude("_id");
+                                var DocInforesult = _ICountDocInfoCollection.Find(DocInfofilter).Project(DocInfoprojection).FirstOrDefault();
+                                if (DocInforesult != null)
+                                {
+                                    JsonDocUrl = DocInforesult["doc_info"]["doc_url_copy"].AsString;
+                                }
+                                resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId, BusinessVatId = DigitalClientRow.BusinessVatId, DocInfoUrl = JsonDocUrl, supplier_name_Sender = DigitalClientRow.supplier_name_Sender, docDate = DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV, currency_code = DigitalClientRow.currency_code });
+                            }
+                            if (DigitalClientRow.DataSourceType == 2)
+                            {
+                                string JsonDocUrl = "";
+                                var DocInfofilter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(DigitalClientRow.JsonDocumentid));
+                                var DocInfoprojection = Builders<BsonDocument>.Projection.Include("doc_info.doc_url_copy").Exclude("_id");
+                                var DocInforesult = _IcountWebhookData.Find(DocInfofilter).Project(DocInfoprojection).FirstOrDefault();
+                                if (DocInforesult != null)
+                                {
+                                    JsonDocUrl = DocInforesult["doc_info"]["doc_url_copy"].AsString;
+                                }
+                                resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId, BusinessVatId = DigitalClientRow.BusinessVatId, DocInfoUrl = JsonDocUrl, supplier_name_Sender = DigitalClientRow.supplier_name_Sender, docDate = DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV, currency_code = DigitalClientRow.currency_code });
+                            }
                         }                    
                     }
 

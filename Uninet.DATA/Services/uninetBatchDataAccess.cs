@@ -822,7 +822,8 @@ namespace Uninet.DATA.Services
                             docDate = israel_dateissued, // Assign the converted date to docDate
                             amountAV = Convert.ToDouble(_totalwithvat),
                             currency_code = _currency_code,
-                            ClientvatidRegisteredtOnUninet = ClientvatidRegisteredtOnUninet
+                            ClientvatidRegisteredtOnUninet = ClientvatidRegisteredtOnUninet,
+                            DataSourceType=1
                         };
 
 

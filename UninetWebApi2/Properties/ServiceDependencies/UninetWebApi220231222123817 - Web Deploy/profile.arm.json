@@ -7,7 +7,7 @@
   "parameters": {
     "resourceGroupName": {
       "type": "string",
-      "defaultValue": "UninetWebAPI_ResourceGroup",
+      "defaultValue": "UninetMongoResource",
       "metadata": {
         "description": "Name of the resource group for the resource. It is recommended to put resources under same resource group for better tracking."
       }
@@ -21,7 +21,7 @@
     },
     "resourceName": {
       "type": "string",
-      "defaultValue": "UninetWebApi220230824161213",
+      "defaultValue": "UninetWebApi220231222123817",
       "metadata": {
         "description": "Name of the main resource to be created by this template."
       }

@@ -78,10 +78,13 @@
                   "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10": "False",
                   "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11": "False",
                   "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30": "False",
-                  "Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2": "False"
+                  "Microsoft.WindowsAzure.ApiManagement.Gateway.Protocols.Server.Http2": "False",
+                  "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls13": "False",
+                  "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls13": "False"
                 },
                 "virtualNetworkType": "None",
                 "certificates": null,
+                "enableClientCertificate": false,
                 "disableGateway": false,
                 "apiVersionConstraint": {
                   "minApiVersion": null
@@ -101,7 +104,7 @@
                 "apiRevision": "1",
                 "description": null,
                 "subscriptionRequired": true,
-                "serviceUrl": "https://uninetweapi.azurewebsites.net",
+                "serviceUrl": "https://uninetwebapi220231222123817.azurewebsites.net",
                 "path": "",
                 "protocols": [
                   "https"

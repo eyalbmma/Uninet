@@ -51,5 +51,9 @@ namespace Uninet.Domain.Entities
 
         public bool ClientvatidRegisteredtOnUninet { get; set; }
 
+
+
+        public int DataSourceType { get; set; }
+
     }
 }
