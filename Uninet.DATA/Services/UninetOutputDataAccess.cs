@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Amazon.Runtime.Internal.Transform;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
 using MongoDB.Bson;
@@ -83,49 +84,80 @@ namespace Uninet.DATA.Services
         /// <param name="uservalue"></param>
         /// <param name="passvalue"></param>
         /// <returns></returns>
-        private async Task<List<SupplierItem>> GetClientSupplierList(int Userid)
+        //private async Task<List<SupplierItem>> GetClientSupplierList(int Userid)
+        //{
+        //    var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Userid);
+
+        //    var filter = Builders<BsonDocument>.Filter.And(
+        //        Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
+        //        Builders<BsonDocument>.Filter.Eq("UserID", Userid)
+        //    );
+
+        //    var document = await _IcountClientSuppliers.Find(filter).FirstOrDefaultAsync();
+        //    if (document != null)
+        //    {
+        //        var suppliersData = document["suppliers"].AsBsonDocument;
+        //        var supplierList = new List<SupplierItem>();
+
+        //        // Loop through the suppliers data and map it to SupplierItem objects
+        //        foreach (var supplier in suppliersData)
+        //        {
+        //            if (supplier.Value is BsonDocument supplierObject)
+        //            {
+        //                var vatIdValue = supplierObject.TryGetValue("vat_id", out var vatId) ? vatId.AsString : null;
+
+        //                var supplierItem = new SupplierItem
+        //                {
+        //                    supplier_id = Convert.ToInt32(supplier.Name),
+        //                    vat_id = string.IsNullOrEmpty(vatIdValue) ? 0 : Convert.ToInt32(vatIdValue),
+        //                    supplier_name = supplierObject.TryGetValue("supplier_name", out var supplierName) ? supplierName.AsString : null,
+        //                    company_name = supplierObject.TryGetValue("company_name", out var companyName) ? companyName.AsString : null
+        //                };
+
+        //                supplierList.Add(supplierItem);
+        //            }
+        //        }
+
+        //        return supplierList;
+        //    }
+        //    else
+        //    {
+        //        return null;
+        //    }
+        //}
+
+        private async Task<List<SupplierItem>> GetClientSupplierList(string cidvalue, string uservalue, string passvalue)
         {
-            var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Userid);
 
-            var filter = Builders<BsonDocument>.Filter.And(
-                Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
-                Builders<BsonDocument>.Filter.Eq("UserID", Userid)
-            );
+            var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
+            var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+            HttpMethod methodclientinfo = HttpMethod.Get;
+            var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
 
-            var document = await _IcountClientSuppliers.Find(filter).FirstOrDefaultAsync();
-            if (document != null)
+            // Parse the JSON response
+            var jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
+            var jsonData = jsonDocument.RootElement;
+            var suppliersData = jsonData.GetProperty("suppliers");
+
+            // Create a list to store SupplierItem objects
+            var supplierList = new List<SupplierItem>();
+
+            // Loop through the suppliers data and map it to SupplierItem objects
+            foreach (var supplier in suppliersData.EnumerateObject())
             {
-                var suppliersData = document["suppliers"].AsBsonDocument;
-                var supplierList = new List<SupplierItem>();
-
-                // Loop through the suppliers data and map it to SupplierItem objects
-                foreach (var supplier in suppliersData)
+                var supplierItem = new SupplierItem
                 {
-                    if (supplier.Value is BsonDocument supplierObject)
-                    {
-                        var vatIdValue = supplierObject.TryGetValue("vat_id", out var vatId) ? vatId.AsString : null;
+                    supplier_id = Convert.ToInt32(supplier.Name),
+                    vat_id = Convert.ToInt32(supplier.Value.GetProperty("vat_id").GetString()),
+                    supplier_name = supplier.Value.GetProperty("supplier_name").GetString(),
+                    company_name = supplier.Value.GetProperty("company_name").GetString(),
+                };
 
-                        var supplierItem = new SupplierItem
-                        {
-                            supplier_id = Convert.ToInt32(supplier.Name),
-                            vat_id = string.IsNullOrEmpty(vatIdValue) ? 0 : Convert.ToInt32(vatIdValue),
-                            supplier_name = supplierObject.TryGetValue("supplier_name", out var supplierName) ? supplierName.AsString : null,
-                            company_name = supplierObject.TryGetValue("company_name", out var companyName) ? companyName.AsString : null
-                        };
-
-                        supplierList.Add(supplierItem);
-                    }
-                }
-
-                return supplierList;
+                supplierList.Add(supplierItem);
             }
-            else
-            {
-                return null;
-            }
+
+            return supplierList;
         }
-
-
 
         private async Task<List<ExpenseType>> CreateExpenseCategorylist(int userId, string supplierId = null)
         {
@@ -223,13 +255,72 @@ namespace Uninet.DATA.Services
             try
             {
                 Int32 InternalCompanyId = 0;
-           
+
+                string vatId = expensesUserDoRequest.ClientVat_id;
+                vatId = vatId.PadLeft(9, '0');
+                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Or(
+                    Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId),
+                    Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId.TrimStart('0'))
+                );
+
+                var companyClientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
+
+               
+                if (companyClientRow != null)
+                {
+                    var companyInfo = companyClientRow["company_info"].AsBsonDocument;
+                    if (companyInfo.Contains("InternalCompanyId"))
+                    {
+                        var internalCompanyId = companyInfo["InternalCompanyId"].AsInt32;
+                        InternalCompanyId = internalCompanyId;
+                        // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
+                    }
+                    else
+                    {
+                        // Handle the case where 'InternalCompanyId' is not present in the document.
+                    }
+                }
+                else
+                {
+                    // Handle the case where no document matches the filter.
+                }
 
                 //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
 
-                //var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
 
-                var resSUpplierLIst = await GetClientSupplierList(userId);
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId);
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                {
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                        cidvalue = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                        uservalue = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalue = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
+
+
+
+
+
+
+                }
+                var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
+                //var resSUpplierLIst = await GetClientSupplierList(userId);
 
                 //BusinessData
                 var RowBusinessData = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == expensesUserDoRequest.JsonDocumentid);
@@ -508,10 +599,16 @@ namespace Uninet.DATA.Services
                         var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 76);
                         var endpointClinetinfo = ClinetinfoEndpoint.Endpoint;
 
-                        var requestBody = new Dictionary<string, string>
+                    //var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", expensesUserDoRequest.ClientVat_id);
+                    //var companyclientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
+                    
+                    
+                    var requestBody = new Dictionary<string, string>
                         {
-                          
-                            { "supplier_name", "provider" },
+                            {"cid",cidvalue},
+                            {"pass",passvalue },
+                            {"user",uservalue },
+                            { "supplier_name", "provider_"+expensesUserDoRequest.ClientVat_id },
                             { "vat_id", expensesUserDoRequest.BusinessVatId },
                             { "fname", "" },
                             { "lname", "" },
@@ -535,8 +632,18 @@ namespace Uninet.DATA.Services
 
                         var supplierId = await PostAndGetSupplierId(endpointClinetinfo, requestBody);
 
+
+                        var supplierItem = new SupplierItem
+                        {
+                            company_name = "companyname_"+supplierId,
+                            supplier_id = supplierId,
+                            supplier_name = "provider_" + expensesUserDoRequest.ClientVat_id,
+                            vat_id = Convert.ToInt32(expensesUserDoRequest.BusinessVatId)
+                        };
+                        resSUpplierLIst.Add(supplierItem);
                         List<ExpenseType> res=await CreateExpenseCategorylist(userId, supplierId.ToString());
                         var SuplierItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
+
                         var expensesDigitalDocumentProp = new ExpensesDigitalDocumentProp
                         {
                             Supplier_name_Sender = SuplierItemFound.supplier_name,
@@ -547,9 +654,12 @@ namespace Uninet.DATA.Services
                             AmountAV = total,
                             ExpenseTypeList = res,
                             internalCompanyId = InternalCompanyId,
+                            Jsondocumentid = expensesUserDoRequest.JsonDocumentid,
                             TaxId = TaxId,
                             AmountBeforeVat = AmountBeforeVat,
                             Vat = DoubleVatresult
+                              
+
                         };
                         return expensesDigitalDocumentProp;
 

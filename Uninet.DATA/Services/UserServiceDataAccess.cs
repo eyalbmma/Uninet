@@ -15,6 +15,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography;
@@ -878,6 +879,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     else
                     {
                         var dataTable = new DataTable();
+                        dataTable.Locale = new CultureInfo("he-IL");
                         dataTable.Columns.Add("BusinessId", typeof(int));
                         dataTable.Columns.Add("BusinessType", typeof(int));
                         dataTable.Columns.Add("FirstName", typeof(string));
@@ -888,19 +890,21 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         dataTable.Columns.Add("OrganizationType", typeof(int));
                         dataTable.Columns.Add("ExternalSystemId", typeof(int));
 
+                        Encoding utf8 = Encoding.UTF8;
+
                         foreach (var businessRequest in userBusinesses.BusinessRequests)
                         {
                             dataTable.Rows.Add(
-                                businessRequest.BusinessId,
-                                businessRequest.BusinessType,
-                                businessRequest.FirstName,
-                                businessRequest.LastName,
-                                businessRequest.MobileNumber,
-                                businessRequest.OrganizationRole,
-                                businessRequest.OrganizationName,
-                                businessRequest.OrganizationType,
-                                businessRequest.ExternalSystemId
-                            );
+                             businessRequest.BusinessId,
+                             businessRequest.BusinessType,
+                             utf8.GetString(utf8.GetBytes(businessRequest.FirstName)), // Convert FirstName to UTF-8
+                             utf8.GetString(utf8.GetBytes(businessRequest.LastName)),  // Convert LastName to UTF-8
+                             utf8.GetString(utf8.GetBytes(businessRequest.MobileNumber)), // Convert MobileNumber to UTF-8
+                             utf8.GetString(utf8.GetBytes(businessRequest.OrganizationRole)), // Convert OrganizationRole to UTF-8
+                             utf8.GetString(utf8.GetBytes(businessRequest.OrganizationName)), // Convert OrganizationName to UTF-8
+                             businessRequest.OrganizationType,
+                             businessRequest.ExternalSystemId
+                         );
                         }
 
                         var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
