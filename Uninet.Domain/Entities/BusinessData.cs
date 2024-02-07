@@ -55,5 +55,9 @@ namespace Uninet.Domain.Entities
 
         public int DataSourceType { get; set; }
 
+
+
+        public int? ExpenseTypeId { get; set; }
+
     }
 }

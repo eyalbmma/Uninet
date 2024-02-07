@@ -22,7 +22,7 @@ namespace Uninet.Domain.Models
         public float deductable_expense { get; set; }
 
         [JsonPropertyName("internalCompanyId")]
-        public int internalCompanyId { get; set; }
+        public int? internalCompanyId { get; set; }
 
 
         [JsonPropertyName("supplier_ID")]
@@ -33,6 +33,10 @@ namespace Uninet.Domain.Models
 
         [JsonPropertyName("Lang")]
         public int Lang { get; set; }
+
+
+        [JsonPropertyName("tax_id")]
+        public int tax_id { get; set; }
 
 
     }
