@@ -144,8 +144,8 @@ namespace Uninet.DATA.Services
                     case 3:
                         Dictionary<string, string> values3 = new Dictionary<string, string>
                         {
-                            { "recipient name", "eyal berda" },
-                            { "Sender name", "yosi mualem " }
+                            { "recipientName", "test recipient name" },
+                            { "senderName", "test  senderName" }
                             
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);
@@ -154,9 +154,9 @@ namespace Uninet.DATA.Services
                     case 4:
                         Dictionary<string, string> values4 = new Dictionary<string, string>
                         {
-                            { "recipient name", InputMailDetails.RecipientName },
-                            { "Sender name",InputMailDetails.Sendername },
-                             { "doc type", InputMailDetails.DocType },
+                            { "recipientName", InputMailDetails.RecipientName },
+                            { "senderName",InputMailDetails.Sendername },
+                             { "docType", InputMailDetails.DocType },
                               { "DocLink", InputMailDetails.DocLink }
                             
                         };
@@ -165,9 +165,9 @@ namespace Uninet.DATA.Services
                     case 5:
                         Dictionary<string, string> values5= new Dictionary<string, string>
                         {
-                            { "recipient name", "eyal berda" },
-                            { "Sender name", "yosi mualem " },
-                             { "doc type", "pdf " },
+                            { "recipientName", "eyal berda" },
+                            { "senderName", "yosi mualem " },
+                             { "docType", "pdf " },
                              { "docID", "111 " }
 
                         };

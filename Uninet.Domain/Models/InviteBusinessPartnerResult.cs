@@ -10,5 +10,7 @@ namespace Uninet.Domain.Models
     {
         public bool Success { get; set; }
         public string textResponse { get; set; }
+
+         
     }
 }

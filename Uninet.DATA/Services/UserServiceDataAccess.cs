@@ -48,6 +48,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientSuppliersCollection;
+       
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
@@ -205,34 +206,87 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             return finalUrl;
         }
 
-        public async Task<InviteBusinessPartnerResult> InviteBusinessPartners(int userid, int Lang)
+        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang)
         {
-            var existingUser =  _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userid); /// ca
-
-            if (existingUser != null)
+            BusinessPartnerLists BPL = new BusinessPartnerLists();
+            var emailList = new List<string>(); // Initialize the list to collect email addresses
+            var supplierList=new List<string>();
+            var existingUser = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userid);
+            existingUser.ClickedButtonToInviteBusinessPartners = true;
+            await _repository.UpdateAsync(existingUser);
+            var UsercompanyObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userid);
+            if (UsercompanyObj != null)
             {
+                var IcountgetClientListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 84);
 
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == UsercompanyObj.BusinessId && x.Userid == userid);
 
-                existingUser.ClickedButtonToInviteBusinessPartners = true;
-                await _repository.UpdateAsync(existingUser);
-                var res = new InviteBusinessPartnerResult
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
                 {
-                    Success = true,
-                    textResponse = Lang == 1 ? "Email sent to all partners" : "אי מייל נישלח לכל השותפים העיסקיים"
-                };
-                return res;
-            }
-            else
-            {
-                var res = new InviteBusinessPartnerResult
+                    if (dynamicField.FieldLabelName == "cid")
+                    {
+                        cidvalue = dynamicField.FieldLabelValue;
+                    }
+                    else if (dynamicField.FieldLabelName == "user")
+                    {
+                        uservalue = dynamicField.FieldLabelValue;
+                    }
+                    else if (dynamicField.FieldLabelName == "pass")
+                    {
+                        passvalue = dynamicField.FieldLabelValue;
+                    }
+                }
+
+                var IcountgetClientListEndpointEdited = IcountgetClientListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod methodIcountgetClientListEndpoint = HttpMethod.Post;
+                var ResponseIcountgetClientListEndpoint = await _UninetInputDataAccess.SendRequest(IcountgetClientListEndpointEdited, methodIcountgetClientListEndpoint);
+
+                // Parse the JSON response
+                var jsonObject = JObject.Parse(ResponseIcountgetClientListEndpoint);
+
+                // Access the clients object
+                var clients = jsonObject["clients"].ToObject<JObject>();
+
+                // Loop through each client and collect their email addresses
+                foreach (var client in clients)
                 {
-                    Success = false,
-                    textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
-                };
-                return res;
+                    var email = client.Value["email"].ToString();
+                    emailList.Add(email); // Add the email address to the list
+                }
+                BPL.ClientEmailList= emailList;
+
+                var IcountgetSupplierListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);
+                var IcountgetSupplierListEndpointEdited = IcountgetSupplierListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod methodIcountgetSupplierListEndpoint = HttpMethod.Post;
+                var ResponseIcountgetSupplierListEndpoint = await _UninetInputDataAccess.SendRequest(IcountgetSupplierListEndpointEdited, methodIcountgetSupplierListEndpoint);
+
+                // Parse the JSON response for suppliers
+                var jsonObjectSuppliers = JObject.Parse(ResponseIcountgetSupplierListEndpoint);
+                var suppliers = jsonObjectSuppliers["suppliers"].ToObject<JObject>();
+
+                foreach (var supplier in suppliers)
+                {
+                    var email = supplier.Value["email"].ToString();
+                    // Ensure the email is not empty before adding
+                    if (!string.IsNullOrWhiteSpace(email))
+                    {
+                        supplierList.Add(email);
+                    }
+                    
+                       
+                   
+                }
+                BPL.SupplierList = supplierList;
+
             }
-            
+
+            return BPL; // Return the list of email addresses
         }
+
 
         public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue,string SupplierVat_id)
         {

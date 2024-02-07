@@ -55,7 +55,7 @@ namespace Uninet.APP.Services
                 return res;
             }
         }
-        public async Task<InviteBusinessPartnerResult> InviteBusinessPartners(int userid, int Lang)
+        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang)
         {
             try
             {
@@ -63,12 +63,8 @@ namespace Uninet.APP.Services
             }
             catch
             {
-                var res = new InviteBusinessPartnerResult
-                {
-                    Success = false,
-                    textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
-                };
-                return res;
+                
+                return null;
             }
         }
         public async Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request)
