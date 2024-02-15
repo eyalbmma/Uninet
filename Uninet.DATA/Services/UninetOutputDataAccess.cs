@@ -12,6 +12,7 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -1506,39 +1507,113 @@ namespace Uninet.DATA.Services
                 //var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(BusinessVatId));
                 //receiptDate   "2024-01-17"
                 string dateissued = "";
+                string doc_url_copy = "";
                 bool payed = true;
                 string postData = "";
                 string result = "";
+                string result_endpointExpenseCreate = "";
+                var filter = Builders<BsonDocument>.Filter.Eq("docnum", insertUserDigitalDocRequest.expense_docnum);
+                var webhookdoc = _IcountWebhookData.Find(filter).FirstOrDefault();
+
+                if (webhookdoc != null)
+                {
+
+                    dateissued = webhookdoc["doc_info"]["dateissued"].AsString;
+                    doc_url_copy = webhookdoc["doc_info"]["doc_url_copy"].AsString;
+                }
+
                 if (insertUserDigitalDocRequest.expense_doctype== "invrec"  || insertUserDigitalDocRequest.expense_doctype == "receipt")
                 {
 
-                    //var filter = Builders<BsonDocument>.Filter.Eq("docnum", new ObjectId(insertUserDigitalDocRequest.expense_docnum));
-                    var filter = Builders<BsonDocument>.Filter.Eq("docnum", insertUserDigitalDocRequest.expense_docnum);
-                    var webhookdoc = _IcountWebhookData.Find(filter).FirstOrDefault();
 
-                    if (webhookdoc != null)
+
+                    //postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + ",\"expense_paid\":" + payed.ToString().ToLower() + ",\"expense_paid_date\":\"" + dateissued + "\"}";
+                    // Prepare JSON data part
+                    using (var httpClient = new HttpClient())
                     {
+                        using (var content = new MultipartFormDataContent())
+                        {
+                            // Add each field as a separate part
+                            content.Add(new StringContent(insertUserDigitalDocRequest.supplier_id.ToString()), "supplier_id");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_type_id.ToString()), "expense_type_id");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_doctype), "expense_doctype");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_docnum.ToString()), "expense_docnum");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_sum.ToString()), "expense_sum");
+                            // Add 'expense_paid' and 'expense_paid_date' only if necessary
+                            content.Add(new StringContent(payed.ToString().ToLower()), "expense_paid");
+                            content.Add(new StringContent(dateissued), "expense_paid_date");
 
-                        dateissued = webhookdoc["doc_info"]["dateissued"].AsString;
+                            // Download and add PDF file part
+                            var pdfResponse = await httpClient.GetAsync(doc_url_copy);
+                            if (pdfResponse.IsSuccessStatusCode)
+                            {
+                                var pdfData = await pdfResponse.Content.ReadAsByteArrayAsync();
+                                var pdfContent = new ByteArrayContent(pdfData);
+                                pdfContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+                                content.Add(pdfContent, "scan", "scan.pdf");
+                            }
+
+                            // Send the request
+                            var endpointExpenseCreate_Response = await httpClient.PostAsync(endpointExpenseCreate, content);
+                            result_endpointExpenseCreate = await endpointExpenseCreate_Response.Content.ReadAsStringAsync();
+
+                            // Process the response
+                            
+                        }
                     }
 
 
-                    postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + ",\"expense_paid\":" + payed.ToString().ToLower() + ",\"expense_paid_date\":\"" + dateissued + "\"}";
-                
-                    result = await SendRequest(endpointExpenseCreate, method, postData);
+
+
+
                 }
-                else
+                if (insertUserDigitalDocRequest.expense_doctype == "invoice" || insertUserDigitalDocRequest.expense_doctype == "deal" || insertUserDigitalDocRequest.expense_doctype == "order" || insertUserDigitalDocRequest.expense_doctype == "refund" || insertUserDigitalDocRequest.expense_doctype == "delcert")
                 {
-                    postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + "}";
-                    result = await SendRequest(endpointExpenseCreate, method, postData);
+                    // postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + "}";
+                    //result_endpointExpenseCreate = await SendRequest(endpointExpenseCreate, method, postData);
+                    using (var httpClient = new HttpClient())
+                    {
+                        using (var content = new MultipartFormDataContent())
+                        {
+                            // Add each field as a separate part
+                            content.Add(new StringContent(insertUserDigitalDocRequest.supplier_id.ToString()), "supplier_id");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_type_id.ToString()), "expense_type_id");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_doctype), "expense_doctype");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_docnum.ToString()), "expense_docnum");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_sum.ToString()), "expense_sum");
+                            // Add 'expense_paid' and 'expense_paid_date' only if necessary
+                            //content.Add(new StringContent(payed.ToString().ToLower()), "expense_paid");
+                            //content.Add(new StringContent(dateissued), "expense_paid_date");
+
+                            // Download and add PDF file part
+                            var pdfResponse = await httpClient.GetAsync(doc_url_copy);
+                            if (pdfResponse.IsSuccessStatusCode)
+                            {
+                                var pdfData = await pdfResponse.Content.ReadAsByteArrayAsync();
+                                var pdfContent = new ByteArrayContent(pdfData);
+                                pdfContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+                                content.Add(pdfContent, "scan", "scan.pdf");
+                            }
+
+                            // Send the request
+                            var endpointExpenseCreate_Response = await httpClient.PostAsync(endpointExpenseCreate, content);
+                            result_endpointExpenseCreate = await endpointExpenseCreate_Response.Content.ReadAsStringAsync();
+
+                            // Process the response
+
+                        }
+                    }
+
+
+
                 }
 
                 // Set your POST data if needed
-                
 
 
-                
-                createExpenseApiResponse response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result);
+
+
+                createExpenseApiResponse response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result_endpointExpenseCreate);
                 // Handle the result as needed
                if (response.status)
                 {

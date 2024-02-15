@@ -105,291 +105,306 @@ namespace Uninet.DATA.Services
                  //WriteToTableAsync(111, "111", "111");
                 // 
                 var bsonDocument = BsonDocument.Parse(json.ToString());
-                var UserParam0 = new
+                ////add eyal logic need to get only json document with this doctype format 
+                ///reciept,invoice,deal,invrec,order,refund,delcert
+                ///// Define a list of allowed document types
+                var allowedDocTypes = new HashSet<string> { "receipt", "invoice", "deal", "invrec", "order", "refund", "delcert" };
+                BsonValue doc_typevalue;
+                string doc_type = "";
+                if (bsonDocument.TryGetValue("doctype", out doc_typevalue))
                 {
-                    Taskid = -1,
-                    TaskDesc = "-1",
-                    text = json
-                };
-                var spresult0 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam0);
-
-                BsonValue doc_urlvalue;
-                string doc_url = "";
-                if (bsonDocument.TryGetValue("doc_url", out doc_urlvalue))
-                {
-                    doc_url = doc_urlvalue.ToString();
+                    doc_type = doc_typevalue.ToString().ToLower();
                     // Use vatId as needed
                 }
-                else
+
+                if (allowedDocTypes.Contains(doc_type))
                 {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("doc_url", out doc_urlvalue))
+
+                    var UserParam0 = new
+                    {
+                        Taskid = -1,
+                        TaskDesc = "-1",
+                        text = json
+                    };
+                    var spresult0 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam0);
+
+                    BsonValue doc_urlvalue;
+                    string doc_url = "";
+                    if (bsonDocument.TryGetValue("doc_url", out doc_urlvalue))
                     {
                         doc_url = doc_urlvalue.ToString();
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("doc_url", out doc_urlvalue))
+                        {
+                            doc_url = doc_urlvalue.ToString();
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
-                string finalUrl = await ConvertUrl(doc_url.ToString());
-                bsonDocument["doc_info"].AsBsonDocument.Add("doc_url_copy", finalUrl);
-                
-                
-                var UserParam = new
-                {
-                    Taskid = 1,
-                    TaskDesc = "1",
-                    text = "1"
-                };
-                var spresult = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam);
+                    string finalUrl = await ConvertUrl(doc_url.ToString());
+                    bsonDocument["doc_info"].AsBsonDocument.Add("doc_url_copy", finalUrl);
 
-                try
-                {
-                    _IcountWebhookData.InsertOne(bsonDocument);
 
-                }
-                catch (Exception ex)
-                {
-                    var UserParam2 = new
+                    var UserParam = new
                     {
-                        Taskid = 2,
-                        TaskDesc = "2",
-                        text = ex.Message
+                        Taskid = 1,
+                        TaskDesc = "1",
+                        text = "1"
                     };
-                    var spresult2 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam2);
-                }
+                    var spresult = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam);
+
+                    try
+                    {
+                        _IcountWebhookData.InsertOne(bsonDocument);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        var UserParam2 = new
+                        {
+                            Taskid = 2,
+                            TaskDesc = "2",
+                            text = ex.Message
+                        };
+                        var spresult2 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam2);
+                    }
 
 
 
 
 
 
-                BsonValue oidValue = bsonDocument["_id"].AsObjectId;
-                string oid_value = oidValue.ToString();
+                    BsonValue oidValue = bsonDocument["_id"].AsObjectId;
+                    string oid_value = oidValue.ToString();
 
 
 
 
 
 
-                ////WriteToTableAsync(111, oid_value, oid_value);
+                    ////WriteToTableAsync(111, oid_value, oid_value);
 
-                ObjectId objectId = ObjectId.Parse(oid_value);
-                //// WriteToTableAsync(333, "333", "333");
-
-
-                var filter1 = Builders<BsonDocument>.Filter.Eq("_id", objectId);
-                // WriteToTableAsync(444, "444", "444");
-
-                var existingDocument = _IcountWebhookData.Find(filter1).FirstOrDefault();
-                // WriteToTableAsync(555, "555", "555");
-
-                if (existingDocument == null)
-                {
-
-                    
-
-                }
+                    ObjectId objectId = ObjectId.Parse(oid_value);
+                    //// WriteToTableAsync(333, "333", "333");
 
 
-                var UserParam3 = new
-                {
-                    Taskid = 3,
-                    TaskDesc = "3",
-                    text = WebHookSourceid
-                };
-                var spresult3 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam3);
+                    var filter1 = Builders<BsonDocument>.Filter.Eq("_id", objectId);
+                    // WriteToTableAsync(444, "444", "444");
+
+                    var existingDocument = _IcountWebhookData.Find(filter1).FirstOrDefault();
+                    // WriteToTableAsync(555, "555", "555");
+
+                    if (existingDocument == null)
+                    {
 
 
 
-                int intWebHookSourceid = Convert.ToInt32(WebHookSourceid);
+                    }
 
-                var UserParam4 = new
-                {
-                    Taskid = 4,
-                    TaskDesc = WebHookSourceid,
-                    text = WebHookSourceid
-                };
-                var spresult4 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam4);
 
-                int internalCompanySenderId = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid).Internalcompanyid;
-               
-                int UserIdAttachedToCompanySenderId = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).AdminUserid;
-                string OrganiztionName = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).OrganizationName;
+                    var UserParam3 = new
+                    {
+                        Taskid = 3,
+                        TaskDesc = "3",
+                        text = WebHookSourceid
+                    };
+                    var spresult3 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam3);
 
-                
-                /////get businessvatid from IcountCompanisInfo
-                var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId);
-                var projection = Builders<BsonDocument>.Projection.Include("company_info.vat_id").Exclude("_id");
 
-                var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
-                string businessVatId = "";
-                if (result != null)
-                {
-                    businessVatId = result["company_info"]["vat_id"].AsString;
 
-                }
+                    int intWebHookSourceid = Convert.ToInt32(WebHookSourceid);
 
-               
+                    var UserParam4 = new
+                    {
+                        Taskid = 4,
+                        TaskDesc = WebHookSourceid,
+                        text = WebHookSourceid
+                    };
+                    var spresult4 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam4);
 
-                int vatId = 0;
+                    int internalCompanySenderId = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid).Internalcompanyid;
 
-                // Check if "vat_id" is within the root
-                BsonValue vatIdValue;
-                if (bsonDocument.TryGetValue("vat_id", out vatIdValue))
-                {
-                    vatId = Convert.ToInt32(vatIdValue.ToString());
-                    // Use vatId as needed
-                }
-                else
-                {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("vat_id", out vatIdValue))
+                    int UserIdAttachedToCompanySenderId = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).AdminUserid;
+                    string OrganiztionName = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).OrganizationName;
+
+
+                    /////get businessvatid from IcountCompanisInfo
+                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId);
+                    var projection = Builders<BsonDocument>.Projection.Include("company_info.vat_id").Exclude("_id");
+
+                    var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+                    string businessVatId = "";
+                    if (result != null)
+                    {
+                        businessVatId = result["company_info"]["vat_id"].AsString;
+
+                    }
+
+
+
+                    int vatId = 0;
+
+                    // Check if "vat_id" is within the root
+                    BsonValue vatIdValue;
+                    if (bsonDocument.TryGetValue("vat_id", out vatIdValue))
                     {
                         vatId = Convert.ToInt32(vatIdValue.ToString());
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("vat_id", out vatIdValue))
+                        {
+                            vatId = Convert.ToInt32(vatIdValue.ToString());
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
 
-                string clientName = "";
-                BsonValue clientNameValue;
-                if (bsonDocument.TryGetValue("clientname", out clientNameValue))
-                {
-                    clientName = clientNameValue.ToString();
-                    // Use clientName as needed
-                }
-                else
-                {
-                    // Check if "clientname" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("client_name", out clientNameValue))
+                    string clientName = "";
+                    BsonValue clientNameValue;
+                    if (bsonDocument.TryGetValue("clientname", out clientNameValue))
                     {
                         clientName = clientNameValue.ToString();
                         // Use clientName as needed
                     }
                     else
                     {
-                        // Handle the case where "clientname" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "clientname" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("client_name", out clientNameValue))
+                        {
+                            clientName = clientNameValue.ToString();
+                            // Use clientName as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "clientname" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
-                string email = "";
+                    string email = "";
 
 
 
 
-                BsonValue emailValue;
-                if (bsonDocument.TryGetValue("client_email", out emailValue))
-                {
-                    email = emailValue.ToString();
-                    // Use vatId as needed
-                }
-                else
-                {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("client_email", out emailValue))
+                    BsonValue emailValue;
+                    if (bsonDocument.TryGetValue("client_email", out emailValue))
                     {
                         email = emailValue.ToString();
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("client_email", out emailValue))
+                        {
+                            email = emailValue.ToString();
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
 
 
 
-                BsonValue dateissuedvalue;
-                string docdateissued = "";
-                if (bsonDocument.TryGetValue("dateissued", out dateissuedvalue))
-                {
-                    docdateissued = dateissuedvalue.ToString();
-                    // Use vatId as needed
-                }
-                else
-                {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("dateissued", out dateissuedvalue))
+                    BsonValue dateissuedvalue;
+                    string docdateissued = "";
+                    if (bsonDocument.TryGetValue("dateissued", out dateissuedvalue))
                     {
                         docdateissued = dateissuedvalue.ToString();
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("dateissued", out dateissuedvalue))
+                        {
+                            docdateissued = dateissuedvalue.ToString();
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
 
 
 
 
 
 
-                BsonValue totalwithvatvalue;
-                string totalwithvat = "";
-                if (bsonDocument.TryGetValue("totalwithvat", out totalwithvatvalue))
-                {
-                    totalwithvat = totalwithvatvalue.ToString();
-                    // Use vatId as needed
-                }
-                else
-                {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("totalwithvat", out totalwithvatvalue))
+                    BsonValue totalwithvatvalue;
+                    string totalwithvat = "";
+                    if (bsonDocument.TryGetValue("totalwithvat", out totalwithvatvalue))
                     {
                         totalwithvat = totalwithvatvalue.ToString();
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("totalwithvat", out totalwithvatvalue))
+                        {
+                            totalwithvat = totalwithvatvalue.ToString();
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
 
 
 
 
 
 
-                BsonValue totalwithnicuivalue;
-                string totalwithnicui = "";
-                if (bsonDocument.TryGetValue("totalwithnicui", out totalwithnicuivalue))
-                {
-                    totalwithnicui = totalwithnicuivalue.ToString();
-                    // Use vatId as needed
-                }
-                else
-                {
-                    // Check if "vat_id" is within "doc_info"
-                    var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
-                    if (docInfo.TryGetValue("totalwithnicui", out totalwithnicuivalue))
+                    BsonValue totalwithnicuivalue;
+                    string totalwithnicui = "";
+                    if (bsonDocument.TryGetValue("totalwithnicui", out totalwithnicuivalue))
                     {
                         totalwithnicui = totalwithnicuivalue.ToString();
                         // Use vatId as needed
                     }
                     else
                     {
-                        // Handle the case where "vat_id" is not found in either location
-                        // You can add your error handling logic here.
+                        // Check if "vat_id" is within "doc_info"
+                        var docInfo = bsonDocument.GetValue("doc_info").AsBsonDocument;
+                        if (docInfo.TryGetValue("totalwithnicui", out totalwithnicuivalue))
+                        {
+                            totalwithnicui = totalwithnicuivalue.ToString();
+                            // Use vatId as needed
+                        }
+                        else
+                        {
+                            // Handle the case where "vat_id" is not found in either location
+                            // You can add your error handling logic here.
+                        }
                     }
-                }
 
 
 
@@ -397,117 +412,123 @@ namespace Uninet.DATA.Services
 
 
 
-                bool ClientvatidRegisteredtOnUninet = false;
+                    bool ClientvatidRegisteredtOnUninet = false;
 
 
-                // Find documents matching the filter
-                var count = _IcountCompaniesInfoCollection.CountDocuments(filter);
-                if (count > 0)
-                {
-                    ClientvatidRegisteredtOnUninet = true;
+                    // Find documents matching the filter
+                    var count = _IcountCompaniesInfoCollection.CountDocuments(filter);
+                    if (count > 0)
+                    {
+                        ClientvatidRegisteredtOnUninet = true;
+                    }
+                    else
+                    {
+                        ClientvatidRegisteredtOnUninet = false;
+                    }
+
+
+
+                    var UserParam5 = new
+                    {
+                        Taskid = 5,
+                        TaskDesc = "5",
+                        text = "5"
+                    };
+                    var spresult5 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam5);
+
+
+
+
+
+
+                    var newBusinessData = new BusinessData
+                    {
+                        UserId = UserIdAttachedToCompanySenderId,
+                        BusinessId = internalCompanySenderId,
+                        JsonDocumentid = oid_value,
+                        BusinessVatId = businessVatId,
+                        ClientVat_id = vatId,
+                        client_name = clientName,
+                        DataSourceEnum = 2,
+                        ClientEmail = email,
+                        EmailSent = false,
+                        DateEmailSent = null,
+                        DocumentApprovedtoUninet = null,
+                        supplier_name_Sender = OrganiztionName,
+                        docDate = Convert.ToDateTime(docdateissued),
+                        amountAV = Convert.ToDouble(totalwithvat == "" ? totalwithnicui : totalwithvat),
+                        currency_code = "ILS",     // Example value for currency_code
+                        ClientvatidRegisteredtOnUninet = ClientvatidRegisteredtOnUninet,// Example value for ClientvatidRegisteredtOnUninet
+                        DataSourceType = 2
+                    };
+
+                    var UserParam6 = new
+                    {
+                        Taskid = 6,
+                        TaskDesc = "6",
+                        text = "6"
+                    };
+                    var spresult6 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam6);
+
+
+                    // Create a predicate to check for the existence of the record
+                    Expression<Func<BusinessData, bool>> predicate = bd =>
+                        bd.UserId == UserIdAttachedToCompanySenderId &&
+                        bd.BusinessId == Convert.ToInt32(businessVatId) &&
+                        bd.JsonDocumentid == oid_value;
+
+                    // Use the GetFirstObject method to check if the record exists
+                    var existingBusinessData = _repository.GetFirstObject(predicate);
+                    if (existingBusinessData == null)
+                    {
+
+
+
+                        var UserParam7 = new
+                        {
+                            Taskid = 7,
+                            TaskDesc = "7",
+                            text = "7"
+                        };
+                        var spresult7 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam7);
+
+                        _repository.Create<BusinessData>(newBusinessData);
+                        var UserParam8 = new
+                        {
+                            Taskid = 8,
+                            TaskDesc = "8",
+                            text = "8"
+                        };
+                        var spresult8 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam8);
+
+                        string Doctype = "";
+                        BsonValue DoctypeValue;
+                        if (bsonDocument.TryGetValue("doctype", out DoctypeValue))
+                        {
+                            Doctype = DoctypeValue.ToString();
+                            // Use clientName as needed
+                        }
+                        var _RequestMailObject = new RequestedMailObject
+                        {
+                            Sendername = OrganiztionName,
+                            DocType = Doctype,
+                            RecipientName = clientName,
+                            DocLink = finalUrl
+                        };
+                        //UserIdAttachedToCompanySenderId
+                        var resmail = await _dataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", email, ClientvatidRegisteredtOnUninet == true ? 7 : 5, 1, _RequestMailObject, UserIdAttachedToCompanySenderId.ToString(), oid_value);
+
+
+                    }
+                    return true;
                 }
                 else
                 {
-                    ClientvatidRegisteredtOnUninet = false;
+                    return false;
                 }
 
 
-
-                var UserParam5 = new
-                {
-                    Taskid = 5,
-                    TaskDesc = "5",
-                    text = "5"
-                };
-                var spresult5 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam5);
-
-
-
-
-
-
-                var newBusinessData = new BusinessData
-                {
-                    UserId = UserIdAttachedToCompanySenderId,
-                    BusinessId = internalCompanySenderId,
-                    JsonDocumentid = oid_value,
-                    BusinessVatId = businessVatId,
-                    ClientVat_id = vatId,
-                    client_name = clientName,
-                    DataSourceEnum = 2,
-                    ClientEmail = email,
-                    EmailSent = false,
-                    DateEmailSent = null,
-                    DocumentApprovedtoUninet = null,
-                    supplier_name_Sender = OrganiztionName,
-                    docDate = Convert.ToDateTime(docdateissued),
-                    amountAV = Convert.ToDouble(totalwithvat==""? totalwithnicui: totalwithvat),
-                    currency_code = "ILS",     // Example value for currency_code
-                    ClientvatidRegisteredtOnUninet = ClientvatidRegisteredtOnUninet,// Example value for ClientvatidRegisteredtOnUninet
-                    DataSourceType = 2
-                };
-
-                var UserParam6 = new
-                {
-                    Taskid = 6,
-                    TaskDesc = "6",
-                    text = "6"
-                };
-                var spresult6 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam6);
-
-
-                // Create a predicate to check for the existence of the record
-                Expression<Func<BusinessData, bool>> predicate = bd =>
-                    bd.UserId == UserIdAttachedToCompanySenderId &&
-                    bd.BusinessId == Convert.ToInt32(businessVatId) &&
-                    bd.JsonDocumentid == oid_value;
-
-                // Use the GetFirstObject method to check if the record exists
-                var existingBusinessData = _repository.GetFirstObject(predicate);
-                if (existingBusinessData == null)
-                {
-
-
-
-                    var UserParam7 = new
-                    {
-                        Taskid = 7,
-                        TaskDesc = "7",
-                        text = "7"
-                    };
-                    var spresult7 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam7);
-
-                    _repository.Create<BusinessData>(newBusinessData);
-                    var UserParam8 = new
-                    {
-                        Taskid = 8,
-                        TaskDesc = "8",
-                        text = "8"
-                    };
-                    var spresult8 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam8);
-
-                    string Doctype = "";
-                    BsonValue DoctypeValue;
-                    if (bsonDocument.TryGetValue("doctype", out DoctypeValue))
-                    {
-                        Doctype = DoctypeValue.ToString();
-                        // Use clientName as needed
-                    }
-                    var _RequestMailObject = new RequestedMailObject
-                    {
-                        Sendername = OrganiztionName,
-                        DocType = Doctype,
-                        RecipientName = clientName,
-                        DocLink = finalUrl
-                    };
-                    //UserIdAttachedToCompanySenderId
-                    var resmail = await _dataMailassist.sendsmtpmail(" UNINET מסמך הגיע אליך מ  ", "eyalbmma@gmail.com", email, ClientvatidRegisteredtOnUninet == true ? 7 : 5, 1, _RequestMailObject, UserIdAttachedToCompanySenderId.ToString(), oid_value);
-
-
-                }
-
-
-                return true;
+                
 
 
 
