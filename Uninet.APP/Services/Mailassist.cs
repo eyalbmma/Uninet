@@ -80,7 +80,7 @@ namespace Uninet.APP.Services
        
 
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From ,string To,int TemplateId,int Lang, string encryptedUserId = null)
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From ,string To,int TemplateId,int Lang, string encryptedUserId = null, string Name = null)
         {
             try
             {

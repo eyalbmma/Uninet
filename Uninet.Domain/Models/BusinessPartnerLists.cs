@@ -8,13 +8,28 @@ namespace Uninet.Domain.Models
 {
     public class BusinessPartnerLists
     {
-        public List<string> ClientEmailList { get; set; }
-        public List<string> SupplierList { get; set; }
+        public List<ClientObj> ClientEmailList { get; set; }
+        public List<SupplierObj> SupplierList { get; set; }
 
         public BusinessPartnerLists()
         {
-            ClientEmailList = new List<string>();
-            SupplierList = new List<string>();
+            ClientEmailList = new List<ClientObj>();
+            SupplierList = new List<SupplierObj>();
         }
+    }
+
+
+    public class ClientObj
+    {
+        public string Name { get; set; }
+        public string Email { get; set; }
+    }
+
+
+
+    public class SupplierObj
+    {
+        public string Name { get; set; }
+        public string Email { get; set; }
     }
 }

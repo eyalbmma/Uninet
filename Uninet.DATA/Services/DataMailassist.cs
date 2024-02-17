@@ -95,7 +95,7 @@ namespace Uninet.DATA.Services
 
 
 
-        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null,string username=null,string encryptedUserId="")
+        public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null,string username=null,string encryptedUserId="",string Name=null)
         {
             try
             {
@@ -144,8 +144,8 @@ namespace Uninet.DATA.Services
                     case 3:
                         Dictionary<string, string> values3 = new Dictionary<string, string>
                         {
-                            { "recipientName", "test recipient name" },
-                            { "senderName", "test  senderName" }
+                            { "recipientName", Name },
+                           
                             
                         };
                         message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);

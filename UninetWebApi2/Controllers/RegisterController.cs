@@ -60,10 +60,11 @@ namespace UninetWebApi2.Controllers
                         var sendsmtpmailres = await _mailasist.sendsmtpmail(
                             "בתור לקוח שלנו רצינו להזמין אותך  להירשם ליונינט", // Email subject
                             "eyalbmma@gmail.com", // From email (your email)
-                            email, // To email (recipient's email)
+                            email.Email, // To email (recipient's email)
                             3, // Template ID for the email content
                             Lang, // Language for the email content
-                            encryptedUserId // Encrypted user ID to be included in the email
+                            encryptedUserId ,// Encrypted user ID to be included in the email
+                            email.Name
                         );
                     }
                 }
@@ -74,15 +75,16 @@ namespace UninetWebApi2.Controllers
                     foreach (var email in BPLResult.SupplierList)
                     {
                         // Check if email is not empty or null
-                        if (!string.IsNullOrEmpty(email))
+                        if (!string.IsNullOrEmpty(email.Email))
                         {
                             var sendsmtpmailres = await _mailasist.sendsmtpmail(
-                                "בתור ספק שלנו רציו להזמין אותך להירשם ליונינט", // Email subject, adjusted for suppliers
+                                "בתור ספק שלנו רצינו להזמין אותך להירשם ליונינט", // Email subject, adjusted for suppliers
                                 "eyalbmma@gmail.com", // From email (your email)
-                                email, // To email (recipient's email)
+                                email.Email, // To email (recipient's email)
                                 3, // Template ID for the email content
                                 Lang, // Language for the email content
-                                encryptedUserId // Encrypted user ID to be included in the email
+                                encryptedUserId, // Encrypted user ID to be included in the email
+                                email.Name
                             );
                         }
                     }

@@ -209,8 +209,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang)
         {
             BusinessPartnerLists BPL = new BusinessPartnerLists();
-            var emailList = new List<string>(); // Initialize the list to collect email addresses
-            var supplierList=new List<string>();
+            var emailList = new List<ClientObj>(); // Initialize the list to collect email addresses
+            var supplierList=new List<SupplierObj>();
             var existingUser = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userid);
             existingUser.ClickedButtonToInviteBusinessPartners = true;
             await _repository.UpdateAsync(existingUser);
@@ -255,7 +255,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 foreach (var client in clients)
                 {
                     var email = client.Value["email"].ToString();
-                    emailList.Add(email); // Add the email address to the list
+                    var client_name= client.Value["client_name"].ToString();
+                    emailList.Add(new ClientObj { Email = email, Name = client_name }); // Add the email address to the list
                 }
                 BPL.ClientEmailList= emailList;
 
@@ -271,10 +272,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 foreach (var supplier in suppliers)
                 {
                     var email = supplier.Value["email"].ToString();
+                    var supplier_name= supplier.Value["supplier_name"].ToString();
                     // Ensure the email is not empty before adding
                     if (!string.IsNullOrWhiteSpace(email))
                     {
-                        supplierList.Add(email);
+                        supplierList.Add(new SupplierObj { Email = email, Name = supplier_name });
                     }
                     
                        
