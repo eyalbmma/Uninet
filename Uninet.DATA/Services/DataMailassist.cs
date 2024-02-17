@@ -118,7 +118,13 @@ namespace Uninet.DATA.Services
                 switch (ObjTemplateparam.TemplateId)
                 {
                     case 1:
-                        string OtpRedirectUrl = "https://uninet-app.netlify.app/verify-email?Otp=" + userOtp + "&encrypteduserid=" + encryptedUserId;
+                        //string OtpRedirectUrl = "https://uninet-app.netlify.app/verify-email?Otp=" + userOtp + "&encrypteduserid=" + encryptedUserId;
+
+                        string OtpRedirectUrl = "https://panel.uninet-io.com/verify-email?Otp=" + userOtp + "&encrypteduserid=" + encryptedUserId;
+
+
+                      
+
                         //recipient name
                         string encodedUrl = HttpUtility.HtmlAttributeEncode(OtpRedirectUrl);
                         Dictionary<string, string> values1 = new Dictionary<string, string>

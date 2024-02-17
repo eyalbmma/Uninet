@@ -84,7 +84,7 @@ namespace Uninet.APP.Services
         {
             try
             {
-                return await _dataMailassist.sendsmtpmail(subject, From, To, TemplateId, Lang,null,null, encryptedUserId);
+                return await _dataMailassist.sendsmtpmail(subject, From, To, TemplateId, Lang,null,null, encryptedUserId, Name);
                // Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang, RequestedMailObject InputMailDetails = null, string username = null, string encryptedUserId = "");
             }
             catch (Exception ex)
