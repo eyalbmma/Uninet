@@ -61,5 +61,6 @@ namespace Uninet.Domain.Entities
 
         public string? EmailGuidVerification { get; set; }
 
+        public bool? IsMasterUser { get; set; }
     }
 }

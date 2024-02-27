@@ -24,8 +24,8 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }
         public virtual DbSet<RefreshResponse> RefreshResponse { get; set; }
-
-
+        public virtual DbSet<AddUserCredentialsSystemResult> AddUserCredentialsSystemResult { get; set; }
+        
         public virtual DbSet<InsertdatatoJobbatchlogResult> InsertdatatoJobbatchlogResult { get; set; }
 
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
@@ -80,6 +80,7 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<LoginWithOtpResponse>().HasNoKey();
             modelBuilder.Entity<SaveRefreshTokenResponse>().HasNoKey();
             modelBuilder.Entity<RefreshResponse>().HasNoKey();
+            modelBuilder.Entity<AddUserCredentialsSystemResult>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
             modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });

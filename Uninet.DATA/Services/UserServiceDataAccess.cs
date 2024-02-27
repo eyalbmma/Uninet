@@ -460,11 +460,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                     if (statusValue)
                     {
-                       
+                        //AddUserCredentialsSystemResult
 
-                        bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
+                        var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
-                        if (spresult)
+                        if (spresult.AdminUserid==0)
                         {
                             //here i need to insert the logic that call to 
                             //https://api.icount.co.il/api/v3.php/webhook/add
@@ -650,12 +650,22 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
 
                         }
-                        else
+                        else //here i get the userid related to masteruser from adminusers table
                         {
+
+                            //added logic eyal to return valid message  that there is already a master user that has  
+                            //same credentials and this is his details 
+                            //please ask the master to add you to our system than  this user will be able to enter his 
+                            //email and password and get  into the master console system 
+
+                           
+
+
                             var res = new ResSaveExternalCustomized
                             {
                                 Success = false,
-                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "your credentials already exist in our DB" : "נתוני המערכת החיצונית שהזנת כבר שמורים אצלינו במערכת ",
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user "+ spresult.FirstName+" "+ spresult.LastName+" "+"from this organiztion "+ spresult.OrganizationName+" is the master user on your organzation please contact him via his email "+ spresult.Email+"so he can add you to our system": 
+                                "משתמש " + spresult.FirstName + " " + spresult.LastName + " " + "מהארגון שלך " + spresult.OrganizationName + "הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + "על מנת שיוסיף אותך למערכת שלנו",
                                 SystemRegisteredInuninet = false,
                                 ValidExternalsystemCredenatials = true,
                                 FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
@@ -873,6 +883,26 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //    }
         //    catch (Exception ex) { return false; }
         //}
+
+
+        public AddUserCredentialsSystemResult ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(string spName, object parameters)
+        {
+            var resultList = _repository.ExecuteGetSP<AddUserCredentialsSystemResult>(spName, parameters).ToList();
+
+            // Ensure there is at least one result to avoid IndexOutOfRangeException
+            if (resultList.Count > 0)
+            {
+                // Return the first item in the list, which is already of type AddUserCredentialsSystemResult
+                return resultList[0];
+            }
+
+            // Return a default instance or null if no data is returned from the stored procedure
+            // Depending on your application's needs, you might want to return a new instance with default values instead of null
+            return null;
+        }
+
+
+
 
         public bool ExecuteGetSP(string spName, object parameters)
         {

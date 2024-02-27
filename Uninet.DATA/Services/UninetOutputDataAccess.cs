@@ -1493,7 +1493,7 @@ namespace Uninet.DATA.Services
                         // Use the pass value as needed
                     }
                 }
-                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);
+                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);//https://api.icount.co.il/api/v3.php/expense/create
                 string endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
 
