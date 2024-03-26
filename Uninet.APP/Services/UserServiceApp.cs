@@ -121,7 +121,7 @@ namespace Uninet.APP.Services
                 var ResResetPassword = new ResetPasswordReponse
                 {
                     success = false,
-                    textResponse = resetpasswordrequest.Lang == 1 ? "an eror occured" : "ארעה שדיאה הסיסמה לא אופסה "
+                    textResponse = resetpasswordrequest.Lang == 1 ? "An eror occurred, the password wasn't reset" : "ארעה שגיאה, הסיסמה לא אופסה "
                 };
                 return ResResetPassword;
             }
@@ -157,7 +157,7 @@ namespace Uninet.APP.Services
                 var resgoogleSignin = new GoogleSigninResponse
                 {
                     Success = true,
-                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed8" + ex.InnerException + ex.Message : " האימות נכשל "
+                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed" + ex.InnerException + ex.Message : " האימות נכשל "
                 };
 
                 return resgoogleSignin;

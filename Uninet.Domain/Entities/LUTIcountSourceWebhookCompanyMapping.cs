@@ -17,6 +17,8 @@ namespace Uninet.Domain.Entities
 
         public int Internalcompanyid { get; set; }
 
+        public int? SubCompanyId { get; set; }
+
         public int WebhookID { get; set; }
 
 

@@ -14,6 +14,6 @@ namespace Uninet.DATA.Interfaces
         Task<RejectDocumenResponse> RejectDocument(RequestRejectDocument requestRejectDocument);
         Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId);
         Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
-        Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist);
+        Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist, int? subCompanyId);
     }
 }

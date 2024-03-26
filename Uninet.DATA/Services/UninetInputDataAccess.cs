@@ -44,6 +44,7 @@ using System.Linq.Expressions;
 using System.Threading.Tasks;
 using System.Reflection.Metadata;
 using static System.Net.Mime.MediaTypeNames;
+using System.Globalization;
 
 namespace Uninet.DATA.Services
 {
@@ -102,7 +103,9 @@ namespace Uninet.DATA.Services
         {
             try
             {
-                 //WriteToTableAsync(111, "111", "111");
+                string SubCompanyid= WebHookSourceid.Split("_")[1];
+                string Str_WebHookSourceid = WebHookSourceid.Split("_")[0];
+                //WriteToTableAsync(111, "111", "111");
                 // 
                 var bsonDocument = BsonDocument.Parse(json.ToString());
                 ////add eyal logic need to get only json document with this doctype format 
@@ -123,7 +126,7 @@ namespace Uninet.DATA.Services
                     var UserParam0 = new
                     {
                         Taskid = -1,
-                        TaskDesc = "-1",
+                        TaskDesc = "SubCompanyid"+ SubCompanyid+ " Str_WebHookSourceid " + Str_WebHookSourceid,
                         text = json
                     };
                     var spresult0 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam0);
@@ -215,33 +218,44 @@ namespace Uninet.DATA.Services
                     {
                         Taskid = 3,
                         TaskDesc = "3",
-                        text = WebHookSourceid
+                        text = Str_WebHookSourceid
                     };
                     var spresult3 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam3);
 
 
 
-                    int intWebHookSourceid = Convert.ToInt32(WebHookSourceid);
+                    int intWebHookSourceid = Convert.ToInt32(Str_WebHookSourceid);
 
                     var UserParam4 = new
                     {
                         Taskid = 4,
-                        TaskDesc = WebHookSourceid,
-                        text = WebHookSourceid
+                        TaskDesc = Str_WebHookSourceid,
+                        text = Str_WebHookSourceid
                     };
                     var spresult4 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam4);
+                    //remark eyal the resul of this line businessVatId = result["company_info"]["vat_id"].AsString; is 540270165 which is wrong
+                    //because we take this filter 
+                    //var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId);
+                    //where internalCompanySenderId is 1372
+                    ////but we have two lines with 1372 in _IcountCompaniesInfoCollection one with "SubCompanyId": 13 and the other with 
+                    /// "SubCompanyId": 5 and we nee to filter with "SubCompanyId": 13 
+                    ///
+                    int internalCompanySenderId = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid)).Internalcompanyid;
 
-                    int internalCompanySenderId = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid).Internalcompanyid;
-
-                    int UserIdAttachedToCompanySenderId = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).AdminUserid;
+                    int UserIdAttachedToCompanySenderId = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId ).AdminUserid;
                     string OrganiztionName = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).OrganizationName;
 
 
                     /////get businessvatid from IcountCompanisInfo
-                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId);
+                                    var filter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId),
+                        Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", Convert.ToInt32(SubCompanyid))
+                    );
                     var projection = Builders<BsonDocument>.Projection.Include("company_info.vat_id").Exclude("_id");
-
                     var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+
+                    
+
                     string businessVatId = "";
                     if (result != null)
                     {
@@ -445,6 +459,7 @@ namespace Uninet.DATA.Services
                     {
                         UserId = UserIdAttachedToCompanySenderId,
                         BusinessId = internalCompanySenderId,
+                        SubCompanyId= Convert.ToInt32(SubCompanyid),
                         JsonDocumentid = oid_value,
                         BusinessVatId = businessVatId,
                         ClientVat_id = vatId,
@@ -474,7 +489,7 @@ namespace Uninet.DATA.Services
                     // Create a predicate to check for the existence of the record
                     Expression<Func<BusinessData, bool>> predicate = bd =>
                         bd.UserId == UserIdAttachedToCompanySenderId &&
-                        bd.BusinessId == Convert.ToInt32(businessVatId) &&
+                        bd.BusinessId == Convert.ToInt32(businessVatId) && bd.SubCompanyId== Convert.ToInt32(SubCompanyid) &&
                         bd.JsonDocumentid == oid_value;
 
                     // Use the GetFirstObject method to check if the record exists

@@ -23,17 +23,15 @@ namespace UninetWebApi2.Controllers
         //here we get all document that the client is getting to his uninet system approved rejected and not each one of them 
         [Authorize]
         [HttpGet("GetDigitalDocumentToApproveListByUser")]
-        public async Task<ActionResult> GetDigitalDocumentToApproveListByUser(string Typelist)
+        public async Task<ActionResult> GetDigitalDocumentToApproveListByUser(string Typelist, int? subCompanyId = null)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId), Typelist);
 
-            //var result = await _uninetOutPutAppService.test(Convert.ToInt32(userId), Typelist);
+            var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId), Typelist, subCompanyId);
+
             return Ok(result);
-
-            //return Ok(_uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId)));
-            
         }
+
 
 
         [Authorize]

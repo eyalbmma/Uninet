@@ -63,17 +63,17 @@ namespace Uninet.APP.Services
                 var res = new RejectDocumenResponse
                 {
                     Success = false,
-                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המבמך לא נדחה "
+                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המסמך לא נדחה "
                 };
                 return res;
             }
         }
 
-        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist)
+        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist, int? subCompanyId )
         {
             try
             {
-                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID, Typelist);
+                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID, Typelist, subCompanyId);
             }
             catch(Exception ex) { return null; }
         }

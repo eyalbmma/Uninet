@@ -14,6 +14,7 @@ namespace Uninet.Domain.StoredProcedures.Requests
         public int ExternalSystemId { get; set; }
         public int Companyid { get; set; }
 
+
         public int Lang { get; set; } 
     }
 }

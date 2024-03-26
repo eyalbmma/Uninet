@@ -18,6 +18,10 @@ namespace Uninet.Domain.Entities
         public int BusinessId { get; set; }
 
         [Key]
+        public int SubCompanyId { get; set; }
+        
+
+        [Key]
         public string JsonDocumentid { get; set; }
 
         

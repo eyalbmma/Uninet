@@ -207,7 +207,7 @@ namespace UninetWebApi2.Controllers
                     Q3_InidicationRes = false,
                     verified = false,
                     EncryptedUserId = null,
-                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed9"+ex.InnerException +ex.Message : " האימות נכשל ",
+                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed"+ex.InnerException +ex.Message : " האימות נכשל ",
                       Fullname = "",
                       AccesstokenExpiredTime = null,
                       RefreshTokenExpiredTime = null

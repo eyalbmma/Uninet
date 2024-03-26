@@ -34,14 +34,19 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<VerifyUserByOtpUserIdAndTimeStampResponse> VerifyUserByOtpUserIdAndTimeStampResponse { get; set; }
         public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
 
+        public virtual DbSet<SubUserCredentials> SubUserCredentials { get; set; }
+
         
+
          public virtual DbSet<InviteBusinessPartnerResult> InviteBusinessPartnerResult { get; set; }
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
 
         public virtual DbSet<BusinessData> BusinessData { get; set; }
         //public virtual DbSet<HospitalUserModel> HospitalUserModel { get; set; }
-
+        
+        public virtual DbSet<MainSubCopmaniesMasters> MainSubCopmaniesMasters { get; set; }
+        public virtual DbSet<SubCompanysID> SubCompanysID { get; set; }
         public virtual DbSet<SaveIndicationOfSentApprovalMailToCustomerResponse> SaveIndicationOfSentApprovalMailToCustomerResponse { get; set; }
         public virtual DbSet<AddBusinessToUserResult> AddBusinessToUserResult { get; set; }
 
@@ -69,11 +74,11 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
 
             modelBuilder.Entity<UsersExternalSystemDynamicFields>()
-        .HasKey(e => new { e.Companyid, e.Userid, e.ExternalSystemId, e.FieldLabelName });
+        .HasKey(e => new { e.Companyid,e.SubCompayId, e.Userid, e.ExternalSystemId, e.FieldLabelName });
 
             
 
-                modelBuilder.Entity<InsertdatatoJobbatchlogResult>().HasNoKey();
+            modelBuilder.Entity<InsertdatatoJobbatchlogResult>().HasNoKey();
             modelBuilder.Entity<InviteBusinessPartnerResult>().HasNoKey();
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
             modelBuilder.Entity<ApprovalMailIndication>().HasNoKey();
@@ -86,7 +91,9 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
 
             
-
+            modelBuilder.Entity<MainSubCopmaniesMasters>().HasKey(u => new { u.MainCompanyId,u.SubCopmanyId });
+            modelBuilder.Entity<SubCompanysID>().HasKey(u => new { u.SubCompanyid });
+            modelBuilder.Entity<SubUserCredentials>().HasKey(u => new { u.Userid, u.CompanyId, u.SubCompanyId,u.SubUserId });
             modelBuilder.Entity<BusinessData>().HasKey(u => new { u.UserId, u.BusinessId,u.JsonDocumentid });
 
 

@@ -14,5 +14,7 @@ namespace Uninet.Domain.Models
         public bool SystemRegisteredInuninet { get; set; }
         public bool? ValidExternalsystemCredenatials { get; set; }
         public string FullName { get; set; }
+
+        public List<string>  RelatedSubCompanyListIds { get; set; }
     }
 }

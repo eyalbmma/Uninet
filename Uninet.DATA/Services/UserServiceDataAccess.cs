@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion.Internal;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.VisualBasic.FileIO;
 using MongoDB.Bson;
@@ -382,21 +383,25 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         }
 
 
-        public async Task<JsonDocument> CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMapping row,string icountWebhookEndpointEdited)
+        public async Task<JsonDocument> CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMapping row, string baseUrl)
         {
             try
             {
-                int WebHookSourceid = row.WebHookSourceid;
-                var IcountWebhookEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 82);//https://api.icount.co.il/api/v3.php/webhook/add
-                var IcountWebhookEndpointEdited = IcountWebhookEndpoint.Endpoint + icountWebhookEndpointEdited+ WebHookSourceid + "&action=doc.create";
+                var IcountWebhookEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 82);
+                var IcountWebhookEndpointEdited = IcountWebhookEndpoint.Endpoint + baseUrl + "&action=doc.create";
                 HttpMethod methodIcountWebhookEndpoint = HttpMethod.Post;
                 var ReponsneIcountWebhookEndpoint = await _UninetInputDataAccess.SendRequest(IcountWebhookEndpointEdited, methodIcountWebhookEndpoint);
 
                 // Deserialize the JSON response
-               return  JsonDocument.Parse(ReponsneIcountWebhookEndpoint);
+                return JsonDocument.Parse(ReponsneIcountWebhookEndpoint);
             }
-            catch(Exception ex) { return null; };
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
+
+
 
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
@@ -464,37 +469,41 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                         var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
-                        if (spresult.AdminUserid==0)
+                        if (spresult.AdminUserid==0)//if i get userid=0  than  i need to insert the new company credentials to table
                         {
                             //here i need to insert the logic that call to 
                             //https://api.icount.co.il/api/v3.php/webhook/add
                             //but before calling i need to find out if it already exist in our database related to an internal companyid
                             //start logic of addig webhook to icount
-                            var LUTIcountSourceWebhookCompanyMappingRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid);
+                            var LUTIcountSourceWebhookCompanyMappingRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
 
-                            string url = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+                            string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
                             JsonElement rootWebhookEndpointjsonDocument;
-                            if (LUTIcountSourceWebhookCompanyMappingRow!=null)
+
+                            if (LUTIcountSourceWebhookCompanyMappingRow != null)
                             {
-                               
+                                baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
 
-                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow,url);
-                                 rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
-
+                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
+                                rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
                             }
                             else
                             {
                                 var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
                                 {
-
-                                    Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid
+                                    Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
+                                    SubCompanyId = spresult.NewSubCompanyId
                                 };
 
-                                var insertedRow= await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
+                                var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
 
-                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, url);
-                                 rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+                                baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+
+                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
+                                rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
                             }
+
+
 
 
 
@@ -503,7 +512,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                             if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
                             {
-                                var LUTIcountSourceWebhookCompanyMappingnewRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid);
+                                var LUTIcountSourceWebhookCompanyMappingnewRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
                                 if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
                                 {
                                     LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
@@ -522,6 +531,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                             // Add the new property to the company_info object
                             dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+                            dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
 
                             // Convert the modified object back to JSON
                             string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
@@ -559,7 +569,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             }
 
 
-                           
+                           /* remarked ny eyal 25/03/2024
                             string vatid = "";
                            
                             string propertyPathstart_date = "company_info.start_date";
@@ -635,7 +645,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                             }
 
-
+                            */
 
                             var res = new ResSaveExternalCustomized
                             {
@@ -679,7 +689,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var res = new ResSaveExternalCustomized
                         {
                             Success = false,
-                            textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "we couldnt authneticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול המערכת שאיתה אתה נירשם  אנא נסה שנית ",
+                            textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "we couldnt authneticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
                             SystemRegisteredInuninet = false,
                             ValidExternalsystemCredenatials = false,
                             FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
@@ -909,141 +919,217 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             var result = _repository.ExecuteGetSP<AddBusinessToUserResult>(spName, parameters);
             return result.ToList()[0].Result;
         }
-
-
         public async Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses)
         {
             try
             {
-                var businessobjects = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
+                var dataTable = new DataTable();
+                dataTable.Locale = new CultureInfo("he-IL");
+                dataTable.Columns.Add("BusinessId", typeof(int));
+                dataTable.Columns.Add("BusinessType", typeof(int));
+                dataTable.Columns.Add("FirstName", typeof(string));
+                dataTable.Columns.Add("LastName", typeof(string));
+                dataTable.Columns.Add("MobileNumber", typeof(string));
+                dataTable.Columns.Add("OrganizationRole", typeof(string));
+                dataTable.Columns.Add("OrganizationName", typeof(string));
+                dataTable.Columns.Add("OrganizationType", typeof(int));
+                dataTable.Columns.Add("ExternalSystemId", typeof(int));
 
-                var existingCompanyInnerId = (await _repository.GetAllAsync<LutCompanies>())
-                    .Where(b => businessobjects.Any(r => r.BusinessId == b.CompanyInnerId))
-                    .Select(b => b.CompanyInnerId)
-                    .ToList(); // Convert to List
-
-                //get number of companies from json 
-                int count = userBusinesses.BusinessRequests.Count;
-                if (existingCompanyInnerId.Count != count)
+                Encoding utf8 = Encoding.UTF8;
+                var newCompany = new LutCompanies
                 {
-                    if (count > 0)
-                    {
-                        foreach (var businessRequest in userBusinesses.BusinessRequests)
-                        {
-                            var newCompany = new LutCompanies
-                            {
-                                CompanyName = null,
-                                CompanyEmail = null
-                                // Set other properties as needed
-                            };
+                    CompanyName = null,
+                    CompanyEmail = null
+                    // Set other properties as needed
+                };
+                _repository.Create<LutCompanies>(newCompany);
+                int lastInsertedCompanyinneridId = newCompany.CompanyInnerId;
 
-                            _repository.Create<LutCompanies>(newCompany);
-                            int lastInsertedCompanyinneridId = newCompany.CompanyInnerId;
-                            businessRequest.BusinessId = lastInsertedCompanyinneridId;
-                        }
-                    }
-
-                    var existingBusinessIds = (await _repository.GetAllAsync<Businesses>())
-                        .Where(b => userBusinesses.BusinessRequests.Any(r => r.BusinessId == b.BusinessId))
-                        .Select(b => b.BusinessId)
-                        .ToList(); // Convert to List
-
-                    var existingBusinessRequests = userBusinesses.BusinessRequests
-                        .Where(br => existingBusinessIds.Contains(br.BusinessId))
-                        .ToList();
-
-                    if (existingBusinessRequests.Count > 0)
-                    {
-                        var result = new AddBusinessToUserResult
-                        {
-                            Result = false,
-                            BusinessRequests = existingBusinessRequests,
-                            
-                        };
-                        return result;
-                    }
-                    else
-                    {
-                        var dataTable = new DataTable();
-                        dataTable.Locale = new CultureInfo("he-IL");
-                        dataTable.Columns.Add("BusinessId", typeof(int));
-                        dataTable.Columns.Add("BusinessType", typeof(int));
-                        dataTable.Columns.Add("FirstName", typeof(string));
-                        dataTable.Columns.Add("LastName", typeof(string));
-                        dataTable.Columns.Add("MobileNumber", typeof(string));
-                        dataTable.Columns.Add("OrganizationRole", typeof(string));
-                        dataTable.Columns.Add("OrganizationName", typeof(string));
-                        dataTable.Columns.Add("OrganizationType", typeof(int));
-                        dataTable.Columns.Add("ExternalSystemId", typeof(int));
-
-                        Encoding utf8 = Encoding.UTF8;
-
-                        foreach (var businessRequest in userBusinesses.BusinessRequests)
-                        {
-                            dataTable.Rows.Add(
-                             businessRequest.BusinessId,
-                             businessRequest.BusinessType,
-                             utf8.GetString(utf8.GetBytes(businessRequest.FirstName)), // Convert FirstName to UTF-8
-                             utf8.GetString(utf8.GetBytes(businessRequest.LastName)),  // Convert LastName to UTF-8
-                             utf8.GetString(utf8.GetBytes(businessRequest.MobileNumber)), // Convert MobileNumber to UTF-8
-                             utf8.GetString(utf8.GetBytes(businessRequest.OrganizationRole)), // Convert OrganizationRole to UTF-8
-                             utf8.GetString(utf8.GetBytes(businessRequest.OrganizationName)), // Convert OrganizationName to UTF-8
-                             businessRequest.OrganizationType,
-                             businessRequest.ExternalSystemId
-                         );
-                        }
-
-                        var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
-                        {
-                            Value = JsonConvert.SerializeObject(dataTable, Formatting.None)
-                        };
-
-                        var UserParam = new
-                        {
-                            UserId = userBusinesses.Userid,
-                            BusinessRequests = parameter.Value
-                        };
-
-                        bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_AddBusinessesToUser, UserParam);
-
-                        // Retrieve the added business requests from the Businesses table
-                        var addedBusinessRequests = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
-                        // Map Businesses objects to BusinessRequest objects
-                        var addedBusinessRequestModels = addedBusinessRequests.Select(br => MapBusinessToBusinessRequest(br)).ToList();
-                        var result = new AddBusinessToUserResult
-                        {
-                            Result = spresult,
-                            BusinessRequests = addedBusinessRequestModels,
-                           
-                        };
-                       
-
-                        return result;
-                    }
-                }
-                else
+                foreach (var businessRequest in userBusinesses.BusinessRequests)
                 {
-                    var result = new AddBusinessToUserResult
-                    {
-                        Result = false,
-                        BusinessRequests = null
-                        
-                    };
-                    return result;
+                    dataTable.Rows.Add(
+                        lastInsertedCompanyinneridId,
+                        businessRequest.BusinessType,
+                        businessRequest.FirstName,
+                        businessRequest.LastName,
+                        businessRequest.MobileNumber,
+                        businessRequest.OrganizationRole,
+                        businessRequest.OrganizationName,
+                        businessRequest.OrganizationType,
+                        businessRequest.ExternalSystemId
+                    );
+
+                    // Assign the last inserted CompanyInnerId to the BusinessRequest
+                    businessRequest.BusinessId = lastInsertedCompanyinneridId;
                 }
+
+                var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
+                {
+                    Value = JsonConvert.SerializeObject(dataTable, Formatting.None)
+                };
+
+                var userIdParameter = new SqlParameter("@UserId", SqlDbType.Int)
+                {
+                    Value = userBusinesses.Userid
+                };
+
+                // Call the stored procedure using ExecuteGetSP
+                bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_AddBusinessesToUser, new { UserId = userBusinesses.Userid, BusinessRequests = parameter.Value });
+
+                var result = new AddBusinessToUserResult
+                {
+                    Result = spresult,
+                    BusinessRequests = userBusinesses.BusinessRequests // Assuming you want to return the same list of business requests
+                };
+
+                return result;
             }
             catch (Exception ex)
             {
                 // Handle the exception appropriately
-                var result = new AddBusinessToUserResult
+                return new AddBusinessToUserResult
                 {
                     Result = false,
                     BusinessRequests = null
-                   
                 };
-                return result;
             }
         }
+
+
+
+        //public async Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses)
+        //{
+        //    try
+        //    {
+        //        var businessobjects = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
+
+        //        var existingCompanyInnerId = (await _repository.GetAllAsync<LutCompanies>())
+        //            .Where(b => businessobjects.Any(r => r.BusinessId == b.CompanyInnerId))
+        //            .Select(b => b.CompanyInnerId)
+        //            .ToList(); // Convert to List
+
+        //        //get number of companies from json 
+        //        int count = userBusinesses.BusinessRequests.Count;
+        //        if (existingCompanyInnerId.Count != count)
+        //        {
+        //            if (count > 0)
+        //            {
+        //                foreach (var businessRequest in userBusinesses.BusinessRequests)
+        //                {
+        //                    var newCompany = new LutCompanies
+        //                    {
+        //                        CompanyName = null,
+        //                        CompanyEmail = null
+        //                        // Set other properties as needed
+        //                    };
+
+        //                    _repository.Create<LutCompanies>(newCompany);
+        //                    int lastInsertedCompanyinneridId = newCompany.CompanyInnerId;
+        //                    businessRequest.BusinessId = lastInsertedCompanyinneridId;
+        //                }
+        //            }
+
+        //            var existingBusinessIds = (await _repository.GetAllAsync<Businesses>())
+        //                .Where(b => userBusinesses.BusinessRequests.Any(r => r.BusinessId == b.BusinessId))
+        //                .Select(b => b.BusinessId)
+        //                .ToList(); // Convert to List
+
+        //            var existingBusinessRequests = userBusinesses.BusinessRequests
+        //                .Where(br => existingBusinessIds.Contains(br.BusinessId))
+        //                .ToList();
+
+        //            if (existingBusinessRequests.Count > 0)
+        //            {
+        //                var result = new AddBusinessToUserResult
+        //                {
+        //                    Result = false,
+        //                    BusinessRequests = existingBusinessRequests,
+
+        //                };
+        //                return result;
+        //            }
+        //            else
+        //            {
+        //                var dataTable = new DataTable();
+        //                dataTable.Locale = new CultureInfo("he-IL");
+        //                dataTable.Columns.Add("BusinessId", typeof(int));
+        //                dataTable.Columns.Add("BusinessType", typeof(int));
+        //                dataTable.Columns.Add("FirstName", typeof(string));
+        //                dataTable.Columns.Add("LastName", typeof(string));
+        //                dataTable.Columns.Add("MobileNumber", typeof(string));
+        //                dataTable.Columns.Add("OrganizationRole", typeof(string));
+        //                dataTable.Columns.Add("OrganizationName", typeof(string));
+        //                dataTable.Columns.Add("OrganizationType", typeof(int));
+        //                dataTable.Columns.Add("ExternalSystemId", typeof(int));
+
+        //                Encoding utf8 = Encoding.UTF8;
+
+        //                foreach (var businessRequest in userBusinesses.BusinessRequests)
+        //                {
+        //                    dataTable.Rows.Add(
+        //                     businessRequest.BusinessId,
+        //                     businessRequest.BusinessType,
+        //                     utf8.GetString(utf8.GetBytes(businessRequest.FirstName)), // Convert FirstName to UTF-8
+        //                     utf8.GetString(utf8.GetBytes(businessRequest.LastName)),  // Convert LastName to UTF-8
+        //                     utf8.GetString(utf8.GetBytes(businessRequest.MobileNumber)), // Convert MobileNumber to UTF-8
+        //                     utf8.GetString(utf8.GetBytes(businessRequest.OrganizationRole)), // Convert OrganizationRole to UTF-8
+        //                     utf8.GetString(utf8.GetBytes(businessRequest.OrganizationName)), // Convert OrganizationName to UTF-8
+        //                     businessRequest.OrganizationType,
+        //                     businessRequest.ExternalSystemId
+        //                 );
+        //                }
+
+        //                var parameter = new SqlParameter("@BusinessRequests", SqlDbType.NVarChar)
+        //                {
+        //                    Value = JsonConvert.SerializeObject(dataTable, Formatting.None)
+        //                };
+
+        //                var UserParam = new
+        //                {
+        //                    UserId = userBusinesses.Userid,
+        //                    BusinessRequests = parameter.Value
+        //                };
+
+        //                bool spresult = ExecuteGetSP(ConstUninetStoredprocedure.SP_AddBusinessesToUser, UserParam);
+
+        //                // Retrieve the added business requests from the Businesses table
+        //                var addedBusinessRequests = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == userBusinesses.Userid).ToList();
+        //                // Map Businesses objects to BusinessRequest objects
+        //                var addedBusinessRequestModels = addedBusinessRequests.Select(br => MapBusinessToBusinessRequest(br)).ToList();
+        //                var result = new AddBusinessToUserResult
+        //                {
+        //                    Result = spresult,
+        //                    BusinessRequests = addedBusinessRequestModels,
+
+        //                };
+
+
+        //                return result;
+        //            }
+        //        }
+        //        else
+        //        {
+        //            var result = new AddBusinessToUserResult
+        //            {
+        //                Result = false,
+        //                BusinessRequests = null
+
+        //            };
+        //            return result;
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // Handle the exception appropriately
+        //        var result = new AddBusinessToUserResult
+        //        {
+        //            Result = false,
+        //            BusinessRequests = null
+
+        //        };
+        //        return result;
+        //    }
+        //}
 
         // Mapping method to convert Businesses to BusinessRequest
         private BusinessRequest MapBusinessToBusinessRequest(Businesses business)
@@ -1939,6 +2025,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
                 UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
+                SubUserCredentials q3_res_subuser = null;
                 var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
                 if (result != null)
                 {
@@ -1958,11 +2045,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         if (q1q2_res != null)
                         {
                             q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                            if (q3_res==null)
+                            {
+                                q3_res_subuser = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == result.AdminUserid );
+                            }
+
+
                         }
                         var Response = new LoginWithEmailandPasswordResponse
                         {
                             Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
-                            Q3_InidicationRes = q3_res != null ? true : false,
+                            Q3_InidicationRes = (q3_res != null || q3_res_subuser!=null) ? true : false,
                             Userid = result.AdminUserid,
                             verified = result.ValidUser,
                             BusinessID = q1q2_res == null ? null : q1q2_res.BusinessId,

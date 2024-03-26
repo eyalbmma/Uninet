@@ -95,7 +95,7 @@ namespace UninetWebApi2.Controllers
                 res = new InviteBusinessPartnerResult
                 {
                     Success = true,
-                    textResponse = Lang == 1 ? "Email sent to all partners" : "אי מייל נישלח לכל השותפים העיסקיים"
+                    textResponse = Lang == 1 ? "Email sent to all partners" : "נשלחו מיילים לשותפים העסקיים שלך"
                 };
                 //}
                 //else
@@ -115,7 +115,7 @@ namespace UninetWebApi2.Controllers
                 var res = new InviteBusinessPartnerResult
                 {
                     Success = false,
-                    textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
+                    textResponse = Lang == 1 ? "Failed to send Emails" : "כישלון בשליחת המיילים "
                 };
                 return Ok(res);
             }
@@ -143,7 +143,7 @@ namespace UninetWebApi2.Controllers
                 {
                     if (res.Result)
                     {
-                        message = RegisterUserReqWrap.Lang == 1 ? "company was added successfully" : "החברה התוספה בהצלחה";
+                        message = RegisterUserReqWrap.Lang == 1 ? "company was added successfully" : "החברה התווספה בהצלחה";
                     }
                     else
                     {
@@ -486,7 +486,7 @@ namespace UninetWebApi2.Controllers
                     }
                     else
                     {
-                        Resmessage = "אימות האי מייל נעשה בהצלחה";
+                        Resmessage = "אימות המייל נעשה בהצלחה";
                     }
                 }
                 else

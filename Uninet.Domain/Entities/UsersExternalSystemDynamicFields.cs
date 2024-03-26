@@ -16,6 +16,11 @@ namespace Uninet.Domain.Entities
     {
         [Key]
         public int Companyid { get; set; }
+
+        [Key]
+        public int SubCompayId { get; set; }
+        
+
         [Key]
         public int Userid { get; set; }
 
