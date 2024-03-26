@@ -1021,17 +1021,104 @@ namespace Uninet.DATA.Services
             //    return null;
             //}
         }
+
+        public async Task<string> GetCompanyName(int subCompanyId,int MainCompanyId)
+        {
+            var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", MainCompanyId),
+                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subCompanyId)
+                );
+
+            var projection = Builders<BsonDocument>.Projection.Include("company_info.businessName").Exclude("_id");
+
+            var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+            if (result != null)
+            {
+                var businessName = result["company_info"]["businessName"].AsString;
+
+                return businessName;
+            }
+            else return "";
+        }
+
+
+        // Method to populate ListOfSubCompaniesandNames
+        public async Task<List<CompanyNameRelatedToUser>> PopulateListOfSubCompaniesandNames(List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser)
+        {
+            List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames = new List<CompanyNameRelatedToUser>();
+
+            foreach (var company in ResListOfCompaniesRelatedToLogedinUser)
+            {
+                string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
+                if (companyName != null)
+                {
+                    ListOfSubCompaniesandNames.Add(new CompanyNameRelatedToUser
+                    {
+                        SubCopmanyId = company.SubCopmanyId,
+                        CompanyName = companyName
+                    });
+                }
+            }
+
+            // Assign the populated list to the property
+            return ListOfSubCompaniesandNames;
+        }
+
+
+        public List<MainSubCopmaniesMasters> GetMainSubCompanies(int userId, int companyId)
+        {
+            List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser = new List<MainSubCopmaniesMasters>();
+
+            // Get SubUserCredentials based on userId
+            var subUserCredentials = _repository.GetListOfObjects<SubUserCredentials>(x => x.SubUserId == userId);
+
+            // Get MainSubCopmaniesMasters
+            var mainSubCompaniesMasters = _repository.GetListOfObjects<MainSubCopmaniesMasters>(x => x.MainCompanyId == companyId);
+
+            // Loop through SubUserCredentials
+            foreach (var sub in subUserCredentials)
+            {
+                // Find matching record in MainSubCopmaniesMasters
+                var matchingRecord = mainSubCompaniesMasters.FirstOrDefault(main =>
+                    main.MainCompanyId == sub.CompanyId && main.SubCopmanyId == sub.SubCompanyId);
+
+                // If a matching record is found, add it to the result list
+                if (matchingRecord != null)
+                {
+                    ResListOfCompaniesRelatedToLogedinUser.Add(matchingRecord);
+                }
+            }
+
+            return ResListOfCompaniesRelatedToLogedinUser;
+        }
+
+
+
         public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist, int? subCompanyId)
         {
             try
             {
                 // List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
                 string FullName = "";
-                //List<Businesses> ResListOfCompaniesRelatedToLogedinUser = null;
+                List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser = null;
                 DigitalDocumentToApproveObj resObj = new DigitalDocumentToApproveObj();
                 resObj.listDigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
-                //var CheckUsermasterExist = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == UserID);
-                int MainCompanyId= _repository.GetFirstObject<Businesses>(x => x.AdminUserid == UserID).BusinessId;
+                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == UserID);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                int MainCompanyId = 0;
+                if (CheckUsermasterExist!=null)//the user is master
+                {
+                    MainCompanyId= _repository.GetFirstObject<Businesses>(x => x.AdminUserid == UserID).BusinessId;
+                    ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<MainSubCopmaniesMasters>(x => x.MainCompanyId == MainCompanyId);
+                }
+                else
+                {
+                    var MainCompanyIdObj = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == UserID);
+                    MainCompanyId = MainCompanyIdObj.CompanyId;
+                    ResListOfCompaniesRelatedToLogedinUser = GetMainSubCompanies(UserID, MainCompanyId);
+                }
+                
+                 
+               
                 if (subCompanyId==null)
                 {
                     var subCompanyIdList = await _repository.GetAllAsync<MainSubCopmaniesMasters>();
@@ -1042,20 +1129,33 @@ namespace Uninet.DATA.Services
                         .FirstOrDefault();
 
 
+                   
+                    if (subCompanyId != default)
+                    {
+                        
+                        var SubCopmaniesMastersRow= _repository.GetFirstObject<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
+                        SubCopmaniesMastersRow.LastTimeDataShowed = DateTime.Now; // Current DateTime
+
+                        await _repository.UpdateAsync(SubCopmaniesMastersRow);
+                    }
+                    else
+                    {
+                        // Handle case where subCompanyId is not found
+                    }
+
+                }
+                else
+                {
+                    var SubCopmaniesMastersRow = _repository.GetFirstObject<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
+                    SubCopmaniesMastersRow.LastTimeDataShowed = DateTime.Now; // Current DateTime
+
+                    await _repository.UpdateAsync(SubCopmaniesMastersRow);
+
                 }
 
 
 
-                //if (CheckUsermasterExist.IsMasterUser==true)
-                //{
-                //ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == UserID);
-                //}
-                //else
-                //{
-                //    var GetRelatedMasterId= _repository.GetFirstObject<SubUserCredentials>(x=>x.SubUserId== UserID);
-
-                //     ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == GetRelatedMasterId.Userid);
-                //}
+               
                 //loop on the list of Companies for each company attached to user we need to extract her vat_id from IcountCompanisInfo 
                 //foreach (var Company in ResListOfCompaniesRelatedToLogedinUser)
                 //{
@@ -1317,8 +1417,8 @@ namespace Uninet.DATA.Services
                 var Objres = new DigitalDocumentToApproveObj
                 {
                     listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
-                   
-                    
+
+                    ListOfSubCompaniesandNames= await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser),
                     fullname = FullName
                 };
                 return Objres;

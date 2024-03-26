@@ -11,5 +11,7 @@ namespace Uninet.Domain.Models
         public List<DigitalDocumentToApprove> listDigitalDocumentToApprove { get; set; }
         public string fullname { get; set; }
 
+        public List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames { get; set; }
+
     }
 }
