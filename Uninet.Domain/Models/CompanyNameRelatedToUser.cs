@@ -10,5 +10,7 @@ namespace Uninet.Domain.Models
     {
         public int SubCopmanyId { get; set; }
         public string CompanyName { get; set; }
+
+        public bool IsDefault { get; set; }
     }
 }

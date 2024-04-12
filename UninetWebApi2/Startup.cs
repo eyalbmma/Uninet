@@ -18,6 +18,7 @@ using Uninet.Domain.Classes;
 using Uninet.Domain.Interfaces;
 using Microsoft.Extensions.Hosting;
 using System.IdentityModel.Tokens.Jwt;
+using Uninet.Domain.Models;
 
 namespace UninetWebApi2.Controllers
 {
@@ -49,13 +50,13 @@ namespace UninetWebApi2.Controllers
                 options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
             });
 
-            
 
-            
-            
+            services.AddSingleton<EnumRepository>();
 
 
-            
+
+
+
 
             //services.AddDbContextPool<MongoDbContext>(options =>
             //{

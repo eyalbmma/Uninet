@@ -28,7 +28,8 @@ using static System.Net.Mime.MediaTypeNames;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
-
+using System.Numerics;
+using Twilio.TwiML.Voice;
 
 namespace Uninet.DATA.Services
 {
@@ -43,8 +44,9 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _IcountExpenses;
         private readonly IMongoCollection<BsonDocument> _IcountExpensesTypes;
         private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
+        private readonly IDataMailassist _dataMailassist;
         //IcountWebhookData
-        public UninetOutputDataAccess(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
+        public UninetOutputDataAccess(IRepository<UninetContext> repository, IMongoClient client, IDataMailassist dataMailassist)//, IloginRepository loginRepository
         {
             var database = client.GetDatabase("Uninet");
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
@@ -56,6 +58,7 @@ namespace Uninet.DATA.Services
             _IcountExpensesTypes= database.GetCollection<BsonDocument>("IcountExpensesTypes");
             _IcountWebhookData= database.GetCollection<BsonDocument>("IcountWebhookData");
             _repository = repository;
+            _dataMailassist = dataMailassist;
 
         }
         private async Task<string> SendRequest(string endpointUrl, HttpMethod method, string postData = null)
@@ -132,7 +135,104 @@ namespace Uninet.DATA.Services
         //        return null;
         //    }
         //}
+        public async Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId,int Lang)
+        {
+            try
+            {
+                SendOtpViaMailResponse resmail = new SendOtpViaMailResponse();
+                string businessName = "";
+                int OrganizationId = 0;
+                int SubCompanyId = 0;
+                string Email = "";
+                var CompanyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", VatId);
+                var CompanyInfo = await _IcountCompaniesInfoCollection.Find(CompanyInfoFilterbyVatid).FirstOrDefaultAsync();
+                var companyInfobson = CompanyInfo["company_info"].AsBsonDocument;
+                if (companyInfobson.Contains("email"))
+                {
+                    Email = companyInfobson["email"].AsString;
+                }
+                if (companyInfobson.Contains("InternalCompanyId"))
+                {
+                    OrganizationId = companyInfobson["InternalCompanyId"].AsInt32;
+                }
+                if (companyInfobson.Contains("SubCompanyId"))
+                {
+                    SubCompanyId = companyInfobson["SubCompanyId"].AsInt32;
+                }
+                if (companyInfobson.Contains("businessName"))
+                {
+                    businessName = companyInfobson["businessName"].AsString;
+                }
+                if (Email=="")
+                {
+                    BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
+                    {
+                        VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
+                        EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
+                        OrganizationId = OrganizationId,
+                        UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
+                        SubCompanyId = SubCompanyId,
+                        EmailSent = false,
+                        LastDateSent = DateTime.UtcNow  // Current time as the last sent time
+                    };
+                    await _repository.CreateAsync(emailEntry2);
+                    resmail.result = false;
+                }
+                else
+                {
+                     resmail = await _dataMailassist.sendsmtpmail(" הזמנה להצטרף ליונינט  ", "eyalbmma@gmail.com", Email, 3, Lang, null, "", userId.ToString(), businessName);
+                    if (resmail.result)
+                    {
 
+                        BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+                        {
+                            VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
+                            EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
+                            OrganizationId = OrganizationId,
+                            UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
+                            SubCompanyId = SubCompanyId,
+                            EmailSent = true,
+                            LastDateSent = DateTime.UtcNow  // Current time as the last sent time
+                        };
+
+                        try
+                        {
+                            await _repository.CreateAsync(emailEntry);
+                            
+                        }
+                        catch (Exception ex)
+                        {
+
+                            Console.WriteLine("Error inserting email record: " + ex.Message);
+                        }
+
+                    }
+                    else
+                    {
+                        BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
+                        {
+                            VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
+                            EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
+                            OrganizationId = OrganizationId,
+                            UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
+                            SubCompanyId = SubCompanyId,
+                            EmailSent = false,
+                            LastDateSent = DateTime.UtcNow  // Current time as the last sent time
+                        };
+                        await _repository.CreateAsync(emailEntry2);
+                        resmail.result = false;
+
+                    }
+                }
+                
+                
+                return resmail;
+            }
+            catch(Exception ex)
+            {
+                return null;
+            }
+        }
         private async Task<List<SupplierItem>> GetClientSupplierList(string cidvalue, string uservalue, string passvalue)
         {
 
@@ -378,6 +478,7 @@ namespace Uninet.DATA.Services
             try
             {
                 Int32 InternalCompanyId = 0;
+                int SubCompanyId = 0;
                 string Email = "";
                 string addressCity = "";
                 string addressState = "";
@@ -406,8 +507,17 @@ namespace Uninet.DATA.Services
                     {
                         // Handle the case where 'InternalCompanyId' is not present in the document.
                     }
+                    if (companyInfo.Contains("SubCompanyId"))
+                    {
+                        var subCompanyId = companyInfo["SubCompanyId"].AsInt32;
+                        SubCompanyId = subCompanyId;
+                        // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
+                    }
+                    else
+                    {
+                        // Handle the case where 'InternalCompanyId' is not present in the document.
+                    }
 
-                   
                 }
                 else
                 {
@@ -416,16 +526,17 @@ namespace Uninet.DATA.Services
 
                 //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
-                var CheckUsermasterExist = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userId);
-                //if (CheckUsermasterExist.IsMasterUser==true)
-                //{
-                   UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId);
-                //}
-                //else
-                //{
-                //    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
-                //    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid);
-                //}
+                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                if (CheckUsermasterExist != null)
+                {
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId== SubCompanyId);
+                }
+                else
+                {
+                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    userId = GetRelatedMasterId.Userid;
+                }
                  
                 string cidvalue = null;
                 string uservalue = null;
@@ -1047,15 +1158,21 @@ namespace Uninet.DATA.Services
         {
             List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames = new List<CompanyNameRelatedToUser>();
 
+            // Find the most recent LastTimeDataShowed
+            DateTime mostRecentTime = ResListOfCompaniesRelatedToLogedinUser.Max(c => c.LastTimeDataShowed);
+
             foreach (var company in ResListOfCompaniesRelatedToLogedinUser)
             {
                 string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
                 if (companyName != null)
                 {
+                    bool isDefault = company.LastTimeDataShowed == mostRecentTime;
+
                     ListOfSubCompaniesandNames.Add(new CompanyNameRelatedToUser
                     {
                         SubCopmanyId = company.SubCopmanyId,
-                        CompanyName = companyName
+                        CompanyName = companyName,
+                        IsDefault = isDefault
                     });
                 }
             }
@@ -1091,10 +1208,286 @@ namespace Uninet.DATA.Services
 
             return ResListOfCompaniesRelatedToLogedinUser;
         }
+        private async Task<List<BusinessData>> FetchPaginatedDigitalDocuments(int UserID, string Typelist, int? subCompanyId, string vatId, int pageNumber, int pageSize, bool? documentApprovedToUninet)
+        {
+            try
+            {
+                // Fetch the paginated list of digital documents using the updated repository method
+                var digitalDocuments = _repository.GetListOfObjectsPaging<BusinessData>(
+                    x => x.ClientVat_id == Convert.ToUInt32(vatId) &&
+                         (documentApprovedToUninet == null || x.DocumentApprovedtoUninet == documentApprovedToUninet),
+                    pageNumber,
+                    pageSize
+                ).OrderByDescending(x => x.docDate).ToList();
+
+                return digitalDocuments;
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions here
+                return new List<BusinessData>();
+            }
+        }
+
+        public int GetDocAmountSupplier(string vatId,int UserID, int subCopmanyId,int MainCompanyId)
+        {
+            try
+            {
+                // Use the repository to query the BusinessData table
+                var count = _repository.GetListOfObjects<BusinessData>(data => data.BusinessVatId == vatId && data.UserId== UserID && data.BusinessId== MainCompanyId && data.SubCompanyId==subCopmanyId)
+                    .GroupBy(data => new { data.UserId, data.BusinessId, data.SubCompanyId, data.BusinessVatId })
+                    .Select(group => group.Count())
+                    .FirstOrDefault();
+
+                return count;
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions
+                return 0;
+            }
+        }
+        public int GetDocAmountclient(string vatId, int UserID, int subCopmanyId, int MainCompanyId)
+        {
+            try
+            {
+                // Use the repository to query the BusinessData table
+                var count = _repository.GetListOfObjects<BusinessData>(data => data.ClientVat_id == Convert.ToInt32(vatId) && data.UserId == UserID && data.BusinessId == MainCompanyId && data.SubCompanyId == subCopmanyId)
+                    .GroupBy(data => new { data.UserId, data.BusinessId, data.SubCompanyId, data.ClientVat_id })
+                    .Select(group => group.Count())
+                    .FirstOrDefault();
+
+                return count;
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions
+                return 0;
+            }
+        }
+        private async Task<string> GetStatus(string vatId)
+        {
+            var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+            var existingDocument = await _IcountCompaniesInfoCollection.Find(filter).FirstOrDefaultAsync();
+            if (existingDocument != null)
+            {
+                return "Connected to Uninet";
+            }
+            else
+            {
+                // Implement logic to determine other status values based on your requirements
+                // For example:
+                // if (someCondition) return "Missing email details";
+                // else if (anotherCondition) return "Waiting for invitation";
+                // else return "Status not determined";
+                return "Still not connected";
+            }
+        }
+        private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId)
+        {
+            var suppliersList = new List<BusinessPartnerProp>();
+
+            var supplierget_listEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);
+            var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+            HttpMethod methodsupplierget_list = HttpMethod.Get;
+            var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
+            var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
+            var jsonData = jsonDocument.RootElement;
+            var suppliersData = jsonData.GetProperty("suppliers");
+
+            foreach (var supplier in suppliersData.EnumerateObject())
+            {
+                var supplierData = supplier.Value;
+                string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
+                string vatId = supplierData.GetProperty("vat_id").GetString();
+
+                int docAmount = GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId);
+                string status = await GetStatus(vatId);
+                DateTime lastInvitationDate = DateTime.Now;
+
+                suppliersList.Add(new BusinessPartnerProp
+                {
+                    BusinesspartnerName = businesspartnerName,
+                    VatId = vatId,
+                    DocAmount = docAmount,
+                    Status = status,
+                    LastInvitationDate = lastInvitationDate,
+                    Actions = null
+                });
+            }
+
+            return suppliersList;
+        }
+        // Function to handle case 2 logic
+        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId)
+        {
+            var clientsList = new List<BusinessPartnerProp>();
+
+            var clientget_listEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 84);
+            var endpointclientget_list = clientget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+            HttpMethod methodclientget_list = HttpMethod.Get;
+            var Reponsneclientget_list = await SendRequest(endpointclientget_list, methodclientget_list);
+            var jsonDocumentclientget_list = JsonDocument.Parse(Reponsneclientget_list);
+            var jsonDataclientget_list = jsonDocumentclientget_list.RootElement;
+            var clientget_lisData = jsonDataclientget_list.GetProperty("clients");
+
+            foreach (var client in clientget_lisData.EnumerateObject())
+            {
+                var clientData = client.Value;
+                string businesspartnerName = clientData.GetProperty("client_name").GetString();
+                string vatId = clientData.GetProperty("vat_id").GetString();
+
+                int docAmount = GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId);
+                string status = await GetStatus(vatId);
+                DateTime lastInvitationDate = DateTime.Now;
+
+                clientsList.Add(new BusinessPartnerProp
+                {
+                    BusinesspartnerName = businesspartnerName,
+                    VatId = vatId,
+                    DocAmount = docAmount,
+                    Status = status,
+                    LastInvitationDate = lastInvitationDate,
+                    Actions = null
+                });
+            }
+
+            return clientsList;
+        }
+
+        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType,int userId, int subCopmanyId)
+        {
+            try
+            {
+                /*
+                  Supplier = 1,
+                  Client = 2,
+                  Both = 3
+                */
+                //get  the companyid related to the user 
+                int MainCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId).BusinessId;
+
+                ///get credentials of userexternalsystem 
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == MainCompanyId && x.Userid == userId && x.SubCompayId== subCopmanyId);
+
+                string cidvalue = null;
+                string uservalue = null;
+                string passvalue = null;
+
+                //from here 
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                {
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                        cidvalue = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                        uservalue = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalue = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
+                }
+                List<BusinessPartnerProp> businessPartnersSupliers = new List<BusinessPartnerProp>();
+                List<BusinessPartnerProp> businessPartnersClients = new List<BusinessPartnerProp>();
+                switch (filterType)
+                {
+                    case 1:
+                        //get suppliers
+                        businessPartnersSupliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        return businessPartnersSupliers;
 
 
 
-        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist, int? subCompanyId)
+                        break;
+                    case 2:
+                        businessPartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        return businessPartnersClients;
+
+
+
+
+
+                        break;
+                    case 3:
+                        var PartnersSuppliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        var PartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        var mergedList = PartnersSuppliers.Concat(PartnersClients).ToList();
+                        return mergedList;
+
+
+
+                        break;
+                      
+                }
+                
+
+               
+                //get clients
+
+                //get both
+
+
+                //var gridData = new List<BusinessPartnerProp>
+                //{
+                //    new BusinessPartnerProp
+                //    {
+                //    BusinesspartnerName = "Partner 0",
+                //    VatId = "123456789",
+                //    DocAmount = 10,
+                //    Status = "Active",
+                //    LastInvitationDate = DateTime.Now,
+                //    Actions = new ActionItem("Invite", ActionType.Button)
+                //    },
+
+                //    new BusinessPartnerProp
+                //    {
+                //        BusinesspartnerName = "Partner 1",
+                //        VatId = "123456780",
+                //        DocAmount = 5,
+                //        Status = "Active",
+                //        LastInvitationDate=DateTime.Now,
+                //        Actions = new ActionItem("Connected", ActionType.String)// Example for "Connected" option
+                //    },
+                //    new BusinessPartnerProp
+                //    {
+                //        BusinesspartnerName = "Partner 2",
+                //        VatId = "987654321",
+                //        DocAmount = 10,
+                //        Status = "Inactive",
+                //        LastInvitationDate=DateTime.Now,
+                //        Actions = new ActionItem("Complete details", ActionType.Button)
+                       
+                //    },
+                //     new BusinessPartnerProp
+                //    {
+                //        BusinesspartnerName = "Partner 3",
+                //        VatId = "987654321",
+                //        DocAmount = 1,
+                //        Status = "Inactive",
+                //        LastInvitationDate=DateTime.Now,
+                //        Actions = new ActionItem(DateTime.Now.ToString(), ActionType.DateTime)
+
+                //    }
+
+                //};
+
+                return null;
+                    // Add more rows as needed...
+                
+
+            }
+            catch (Exception ex) { return null; }
+        }
+        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist, int? subCompanyId, int pageNumber, int pageSize )
         {
             try
             {
@@ -1121,12 +1514,22 @@ namespace Uninet.DATA.Services
                
                 if (subCompanyId==null)
                 {
-                    var subCompanyIdList = await _repository.GetAllAsync<MainSubCopmaniesMasters>();
-                     subCompanyId = subCompanyIdList
-                        .Where(x => x.MainCompanyId == MainCompanyId)
-                        .OrderByDescending(x => x.LastTimeDataShowed)
-                        .Select(x => x.SubCopmanyId)
-                        .FirstOrDefault();
+
+                    if (ResListOfCompaniesRelatedToLogedinUser.Count > 1)
+                    {
+
+
+                        var subCompanyIdList = await _repository.GetAllAsync<MainSubCopmaniesMasters>();
+                        subCompanyId = subCompanyIdList
+                           .Where(x => x.MainCompanyId == MainCompanyId)
+                           .OrderByDescending(x => x.LastTimeDataShowed)
+                           .Select(x => x.SubCopmanyId)
+                           .FirstOrDefault();
+                    }
+                    else
+                    {
+                        subCompanyId = ResListOfCompaniesRelatedToLogedinUser[0].SubCopmanyId;
+                    }
 
 
                    
@@ -1169,7 +1572,7 @@ namespace Uninet.DATA.Services
 
                 var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
 
-
+                int totalCount = 0;
                 if (result != null)
                     {
                         var vatId = result["company_info"]["vat_id"].AsString;
@@ -1183,45 +1586,37 @@ namespace Uninet.DATA.Services
                         // Replace with your desired VAT ID
 
                         List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = null;
-                        switch (Typelist)
-                        {
 
-                            //remark eyal need to get 
-                            //supplier_name_Sender
-                            //docDate
-                            //amountAV
-
-                            case "notApproveOrRejected":
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
-                                .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId)  && x.DocumentApprovedtoUninet == null )
-                                .OrderByDescending(x => x.docDate)
-                                .ToList();
-
-                                // ResListOfClientCompaniesThatWasSentDigitalDocument = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) );
-                                break;
-                            case "Rejected":
-                                
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
-                                .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId)  && x.DocumentApprovedtoUninet == false )
-                                .OrderByDescending(x => x.docDate)
-                                .ToList();
-
-                                break;
-                            case "Approved":
-                                ResListOfClientCompaniesThatWasSentDigitalDocument = _repository
-                               .GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true )
-                               .OrderByDescending(x => x.docDate)
-                               .ToList();
-                                break;
-                        }
-
-                      //  string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfClientCompaniesThatWasSentDigitalDocument);
+                   
 
 
+                    switch (Typelist)
+                    {
+                        case "notApproveOrRejected":
+                            totalCount= totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null).Count();
+                            ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null);
+                            break;
+                        case "Rejected":
+                            totalCount = totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false).Count();
+                            ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, false);
+                            break;
+                        case "Approved":
+                            totalCount = totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true).Count();
+                            ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, true);
+                            break;
+                        default:
+                            // Handle invalid Typelist value
+                            break;
+                    }
+                    //  string jsonResult = System.Text.Json.JsonSerializer.Serialize(ResListOfClientCompaniesThatWasSentDigitalDocument);
 
 
+                    
 
-                        foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
+                    foreach (var DigitalClientRow in ResListOfClientCompaniesThatWasSentDigitalDocument)
                         {
 
                             if (DigitalClientRow.DataSourceType == 1)
@@ -1247,16 +1642,19 @@ namespace Uninet.DATA.Services
                                     JsonDocUrl = DocInforesult["doc_info"]["doc_url_copy"].AsString;
                                 }
 
-                                var filtercompany = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", DigitalClientRow.BusinessId);
-                                var projectioncompany = Builders<BsonDocument>.Projection.Include("company_info.businessName").Exclude("_id");
+                            var filtercompany = Builders<BsonDocument>.Filter.And(
+                                 Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", DigitalClientRow.BusinessId),
+                                 Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", DigitalClientRow.SubCompanyId)
+                                );
+                            var projectioncompany = Builders<BsonDocument>.Projection.Include("company_info.businessName").Exclude("_id");
 
-                                var resultcompany = _IcountCompaniesInfoCollection.Find(filtercompany).Project(projectioncompany).FirstOrDefault();
-                                string supplierNameSender = "";
-                                if (resultcompany != null)
-                                {
-                                    supplierNameSender = resultcompany["company_info"]["businessName"].AsString;
-                                }
-                                    resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId, BusinessVatId = DigitalClientRow.BusinessVatId, DocInfoUrl = JsonDocUrl, supplier_name_Sender = supplierNameSender, docDate = DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV, currency_code = DigitalClientRow.currency_code });
+                            var resultcompany = _IcountCompaniesInfoCollection.Find(filtercompany).Project(projectioncompany).FirstOrDefault();
+                            string supplierNameSender = "";
+                            if (resultcompany != null)
+                            {
+                                supplierNameSender = resultcompany["company_info"]["businessName"].AsString;
+                            }
+                            resObj.listDigitalDocumentToApprove.Add(new DigitalDocumentToApprove() { JsonDocumentid = DigitalClientRow.JsonDocumentid, ClientVat_id = Convert.ToInt32(DigitalClientRow.ClientVat_id), SendingDigitalDocumentBusinessID = DigitalClientRow.BusinessId, BusinessVatId = DigitalClientRow.BusinessVatId, DocInfoUrl = JsonDocUrl, supplier_name_Sender = supplierNameSender, docDate = DigitalClientRow.docDate, amountAV = DigitalClientRow.amountAV, currency_code = DigitalClientRow.currency_code });
                             }
                         }                    
                     }
@@ -1417,8 +1815,8 @@ namespace Uninet.DATA.Services
                 var Objres = new DigitalDocumentToApproveObj
                 {
                     listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
-
-                    ListOfSubCompaniesandNames= await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser),
+                    TotallistDigitalDocumentToApprove = totalCount,
+                    ListOfSubCompaniesandNames = await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser),
                     fullname = FullName
                 };
                 return Objres;
@@ -1537,8 +1935,55 @@ namespace Uninet.DATA.Services
         {
             try
             {
-                var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
-                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid ==  InternalCompanyId.BusinessId && x.Userid == userId);
+
+                //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
+               // var ClientVat_id = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
+
+
+                //now get SubCompanyId from  _IcountCompaniesInfoCollection
+                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", addexpenseTypeRequest.tax_id.ToString());
+
+                var companyClientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
+                int SubCompanyId = 0;
+                int InternalCompanyId = 0;
+
+                if (companyClientRow != null)
+                {
+                    var companyInfo = companyClientRow["company_info"].AsBsonDocument;
+                    if (companyInfo.Contains("SubCompanyId"))
+                    {
+                        var subCompanyId = companyInfo["SubCompanyId"].AsInt32;
+                        SubCompanyId = subCompanyId;
+
+                    }
+                    if (companyInfo.Contains("InternalCompanyId"))
+                    {
+                        var internalCompanyId = companyInfo["InternalCompanyId"].AsInt32;
+                        InternalCompanyId = internalCompanyId;
+
+                    }
+                    
+
+
+                }
+
+
+
+                List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
+                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                if (CheckUsermasterExist != null)
+                {
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
+                }
+                else
+                {
+                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    userId = GetRelatedMasterId.Userid;
+                }
+
+                //var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
+                
 
                 string cidvalue = null;
                 string uservalue = null;
@@ -1622,19 +2067,51 @@ namespace Uninet.DATA.Services
             try
             {
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
+               
+                //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
+                var ClientVat_id = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
 
-                var CheckUsermasterExist = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userId);
-                //if (CheckUsermasterExist.IsMasterUser==true)
-                //{
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId);
-                //}
-                //else
-                //{
-                //    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
-                //    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid);
-                //}
 
-                 
+                //now get SubCompanyId from  _IcountCompaniesInfoCollection
+                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", ClientVat_id.ToString());
+
+                var companyClientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
+                int SubCompanyId=0;
+
+
+                if (companyClientRow != null)
+                {
+                    var companyInfo = companyClientRow["company_info"].AsBsonDocument;
+                    if (companyInfo.Contains("SubCompanyId"))
+                    {
+                        var subCompanyId = companyInfo["SubCompanyId"].AsInt32;
+                        SubCompanyId = subCompanyId;
+
+                    }
+                }
+
+
+                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+
+
+
+
+
+
+                if (CheckUsermasterExist != null)//user is a master
+                {
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
+                    
+                }
+                else
+                {
+                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    userId = GetRelatedMasterId.Userid;
+
+                }
+
+
 
                 string cidvalue = null;
                 string uservalue = null;

@@ -52,7 +52,7 @@ namespace Uninet.Domain.Interfaces
        
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class;
-
+        List<T> GetListOfObjectsPaging<T>(Expression<Func<T, bool>> filterExpression, int pageNumber, int pageSize) where T : class;
         Hashtable GetHashtableOfExternalFields(int Lang);
          List<ExternalSystemDynamicFields> GetListOfFiledObjects(int externalSystemId);
     }

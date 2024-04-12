@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Uninet.APP.Interfaces;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 
 namespace Uninet.APP.Services
@@ -69,15 +70,38 @@ namespace Uninet.APP.Services
             }
         }
 
-        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist, int? subCompanyId )
+        public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist, int? subCompanyId,int pageNumber, int pageSize) 
         {
             try
             {
-                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID, Typelist, subCompanyId);
+                return await _uninetOutPutDataAccess.GetDigitalDocumentToApproveListByUser(UserID, Typelist, subCompanyId, pageNumber, pageSize);
+            }
+            catch(Exception ex)
+            { 
+              return null; 
+            }
+        }
+        public async Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId,int Lang)
+        {
+            try
+            {
+                return await _uninetOutPutDataAccess.SendEmail(VatId, userId, Lang);
             }
             catch(Exception ex) { return null; }
+
         }
 
+        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId)
+        {
+            try
+            {
+                return await _uninetOutPutDataAccess.GetBusinessPartnersByFilter(filterType, userId, subCopmanyId);
+            }
+            catch(Exception ex)
+            {
+                return null;
+            }
+        }
         public async Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest expensesUserDoRequest, int userId)
         {
             try

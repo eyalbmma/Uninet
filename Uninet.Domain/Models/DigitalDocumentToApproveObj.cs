@@ -9,6 +9,8 @@ namespace Uninet.Domain.Models
     public  class DigitalDocumentToApproveObj
     {
         public List<DigitalDocumentToApprove> listDigitalDocumentToApprove { get; set; }
+        
+        public int TotallistDigitalDocumentToApprove { get; set; }
         public string fullname { get; set; }
 
         public List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames { get; set; }
