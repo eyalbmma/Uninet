@@ -81,15 +81,7 @@ namespace Uninet.APP.Services
               return null; 
             }
         }
-        public async Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId,int Lang)
-        {
-            try
-            {
-                return await _uninetOutPutDataAccess.SendEmail(VatId, userId, Lang);
-            }
-            catch(Exception ex) { return null; }
-
-        }
+        
 
         public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId)
         {

@@ -30,6 +30,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Numerics;
 using Twilio.TwiML.Voice;
+using Uninet.Domain.StoredProcedures.Constants;
+using Uninet.Domain.StoredProcedures.Responses;
 
 namespace Uninet.DATA.Services
 {
@@ -96,7 +98,7 @@ namespace Uninet.DATA.Services
         /// <returns></returns>
         //private async Task<List<SupplierItem>> GetClientSupplierList(int Userid)
         //{
-        //    var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Userid);
+        //    var InternalCompanyId = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Userid);
 
         //    var filter = Builders<BsonDocument>.Filter.And(
         //        Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
@@ -135,108 +137,11 @@ namespace Uninet.DATA.Services
         //        return null;
         //    }
         //}
-        public async Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId,int Lang)
-        {
-            try
-            {
-                SendOtpViaMailResponse resmail = new SendOtpViaMailResponse();
-                string businessName = "";
-                int OrganizationId = 0;
-                int SubCompanyId = 0;
-                string Email = "";
-                var CompanyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", VatId);
-                var CompanyInfo = await _IcountCompaniesInfoCollection.Find(CompanyInfoFilterbyVatid).FirstOrDefaultAsync();
-                var companyInfobson = CompanyInfo["company_info"].AsBsonDocument;
-                if (companyInfobson.Contains("email"))
-                {
-                    Email = companyInfobson["email"].AsString;
-                }
-                if (companyInfobson.Contains("InternalCompanyId"))
-                {
-                    OrganizationId = companyInfobson["InternalCompanyId"].AsInt32;
-                }
-                if (companyInfobson.Contains("SubCompanyId"))
-                {
-                    SubCompanyId = companyInfobson["SubCompanyId"].AsInt32;
-                }
-                if (companyInfobson.Contains("businessName"))
-                {
-                    businessName = companyInfobson["businessName"].AsString;
-                }
-                if (Email=="")
-                {
-                    BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
-                    {
-                        VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
-                        EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
-                        OrganizationId = OrganizationId,
-                        UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
-                        SubCompanyId = SubCompanyId,
-                        EmailSent = false,
-                        LastDateSent = DateTime.UtcNow  // Current time as the last sent time
-                    };
-                    await _repository.CreateAsync(emailEntry2);
-                    resmail.result = false;
-                }
-                else
-                {
-                     resmail = await _dataMailassist.sendsmtpmail(" הזמנה להצטרף ליונינט  ", "eyalbmma@gmail.com", Email, 3, Lang, null, "", userId.ToString(), businessName);
-                    if (resmail.result)
-                    {
-
-                        BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
-                        {
-                            VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
-                            EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
-                            OrganizationId = OrganizationId,
-                            UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
-                            SubCompanyId = SubCompanyId,
-                            EmailSent = true,
-                            LastDateSent = DateTime.UtcNow  // Current time as the last sent time
-                        };
-
-                        try
-                        {
-                            await _repository.CreateAsync(emailEntry);
-                            
-                        }
-                        catch (Exception ex)
-                        {
-
-                            Console.WriteLine("Error inserting email record: " + ex.Message);
-                        }
-
-                    }
-                    else
-                    {
-                        BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
-                        {
-                            VatId = Convert.ToInt32(VatId),  // Assuming VatId is coming as a string, convert it to int
-                            EntityType = "SomeEntityType",  // Determine how you want to set this, maybe a fixed value or from some logic
-                            OrganizationId = OrganizationId,
-                            UserId = Convert.ToInt32(userId),  // Ensure userId is int or convert from string
-                            SubCompanyId = SubCompanyId,
-                            EmailSent = false,
-                            LastDateSent = DateTime.UtcNow  // Current time as the last sent time
-                        };
-                        await _repository.CreateAsync(emailEntry2);
-                        resmail.result = false;
-
-                    }
-                }
-                
-                
-                return resmail;
-            }
-            catch(Exception ex)
-            {
-                return null;
-            }
-        }
+       
         private async Task<List<SupplierItem>> GetClientSupplierList(string cidvalue, string uservalue, string passvalue)
         {
 
-            var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
+            var ClinetinfoEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
             var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
             HttpMethod methodclientinfo = HttpMethod.Get;
             var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
@@ -304,7 +209,7 @@ namespace Uninet.DATA.Services
             List<ExpenseType> ExpenseTypeList = new List<ExpenseType>();
             string SuplierId = "";
             // Retrieve the business object and get the InternalCompanyId
-            var business = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
+            var business = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
             if (business != null)
             {
                 if (DocumentApprovedtoUninet == false || DocumentApprovedtoUninet==null)
@@ -346,7 +251,7 @@ namespace Uninet.DATA.Services
 
 
 
-                    var ExpenseTypeListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 83);
+                    var ExpenseTypeListEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 83);
                     var ExpenseTypeListEndpointinfo = ExpenseTypeListEndpoint.Endpoint;
 
                     var requestBody = new Dictionary<string, string>
@@ -361,7 +266,7 @@ namespace Uninet.DATA.Services
 
                 if (DocumentApprovedtoUninet==true)
                 {
-                    var ExpenseTypeListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 83);
+                    var ExpenseTypeListEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 83);
                     var ExpenseTypeListEndpointinfo = ExpenseTypeListEndpoint.Endpoint;
 
                     var requestBody = new Dictionary<string, string>
@@ -381,7 +286,7 @@ namespace Uninet.DATA.Services
             return ExpenseTypeList;
         
             //////////////////////////////////////////////////////////////////////
-            //var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
+            //var InternalCompanyId = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
             //var filter = Builders<BsonDocument>.Filter.And(
             //    Builders<BsonDocument>.Filter.Eq("internalcompanid", InternalCompanyId.BusinessId),
             //    Builders<BsonDocument>.Filter.Eq("UserID", userId)
@@ -526,15 +431,15 @@ namespace Uninet.DATA.Services
 
                 //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
-                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                var CheckUsermasterExist =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
                 if (CheckUsermasterExist != null)
                 {
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId== SubCompanyId);
+                    UserexternalSystemDynamicFieldslist =await  _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId== SubCompanyId);
                 }
                 else
                 {
-                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    var GetRelatedMasterId =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
                     userId = GetRelatedMasterId.Userid;
                 }
                  
@@ -572,7 +477,7 @@ namespace Uninet.DATA.Services
                 //var resSUpplierLIst = await GetClientSupplierList(userId);
 
                 //BusinessData
-                var RowBusinessData = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == expensesUserDoRequest.JsonDocumentid);
+                var RowBusinessData = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == expensesUserDoRequest.JsonDocumentid);
                 //extract doctype,DocDate,total from IcountDocInfo
                 string docnum = "";
                 string Doctype = "";
@@ -943,7 +848,7 @@ namespace Uninet.DATA.Services
 
 
 
-                        var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 76);
+                        var ClinetinfoEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 76);
                         var endpointClinetinfo = ClinetinfoEndpoint.Endpoint;
 
                         //var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", expensesUserDoRequest.ClientVat_id);
@@ -1043,7 +948,7 @@ namespace Uninet.DATA.Services
                 string jsonResult = "";
                 text = "UserID=" + UserID + "***";
                 List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
-                var ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<Businesses>(x => x.AdminUserid == UserID);
+                var ResListOfCompaniesRelatedToLogedinUser =await _repository.GetListOfObjectsAsync<Businesses>(x => x.AdminUserid == UserID);
                 text= text+"result from " +System.Text.Json.JsonSerializer.Serialize(ResListOfCompaniesRelatedToLogedinUser);
                 //loop on the list of Companies for each company attached to user we need to extract her vat_id from IcountCompanisInfo 
                 foreach (var Company in ResListOfCompaniesRelatedToLogedinUser)
@@ -1233,6 +1138,7 @@ namespace Uninet.DATA.Services
         {
             try
             {
+                ////remark eyal** to  get total amount only from icount and not from BusinessData table
                 // Use the repository to query the BusinessData table
                 var count = _repository.GetListOfObjects<BusinessData>(data => data.BusinessVatId == vatId && data.UserId== UserID && data.BusinessId== MainCompanyId && data.SubCompanyId==subCopmanyId)
                     .GroupBy(data => new { data.UserId, data.BusinessId, data.SubCompanyId, data.BusinessVatId })
@@ -1251,6 +1157,8 @@ namespace Uninet.DATA.Services
         {
             try
             {
+
+                ///remark eyal** to  get total amount only from icount and not from BusinessData table
                 // Use the repository to query the BusinessData table
                 var count = _repository.GetListOfObjects<BusinessData>(data => data.ClientVat_id == Convert.ToInt32(vatId) && data.UserId == UserID && data.BusinessId == MainCompanyId && data.SubCompanyId == subCopmanyId)
                     .GroupBy(data => new { data.UserId, data.BusinessId, data.SubCompanyId, data.ClientVat_id })
@@ -1273,7 +1181,7 @@ namespace Uninet.DATA.Services
             {
                 return "Connected to Uninet";
             }
-            else
+            else 
             {
                 // Implement logic to determine other status values based on your requirements
                 // For example:
@@ -1283,11 +1191,11 @@ namespace Uninet.DATA.Services
                 return "Still not connected";
             }
         }
-        private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId)
+        private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
         {
             var suppliersList = new List<BusinessPartnerProp>();
 
-            var supplierget_listEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);
+            var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
             var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
             HttpMethod methodsupplierget_list = HttpMethod.Get;
             var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
@@ -1303,7 +1211,45 @@ namespace Uninet.DATA.Services
 
                 int docAmount = GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId);
                 string status = await GetStatus(vatId);
-                DateTime lastInvitationDate = DateTime.Now;
+                DateTime? lastInvitationDate = null;
+                ActionItem action = null;
+
+                if (status == "Connected to Uninet")
+                {
+                    action = new ActionItem("Connected", ActionType.String);
+                }
+                else if (status == "Still not connected")
+                {
+                    var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+                    if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+                    {
+                        if (BusinessPartnersObj.EmailSent.Value)
+                        {
+                            var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                            if (difference.TotalDays < 365)
+                            {
+                                status = "Still not connected";
+                                action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                            }
+                            else
+                            {
+                                status = "Still not connected";
+                                action = new ActionItem("Invite", ActionType.Button);
+                            }
+                        }
+                        else
+                        {
+                            status = "Missing email details";
+                            action = new ActionItem("Complete details", ActionType.Button);
+                        }
+                    }
+                    else
+                    {
+                        status = "Waiting for invitation";
+                        action = new ActionItem("Invite", ActionType.Button);
+                    }
+                }
 
                 suppliersList.Add(new BusinessPartnerProp
                 {
@@ -1312,25 +1258,27 @@ namespace Uninet.DATA.Services
                     DocAmount = docAmount,
                     Status = status,
                     LastInvitationDate = lastInvitationDate,
-                    Actions = null
+                    Actions = action
                 });
             }
 
             return suppliersList;
         }
+
         // Function to handle case 2 logic
-        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId)
+        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId,int ExtrnalsystemIdOfsubCopmanyId)
         {
             var clientsList = new List<BusinessPartnerProp>();
 
-            var clientget_listEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 84);
+            var clientget_listEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
             var endpointclientget_list = clientget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
             HttpMethod methodclientget_list = HttpMethod.Get;
             var Reponsneclientget_list = await SendRequest(endpointclientget_list, methodclientget_list);
             var jsonDocumentclientget_list = JsonDocument.Parse(Reponsneclientget_list);
             var jsonDataclientget_list = jsonDocumentclientget_list.RootElement;
             var clientget_lisData = jsonDataclientget_list.GetProperty("clients");
-
+            ////eyal** addd check if the email example contact@dapar.co.il of the vatid is on adminusers and than check if it is in this table
+            ///[UsersExternalSystemDynamicFields]  it means he registered into uninet system 
             foreach (var client in clientget_lisData.EnumerateObject())
             {
                 var clientData = client.Value;
@@ -1339,7 +1287,42 @@ namespace Uninet.DATA.Services
 
                 int docAmount = GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId);
                 string status = await GetStatus(vatId);
-                DateTime lastInvitationDate = DateTime.Now;
+                var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+                DateTime? LastInvitationDate = BusinessPartnersObj.LastDateSent;
+
+                ActionItem action = null;
+
+                if (status == "Connected to Uninet")
+                {
+                    action = new ActionItem("Connected", ActionType.String);
+                }
+                else if (status == "Still not connected")
+                {
+                    if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value==true)
+                    {
+                        var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                        if (difference.TotalDays < 365)
+                        {
+                            status = "Still not connected";
+                            action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                        }
+                        else
+                        {
+                            status = "Still not connected";
+                            action = new ActionItem("Invite", ActionType.Button);
+                        }
+                    }
+                    else if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value == false)//failed to send email 
+                    {
+                        status = "Missing email details";
+                        action = new ActionItem("Complete details", ActionType.Button);
+                    }
+                    else if (BusinessPartnersObj == null )
+                    {
+                        status = "Waiting for invitation";
+                        action = new ActionItem("Invite", ActionType.Button);
+                    }
+                }
 
                 clientsList.Add(new BusinessPartnerProp
                 {
@@ -1347,10 +1330,11 @@ namespace Uninet.DATA.Services
                     VatId = vatId,
                     DocAmount = docAmount,
                     Status = status,
-                    LastInvitationDate = lastInvitationDate,
-                    Actions = null
+                    LastInvitationDate = LastInvitationDate,
+                    Actions = action
                 });
             }
+
 
             return clientsList;
         }
@@ -1365,11 +1349,12 @@ namespace Uninet.DATA.Services
                   Both = 3
                 */
                 //get  the companyid related to the user 
-                int MainCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId).BusinessId;
+                var MainCompanyIdObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
+                int MainCompanyId = MainCompanyIdObj.BusinessId;
 
                 ///get credentials of userexternalsystem 
-                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == MainCompanyId && x.Userid == userId && x.SubCompayId== subCopmanyId);
-
+                var UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == MainCompanyId && x.Userid == userId && x.SubCompayId== subCopmanyId);
+                int ExtrnalsystemIdOfsubCopmanyId = UserexternalSystemDynamicFieldslist[0].ExternalSystemId;
                 string cidvalue = null;
                 string uservalue = null;
                 string passvalue = null;
@@ -1402,14 +1387,14 @@ namespace Uninet.DATA.Services
                 {
                     case 1:
                         //get suppliers
-                        businessPartnersSupliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        businessPartnersSupliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
                         return businessPartnersSupliers;
 
 
 
                         break;
                     case 2:
-                        businessPartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        businessPartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
                         return businessPartnersClients;
 
 
@@ -1418,8 +1403,8 @@ namespace Uninet.DATA.Services
 
                         break;
                     case 3:
-                        var PartnersSuppliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
-                        var PartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId);
+                        var PartnersSuppliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
+                        var PartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
                         var mergedList = PartnersSuppliers.Concat(PartnersClients).ToList();
                         return mergedList;
 
@@ -1496,16 +1481,17 @@ namespace Uninet.DATA.Services
                 List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser = null;
                 DigitalDocumentToApproveObj resObj = new DigitalDocumentToApproveObj();
                 resObj.listDigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
-                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == UserID);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                var CheckUsermasterExist =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == UserID);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
                 int MainCompanyId = 0;
                 if (CheckUsermasterExist!=null)//the user is master
                 {
-                    MainCompanyId= _repository.GetFirstObject<Businesses>(x => x.AdminUserid == UserID).BusinessId;
-                    ResListOfCompaniesRelatedToLogedinUser = _repository.GetListOfObjects<MainSubCopmaniesMasters>(x => x.MainCompanyId == MainCompanyId);
+                    var MainCompanyIdObj= await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == UserID);
+                    MainCompanyId = MainCompanyIdObj.BusinessId;
+                    ResListOfCompaniesRelatedToLogedinUser = await _repository.GetListOfObjectsAsync<MainSubCopmaniesMasters>(x => x.MainCompanyId == MainCompanyId);
                 }
                 else
                 {
-                    var MainCompanyIdObj = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == UserID);
+                    var MainCompanyIdObj = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == UserID);
                     MainCompanyId = MainCompanyIdObj.CompanyId;
                     ResListOfCompaniesRelatedToLogedinUser = GetMainSubCompanies(UserID, MainCompanyId);
                 }
@@ -1536,7 +1522,7 @@ namespace Uninet.DATA.Services
                     if (subCompanyId != default)
                     {
                         
-                        var SubCopmaniesMastersRow= _repository.GetFirstObject<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
+                        var SubCopmaniesMastersRow=await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
                         SubCopmaniesMastersRow.LastTimeDataShowed = DateTime.Now; // Current DateTime
 
                         await _repository.UpdateAsync(SubCopmaniesMastersRow);
@@ -1549,7 +1535,7 @@ namespace Uninet.DATA.Services
                 }
                 else
                 {
-                    var SubCopmaniesMastersRow = _repository.GetFirstObject<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
+                    var SubCopmaniesMastersRow =await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subCompanyId && x.MainCompanyId == MainCompanyId);
                     SubCopmaniesMastersRow.LastTimeDataShowed = DateTime.Now; // Current DateTime
 
                     await _repository.UpdateAsync(SubCopmaniesMastersRow);
@@ -1593,17 +1579,20 @@ namespace Uninet.DATA.Services
                     switch (Typelist)
                     {
                         case "notApproveOrRejected":
-                            totalCount= totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null).Count();
+                            var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                            totalCount= totalCountObj.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
                                 UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null);
                             break;
                         case "Rejected":
-                            totalCount = totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false).Count();
+                            var totalCountObj1 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
+                            totalCount = totalCountObj1.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
                                 UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, false);
                             break;
                         case "Approved":
-                            totalCount = totalCount = _repository.GetListOfObjects<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true).Count();
+                            var totalCountObj2 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
+                            totalCount = totalCountObj2.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
                                 UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, true);
                             break;
@@ -1661,10 +1650,7 @@ namespace Uninet.DATA.Services
 
                  //}
 
-                //here added logic eyal to add a  new collection to icountClientSuppliers mongodb collection
-                //foreach (var Company in ResListOfCompaniesRelatedToLogedinUser)
-                //{
-                    var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == MainCompanyId && x.Userid == UserID && x.SubCompayId== subCompanyId);
+                    var UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == MainCompanyId && x.Userid == UserID && x.SubCompayId== subCompanyId);
 
                     string cidvalue = null;
                     string uservalue = null;
@@ -1692,7 +1678,7 @@ namespace Uninet.DATA.Services
                             // Use the pass value as needed
                         }
                     }
-                    var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
+                    var ClinetinfoEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);  ////api.icount.co.il/api/v3.php/supplier/get_list
                     var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod methodclientinfo = HttpMethod.Get;
                     var ReponsneClientInfo = await SendRequest(endpointClinetinfo, methodclientinfo);
@@ -1733,7 +1719,7 @@ namespace Uninet.DATA.Services
                     
 
                     //added logic eyal to add json to expensesmongodb
-                    var ExpenseSearchObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 77);//api.icount.co.il/api/v3.php/expense/search
+                    var ExpenseSearchObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 77);//api.icount.co.il/api/v3.php/expense/search
                     var ExpenseSearchEndpoint = ExpenseSearchObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue; //+ "&supplier_id=" + supplierId.ToString();
                     HttpMethod methodexpenseserach = HttpMethod.Get;
                     var ReponsneExpenseSearch = await SendRequest(ExpenseSearchEndpoint, methodexpenseserach);
@@ -1768,7 +1754,7 @@ namespace Uninet.DATA.Services
 
 
                     //start add logic add json to _IcountExpensesTypes
-                    var AllExpensesTypeObj = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 78);//api.icount.co.il/api/v3.php/expense/types
+                    var AllExpensesTypeObj =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 78);//api.icount.co.il/api/v3.php/expense/types
                     var AllExpensesEndpoint = AllExpensesTypeObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod AllExpensesMethod = HttpMethod.Get;
                     var ReponsneAllExpensesTypes = await SendRequest(AllExpensesEndpoint, AllExpensesMethod);
@@ -1795,7 +1781,7 @@ namespace Uninet.DATA.Services
                     {
                         _IcountExpensesTypes.InsertOne(bsonDocumentExpensetypes);
                     }
-                    //end add logic add json to _IcountExpensesTypes
+                //end add logic add json to _IcountExpensesTypes
 
 
 
@@ -1803,14 +1789,17 @@ namespace Uninet.DATA.Services
 
                 //}
 
-                
+
                 //if (CheckUsermasterExist.IsMasterUser == true)
                 //{
                 //    FullName = ResListOfCompaniesRelatedToLogedinUser[0].FirstName + " " + ResListOfCompaniesRelatedToLogedinUser[0].LastName;
                 //}
                 //else
                 //{
-                    FullName = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == UserID).FirstName + " " + _repository.GetFirstObject<Businesses>(x => x.AdminUserid == UserID).LastName;
+                var firstnameObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == UserID);
+                var lastnameObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == UserID);
+
+                FullName = firstnameObj.FirstName + " " + lastnameObj.LastName;
                 //}
                 var Objres = new DigitalDocumentToApproveObj
                 {
@@ -1834,7 +1823,7 @@ namespace Uninet.DATA.Services
         {
             try
             {
-                var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.BusinessVatId == requestRejectDocument.BusinessVatId && x.ClientVat_id == requestRejectDocument.ClientVat_id && x.JsonDocumentid== requestRejectDocument.Jsondocumentid);
+                var businessDatarow =await   _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == requestRejectDocument.BusinessVatId && x.ClientVat_id == requestRejectDocument.ClientVat_id && x.JsonDocumentid== requestRejectDocument.Jsondocumentid);
                 if (businessDatarow != null) 
                 {
                     businessDatarow.DocumentApprovedtoUninet = false;
@@ -1909,7 +1898,7 @@ namespace Uninet.DATA.Services
         //                // Use the pass value as needed
         //            }
         //        }
-        //        var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);
+        //        var ExpenseCreateEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 79);
         //        var endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
 
 
@@ -1937,7 +1926,7 @@ namespace Uninet.DATA.Services
             {
 
                 //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
-               // var ClientVat_id = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
+               // var ClientVat_id = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
 
 
                 //now get SubCompanyId from  _IcountCompaniesInfoCollection
@@ -1970,19 +1959,19 @@ namespace Uninet.DATA.Services
 
 
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
-                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                var CheckUsermasterExist =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
                 if (CheckUsermasterExist != null)
                 {
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
+                    UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
                 }
                 else
                 {
-                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    var GetRelatedMasterId =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
                     userId = GetRelatedMasterId.Userid;
                 }
 
-                //var InternalCompanyId = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userId);
+                //var InternalCompanyId = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
                 
 
                 string cidvalue = null;
@@ -2010,7 +1999,7 @@ namespace Uninet.DATA.Services
                         // Use the pass value as needed
                     }
                 }
-                var AddexpenseTypeEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 80);
+                var AddexpenseTypeEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 80);
                 string EndpointAddexpenseType = AddexpenseTypeEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
 
@@ -2069,8 +2058,8 @@ namespace Uninet.DATA.Services
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
                
                 //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
-                var ClientVat_id = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
-
+                var businessData = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
+                var ClientVat_id = businessData?.ClientVat_id;
 
                 //now get SubCompanyId from  _IcountCompaniesInfoCollection
                 var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", ClientVat_id.ToString());
@@ -2091,7 +2080,7 @@ namespace Uninet.DATA.Services
                 }
 
 
-                var CheckUsermasterExist = _repository.GetFirstObject<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
+                var CheckUsermasterExist =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
 
 
 
@@ -2100,13 +2089,13 @@ namespace Uninet.DATA.Services
 
                 if (CheckUsermasterExist != null)//user is a master
                 {
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
+                    UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
                     
                 }
                 else
                 {
-                    var GetRelatedMasterId = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == userId);
-                    UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    var GetRelatedMasterId =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
+                    UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
                     userId = GetRelatedMasterId.Userid;
 
                 }
@@ -2138,7 +2127,7 @@ namespace Uninet.DATA.Services
                         // Use the pass value as needed
                     }
                 }
-                var ExpenseCreateEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 79);//https://api.icount.co.il/api/v3.php/expense/create
+                var ExpenseCreateEndpoint =await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 79);//https://api.icount.co.il/api/v3.php/expense/create
                 string endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
 
@@ -2148,7 +2137,7 @@ namespace Uninet.DATA.Services
                 //var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
                 ////now we should loop on the resSUpplierLIst
                 ////and find if the vatId exist in the suplier list
-                //var BusinessVatId = _repository.GetFirstObject<BusinessData>(x => x.BusinessId == insertUserDigitalDocRequest.internalCompanyId);
+                //var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessId == insertUserDigitalDocRequest.internalCompanyId);
                 //var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(BusinessVatId));
                 //receiptDate   "2024-01-17"
                 string dateissued = "";
@@ -2262,7 +2251,7 @@ namespace Uninet.DATA.Services
                 // Handle the result as needed
                if (response.status)
                 {
-                    var businessDatarow = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
+                    var businessDatarow =await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
                     if (businessDatarow != null)
                     {
                         businessDatarow.DocumentApprovedtoUninet = true;

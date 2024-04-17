@@ -112,20 +112,20 @@ namespace UninetWebApi2.Controllers
             //services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
 
 
-            services.AddDbContext<UninetBatchContext>(options =>
-            {
-                options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
-            }, ServiceLifetime.Singleton);
+            //services.AddDbContext<UninetBatchContext>(options =>
+            //{
+            //    options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
+            //}, ServiceLifetime.Singleton);
 
             ////for batch services
-            services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
+            //services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
             
-            services.AddSingleton<IuninetBatchDataAccess, uninetBatchDataAccess>();
+            //services.AddSingleton<IuninetBatchDataAccess, uninetBatchDataAccess>();
 
-            services.AddSingleton<IHostedService, PullUsersData>();
-            services.AddSingleton<IHostedService, PushExpensesToCompanyClient>();
+            //services.AddSingleton<IHostedService, PullUsersData>();
+            //services.AddSingleton<IHostedService, PushExpensesToCompanyClient>();
             
-            services.AddSingleton<IBatchDataMailassist, BatchDataMailassist>();
+            //services.AddSingleton<IBatchDataMailassist, BatchDataMailassist>();
             
             
             var jwtTokenConfig = Configuration.GetSection("jwtTokenConfig");

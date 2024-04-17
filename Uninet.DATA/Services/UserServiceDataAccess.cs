@@ -212,13 +212,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             BusinessPartnerLists BPL = new BusinessPartnerLists();
             var emailList = new List<ClientObj>(); // Initialize the list to collect email addresses
             var supplierList=new List<SupplierObj>();
-            var existingUser = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == userid);
+            var existingUser =await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == userid);
             existingUser.ClickedButtonToInviteBusinessPartners = true;
             await _repository.UpdateAsync(existingUser);
-            var UsercompanyObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userid);
+            var UsercompanyObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userid);
             if (UsercompanyObj != null)
             {
-                var IcountgetClientListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 84);
+                var IcountgetClientListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
 
                 var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == UsercompanyObj.BusinessId && x.Userid == userid);
 
@@ -261,7 +261,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 }
                 BPL.ClientEmailList= emailList;
 
-                var IcountgetSupplierListEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 75);
+                var IcountgetSupplierListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
                 var IcountgetSupplierListEndpointEdited = IcountgetSupplierListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                 HttpMethod methodIcountgetSupplierListEndpoint = HttpMethod.Post;
                 var ResponseIcountgetSupplierListEndpoint = await _UninetInputDataAccess.SendRequest(IcountgetSupplierListEndpointEdited, methodIcountgetSupplierListEndpoint);
@@ -298,7 +298,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 // Get the value of the client_id property
                 string clientId = item.GetProperty("client_id").GetString();
-                var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var ClinetinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&client_id=" + clientId;
                 HttpMethod methodclientinfo = HttpMethod.Get;
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
@@ -322,7 +322,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 string doctype = item.GetProperty("doctype").GetString();
                 string docnum = item.GetProperty("docnum").GetString();
 
-                var DocinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 72); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var DocinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 72); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointdocInfo = DocinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&doctype=" + doctype + "&docnum=" + docnum;
                 HttpMethod methoddocinfo = HttpMethod.Get;
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
@@ -387,7 +387,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
-                var IcountWebhookEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 82);
+                var IcountWebhookEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 82);
                 var IcountWebhookEndpointEdited = IcountWebhookEndpoint.Endpoint + baseUrl + "&action=doc.create";
                 HttpMethod methodIcountWebhookEndpoint = HttpMethod.Post;
                 var ReponsneIcountWebhookEndpoint = await _UninetInputDataAccess.SendRequest(IcountWebhookEndpointEdited, methodIcountWebhookEndpoint);
@@ -428,7 +428,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     
                 };
                
-                var BusinessesObj = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
+                var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
 
                 if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
                 {
@@ -451,7 +451,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                    
 
-                    var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                    var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
                     var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod methodcomopanyinfo = HttpMethod.Get;
                     var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
@@ -475,7 +475,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             //https://api.icount.co.il/api/v3.php/webhook/add
                             //but before calling i need to find out if it already exist in our database related to an internal companyid
                             //start logic of addig webhook to icount
-                            var LUTIcountSourceWebhookCompanyMappingRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
+                            var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
 
                             string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
                             JsonElement rootWebhookEndpointjsonDocument;
@@ -512,7 +512,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                             if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
                             {
-                                var LUTIcountSourceWebhookCompanyMappingnewRow = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
+                                var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
                                 if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
                                 {
                                     LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
@@ -576,7 +576,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             if (ReponsneCompanyInfo != null)
                             {
                                 //DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-                                var AdminUserRow = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(UserId));
+                                var AdminUserRow = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(UserId));
                                 // Define the time zone ID for Israel
                                 string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
@@ -599,7 +599,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                                 await SetLastPullDataDate(Convert.ToInt32(vatid));
                             }
-                            var docsearchEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
+                            var docsearchEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
 
                             string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString("MM/dd/yyyy HH:mm:ss") + "&end_ts=" + EndPulldata.ToString("MM/dd/yyyy HH:mm:ss");
                             HttpMethod methoddocsearch = HttpMethod.Get;
@@ -715,7 +715,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         // Set other properties as needed
                     };
                     Int32 intuserid = Convert.ToInt32(UserId);
-                    var res_UninetExternalSystems = _repository.GetFirstObject<UsersExternalSystemDynamicFields> (x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid== intuserid);
+                    var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields> (x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid== intuserid);
                     if (res_UninetExternalSystems != null)
                     {
                        await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
@@ -830,7 +830,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                                                               //select * from LUT_UninetExternalSystems
 
 
-                var res_logo_video = _repository.GetFirstObject< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
+                var res_logo_video = await _repository.GetFirstObjectAsync< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
                 foreach (var item in res)
                 {
                     var customizedData = new CustomizedDataLIst
@@ -881,7 +881,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //{
         //    try
         //    {
-        //        var Adminuserobj = _repository.GetFirstObject<AdminUsers>(x => x.GuidVerification == Userguid );// && x.Password == model.P
+        //        var Adminuserobj = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.GuidVerification == Userguid );// && x.Password == model.P
         //        if (Adminuserobj != null) 
         //        {
         //            return true;
@@ -1247,7 +1247,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
                 // Check if user already has a row in useradmin so we can send them the OTP again
-                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == resentOtpRequest.Email && x.AdminUserid== DecryptedUserId);
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == resentOtpRequest.Email && x.AdminUserid== DecryptedUserId);
                 if (result == null)
                 {
                     var res = new ResponseResendOtp
@@ -1417,7 +1417,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     passwordEncrypted=RegisterUserReq.Password
                 };
 
-                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
                 if (result != null)
                 {
                     
@@ -1502,7 +1502,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                 // Convert server's DateTime.Now to Israel local time
                 DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
-                var adminuserObj = _repository.GetFirstObject<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
+                var adminuserObj = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
                 if (adminuserObj != null) {
 
                     if (israelNow > adminuserObj.ExpiredpasswordTokenDate)
@@ -1556,7 +1556,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
-                var businessdatarow = _repository.GetFirstObject<BusinessData>(x => x.JsonDocumentid == getActiveTabRequest.JsonDocumentId);
+                var businessdatarow = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == getActiveTabRequest.JsonDocumentId);
                 if (businessdatarow!=null)
                 {
                     string ActiveKy = "";
@@ -1608,13 +1608,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 Businesses q1q2_res = null; // Declare q1q2_res as Businesses type
                 UsersExternalSystemDynamicFields q3_res = null; // Declare q3_res as UsersExternalSystemDynamicFields type
-                var userexistbyemailguid = _repository.GetFirstObject<AdminUsers>(x => x.EmailGuidVerification == EmailGuidVerification);
+                var userexistbyemailguid = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.EmailGuidVerification == EmailGuidVerification);
                 if (userexistbyemailguid != null)
                 {
-                    q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == userexistbyemailguid.AdminUserid);
+                    q1q2_res = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userexistbyemailguid.AdminUserid);
                     if (q1q2_res != null)
                     {
-                        q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == userexistbyemailguid.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                        q3_res = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Userid == userexistbyemailguid.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
                     }
                     var Response = new LoginWithEmailandPasswordResponse
                     {
@@ -1651,7 +1651,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             try
             {
                 // Check if the user exists in the database based on the provided email
-                var user = _repository.GetFirstObject<AdminUsers>(x => x.Email == forgotPasswordRequest.Email);
+                var user = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == forgotPasswordRequest.Email);
                 // Define the time zone ID for Israel
                 string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
@@ -1719,7 +1719,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 string googleId = googlesignInrequest.GoogleId;
 
                 // 1. Check if the Google ID and email exist in the database
-                var existingUseremailandgoogleid = _repository.GetFirstObject<AdminUsers>(x => x.GoogleId == googleId && x.Email == email);
+                var existingUseremailandgoogleid = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.GoogleId == googleId && x.Email == email);
                 //var existingUser = await _dbContext.AdminUsers.FirstOrDefaultAsync(x => x.GoogleId == googleSignInResponse.GoogleId && x.Email == googleSignInResponse.Email);
 
                 if (existingUseremailandgoogleid != null)
@@ -1740,7 +1740,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 else
                 {
                     // Check if the email exists in the database
-                    var existingUserwithemail = _repository.GetFirstObject<AdminUsers>(u => u.Email == email);
+                    var existingUserwithemail = await _repository.GetFirstObjectAsync<AdminUsers>(u => u.Email == email);
                     if (existingUserwithemail != null)
                     {
                         // If the email exists, check if the Google ID in the database is empty or null
@@ -1993,10 +1993,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 Businesses q1q2_res = null;
                 UsersExternalSystemDynamicFields q3_res = null;
-                q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == q1q4request.Userid);
+                q1q2_res = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == q1q4request.Userid);
                 if (q1q2_res != null)
                 {
-                    q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == q1q4request.Userid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                    q3_res = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Userid == q1q4request.Userid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
                 }
                 var Response = new Q1_Q4_Result
                 {
@@ -2026,7 +2026,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
                 UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
                 SubUserCredentials q3_res_subuser = null;
-                var result = _repository.GetFirstObject<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
                 if (result != null)
                 {
                     string israelTimeZoneId = "Israel Standard Time";
@@ -2041,13 +2041,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                     if (result != null)
                     {
-                        q1q2_res = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == result.AdminUserid);
+                        q1q2_res = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == result.AdminUserid);
                         if (q1q2_res != null)
                         {
-                            q3_res = _repository.GetFirstObject<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
+                            q3_res = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
                             if (q3_res==null)
                             {
-                                q3_res_subuser = _repository.GetFirstObject<SubUserCredentials>(x => x.SubUserId == result.AdminUserid );
+                                q3_res_subuser = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == result.AdminUserid );
                             }
 
 
@@ -2180,7 +2180,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
-                var result = _repository.GetFirstObject<AdminUsers>(x => x.PhoneNumber == _sendOtpRequest.Phone);// && x.Password == model.Password x.Email == "admin@abc.com
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.PhoneNumber == _sendOtpRequest.Phone);// && x.Password == model.Password x.Email == "admin@abc.com
                 if (result != null)
                 {
                     string Otp = "";

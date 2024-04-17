@@ -135,10 +135,10 @@ namespace Uninet.DATA.Services
 
                         BusinessRequests = parameter.Value // retrieve the value of the parameter
                     };
-                    var result = _repository.ExecuteGetSP<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
+                    var result =await _repository.ExecuteGetSPAsync<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
                     try
                     {
-                        var res = result.ToList();
+                        var res = result;
                     }
                     catch (Exception ex) { }
 
@@ -417,7 +417,7 @@ namespace Uninet.DATA.Services
             {
                 // Get the value of the client_id property
                 string clientId = item.GetProperty("client_id").GetString();
-                var ClinetinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
+                var ClinetinfoEndpoint =  _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 73); /// call-https://api.icount.co.il/api/v3.php/company/info
                 var endpointClinetinfo = ClinetinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&client_id=" + clientId;
                 await WriteToTableAsync(9, "UrlendpointClinetinfo", endpointClinetinfo);
                 HttpMethod methodclientinfo = HttpMethod.Get;
@@ -530,7 +530,7 @@ namespace Uninet.DATA.Services
 
                     ///get the comopany info to know what was the started date to get documents from this started date
 
-                    var comopanyinfoEndpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                    var comopanyinfoEndpoint =  _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
                     var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod methodcomopanyinfo = HttpMethod.Get;
                     await WriteToTableAsync(3, "CompanyInfoUrlRequest", endpointcomopanyinfo);
@@ -541,7 +541,7 @@ namespace Uninet.DATA.Services
                     // string propertyPathstart_date = "company_info.start_date";
 
                     //DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-                    var AdminUserRow = _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == Userid);
+                    var AdminUserRow =  _repository.GetFirstObject<AdminUsers>(x => x.AdminUserid == Userid);
 
 
                     string propertyPathVatid = "company_info.vat_id";

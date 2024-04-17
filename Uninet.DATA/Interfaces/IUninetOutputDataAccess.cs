@@ -18,6 +18,6 @@ namespace Uninet.DATA.Interfaces
 
         Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId);
 
-        Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId, int Lang);
+        
     }
 }

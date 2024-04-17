@@ -240,10 +240,14 @@ namespace Uninet.DATA.Services
                     ////but we have two lines with 1372 in _IcountCompaniesInfoCollection one with "SubCompanyId": 13 and the other with 
                     /// "SubCompanyId": 5 and we nee to filter with "SubCompanyId": 13 
                     ///
-                    int internalCompanySenderId = _repository.GetFirstObject<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid)).Internalcompanyid;
+                    var internalCompanySenderIdObj = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid));
+                    int internalCompanySenderId = internalCompanySenderIdObj.Internalcompanyid;
+                    var UserIdAttachedToCompanySenderIdObj= await _repository.GetFirstObjectAsync<Businesses>(x => x.BusinessId == internalCompanySenderId);
+                    int UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
 
-                    int UserIdAttachedToCompanySenderId = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId ).AdminUserid;
-                    string OrganiztionName = _repository.GetFirstObject<Businesses>(x => x.BusinessId == internalCompanySenderId).OrganizationName;
+
+                    var OrganiztionNameObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.BusinessId == internalCompanySenderId);
+                    string OrganiztionName = OrganiztionNameObj.OrganizationName;
 
 
                     /////get businessvatid from IcountCompanisInfo
@@ -493,7 +497,7 @@ namespace Uninet.DATA.Services
                         bd.JsonDocumentid == oid_value;
 
                     // Use the GetFirstObject method to check if the record exists
-                    var existingBusinessData = _repository.GetFirstObject(predicate);
+                    var existingBusinessData = await _repository.GetFirstObjectAsync(predicate);
                     if (existingBusinessData == null)
                     {
 
@@ -732,7 +736,7 @@ namespace Uninet.DATA.Services
 
         //        //now get the end point url for this businessId
         //        //here comes the logic that decide what apiid to callto for this example we will use 27 -- /api/v1/documents/{id}
-        //        //var Endpoint = _repository.GetFirstObject<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
+        //        //var Endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 27);////remark this meanwhile
         //        //string StrEndpoint = "https://private-anon-5e08cc171e-greeninvoice.apiary-mock.com" + Endpoint; ////remark this meanwhile
 
 
@@ -856,10 +860,10 @@ namespace Uninet.DATA.Services
 
                         BusinessRequests = parameter.Value // retrieve the value of the parameter
                     };
-                    var result = _repository.ExecuteGetSP<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
+                    var result =await _repository.ExecuteGetSPAsync<AddBusinessDataToSQLFromGreenINvoiceResponse>(ConstUninetStoredprocedure.SP_InsertGreenvoiceJsonDetailsIntoDB, UserParam);
                     try
                     {
-                        var res = result.ToList();
+                        var res = result;
                     }
                     catch(Exception ex) { }
                    

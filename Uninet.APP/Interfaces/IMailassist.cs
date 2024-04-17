@@ -12,7 +12,7 @@ namespace Uninet.APP.Interfaces
     {
         Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int TemplateId, int Lang,string encryptedUserId = "", string Name = null);
 
-
+        Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(string VatId, string userId, int Lang);
 
     }
 }

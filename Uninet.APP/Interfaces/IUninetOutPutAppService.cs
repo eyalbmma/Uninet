@@ -20,7 +20,7 @@ namespace Uninet.APP.Interfaces
 
         Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist, int? subCompanyId, int pageNumber, int pageSize);
 
-        Task<SendOtpViaMailResponse> SendEmail(string VatId, string userId,int Lang);
+       
 
     }
 }

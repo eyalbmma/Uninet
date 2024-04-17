@@ -48,9 +48,9 @@ namespace Uninet.Domain.Interfaces
 
         T Find<T>(Expression<Func<T, bool>> expression) where T : class;
 
-
-       
+        Task<T> GetFirstObjectAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         T GetFirstObject<T>(Expression<Func<T, bool>> filterExpression) where T : class;
+        Task<List<T>> GetListOfObjectsAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class;
         List<T> GetListOfObjectsPaging<T>(Expression<Func<T, bool>> filterExpression, int pageNumber, int pageSize) where T : class;
         Hashtable GetHashtableOfExternalFields(int Lang);

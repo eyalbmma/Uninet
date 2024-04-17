@@ -35,10 +35,10 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<UsersExternalSystemDynamicFields> UsersExternalSystemDynamicFields { get; set; }
 
         public virtual DbSet<SubUserCredentials> SubUserCredentials { get; set; }
-
         
+        public virtual DbSet<BusinessPartnersEmails> BusinessPartnersEmails { get; set; }
 
-         public virtual DbSet<InviteBusinessPartnerResult> InviteBusinessPartnerResult { get; set; }
+        public virtual DbSet<InviteBusinessPartnerResult> InviteBusinessPartnerResult { get; set; }
         public virtual DbSet<ApprovalMailIndication> ApprovalMailIndication { get; set; }
         public virtual DbSet<Businesses> Businesses { get; set; }
 
@@ -96,7 +96,9 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<SubUserCredentials>().HasKey(u => new { u.Userid, u.CompanyId, u.SubCompanyId,u.SubUserId });
             modelBuilder.Entity<BusinessData>().HasKey(u => new { u.UserId, u.BusinessId,u.JsonDocumentid });
 
+            
 
+            modelBuilder.Entity<BusinessPartnersEmails>().HasKey(u => new { u.VatId, u.OrganizationId, u.UserId,u.SubCompanyId });
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
             modelBuilder.Entity<SaveIndicationOfSentApprovalMailToCustomerResponse>().HasNoKey();

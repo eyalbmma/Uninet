@@ -19,7 +19,7 @@ namespace Uninet.Domain.Models
         public string VatId { get; set; }
         public int DocAmount { get; set; }
         public string Status { get; set; }
-        public DateTime LastInvitationDate { get; set; }
+        public DateTime? LastInvitationDate { get; set; }
 
         public ActionItem Actions { get; set; }
     }

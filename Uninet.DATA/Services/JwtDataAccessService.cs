@@ -84,9 +84,9 @@ namespace Uninet.DATA.Services
 
                     RefreshToken = refreshToken
                 };
-                var result = _repository.ExecuteGetSP<GetUserIdByRefreshTokenResponse>(ConstUninetStoredprocedure.SP_GetUserIdByRefreshToken, Input);
-                var res = result.ToList();
-                return res[0].UserId;
+                var result =await _repository.ExecuteGetSPAsync<GetUserIdByRefreshTokenResponse>(ConstUninetStoredprocedure.SP_GetUserIdByRefreshToken, Input);
+                
+                return result[0].UserId;
             }
             catch (Exception ex)
             {
@@ -132,9 +132,9 @@ namespace Uninet.DATA.Services
 
                     Userid = Userid
                 };
-                var result = _repository.ExecuteGetSP<RefreshResponse>(ConstUninetStoredprocedure.SP_GetRefreshToken, Input);
-                var res = result.ToList();
-                return res[0].RefreshTkn;
+                var result =await _repository.ExecuteGetSPAsync<RefreshResponse>(ConstUninetStoredprocedure.SP_GetRefreshToken, Input);
+                
+                return result[0].RefreshTkn;
 
             }
             catch (Exception ex)
@@ -152,9 +152,9 @@ namespace Uninet.DATA.Services
                     RefreshTkn = refreshToken,
                     Userid = Userid
                 };
-                var result = _repository.ExecuteGetSP<SavedRefreshTokenResponse>(ConstUninetStoredprocedure.SP_UpdateInsertRefreshToken, RefreshInput);
-                var res = result.ToList();
-                return res[0].Success;
+                var result =await _repository.ExecuteGetSPAsync<SavedRefreshTokenResponse>(ConstUninetStoredprocedure.SP_UpdateInsertRefreshToken, RefreshInput);
+                
+                return result[0].Success;
 
             }
             catch (Exception ex)
@@ -179,13 +179,13 @@ namespace Uninet.DATA.Services
                     RefreshToken= refreshtoken,
                     userId = Userid
                 };
-                var result = _repository.ExecuteGetSP<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
-                var res = result.ToList();
+                var result =await _repository.ExecuteGetSPAsync<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
+                
 
-                if (res.Count > 0 && res[0].Result )
+                if (result.Count > 0 && result[0].Result )
                 {
                     // Extract the RefreshTokenExpireTime from the result
-                    DateTime refreshTokenExpireTime = res[0].RefreshTokenExpireTime;
+                    DateTime refreshTokenExpireTime = result[0].RefreshTokenExpireTime;
 
                     // Create and return the RefreshtokenresponseObj
                     var refreshtokenresponse = new RefreshtokenresponseObj

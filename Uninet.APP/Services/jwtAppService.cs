@@ -81,9 +81,8 @@ namespace Uninet.APP.Services
 
                     Userid = Userid
                 };
-                var result = _repository.ExecuteGetSP<RefreshResponse>(ConstUninetStoredprocedure.SP_GetRefreshToken, Input);
-                var res = result.ToList();
-                return res[0].RefreshTkn;
+                var result =await _repository.ExecuteGetSPAsync<RefreshResponse>(ConstUninetStoredprocedure.SP_GetRefreshToken, Input);
+                return result[0].RefreshTkn;
 
             }
             catch (Exception ex)
@@ -101,9 +100,8 @@ namespace Uninet.APP.Services
                     RefreshTkn = refreshToken,
                     Userid = Userid
                 };
-                var result = _repository.ExecuteGetSP<SavedRefreshTokenResponse>(ConstUninetStoredprocedure.SP_UpdateInsertRefreshToken, RefreshInput);
-                var res = result.ToList();
-                return res[0].Success;
+                var result =await _repository.ExecuteGetSPAsync<SavedRefreshTokenResponse>(ConstUninetStoredprocedure.SP_UpdateInsertRefreshToken, RefreshInput);
+                return result[0].Success;
 
             }
             catch (Exception ex)

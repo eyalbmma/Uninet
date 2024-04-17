@@ -26,11 +26,15 @@ namespace Uninet.DATA.Services
     public class DataMailassist: IDataMailassist
     {
         private readonly IRepository<UninetContext> _repository;
-
-        public DataMailassist(IRepository<UninetContext> repository)//, IloginRepository loginRepository
+        private readonly IMongoCollection<BsonDocument> _IcountCompaniesInfoCollection;
+        public DataMailassist(IRepository<UninetContext> repository, IMongoClient client)//, IloginRepository loginRepository
         {
            
             _repository = repository;
+
+
+            var database = client.GetDatabase("Uninet");
+            _IcountCompaniesInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
 
         }
 
@@ -91,8 +95,99 @@ namespace Uninet.DATA.Services
             return htmlBody;
         }
 
+        public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(string VatId, string userId, int Lang)
+        {
+            try
+            {
+                SendOtpViaMailResponse resmail = new SendOtpViaMailResponse();
+                string businessName = "";
+                int organizationId = 0;
+                int subCompanyId = 0;
+                string email = "";
 
+                var companyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", VatId);
+                var companyInfo = await _IcountCompaniesInfoCollection.Find(companyInfoFilterbyVatid).FirstOrDefaultAsync();
+                var companyInfobson = companyInfo["company_info"].AsBsonDocument;
 
+                email = companyInfobson.GetValue("email", "").AsString;
+                organizationId = companyInfobson.GetValue("InternalCompanyId", 0).AsInt32;
+                subCompanyId = companyInfobson.GetValue("SubCompanyId", 0).AsInt32;
+                businessName = companyInfobson.GetValue("businessName", "").AsString;
+
+                // Prepare the email entry
+                BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+                {
+                    VatId = Convert.ToInt32(VatId),
+                    EntityType = "SomeEntityType",
+                    OrganizationId = organizationId,
+                    UserId = Convert.ToInt32(userId),
+                    SubCompanyId = subCompanyId,
+                    EmailSent = !string.IsNullOrEmpty(email),
+                    LastDateSent = DateTime.UtcNow
+                };
+
+                // Check if a record already exists
+                var existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
+                    e.VatId == emailEntry.VatId &&
+                    e.OrganizationId == emailEntry.OrganizationId &&
+                    e.UserId == emailEntry.UserId &&
+                    e.SubCompanyId == emailEntry.SubCompanyId);
+
+                if (existingEntry != null)
+                {
+                    // Update last sent date and email sent status
+                    existingEntry.LastDateSent = DateTime.UtcNow;
+                    existingEntry.EmailSent = emailEntry.EmailSent;
+                    await _repository.UpdateAsync(existingEntry);
+                }
+                else
+                {
+                    // Create new record if it does not exist
+                    await _repository.CreateAsync(emailEntry);
+                }
+
+                if (!string.IsNullOrEmpty(email))
+                {
+                    resmail = await sendsmtpmail("הזמנה להצטרף ליונינט", "eyalbmma@gmail.com", email, 3, Lang, null, "", userId.ToString(), businessName);
+                    emailEntry.EmailSent = resmail.result;
+                    if (!resmail.result)
+                    {
+                        BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
+                        {
+                            VatId = Convert.ToInt32(VatId),
+                            EntityType = "SomeEntityType",
+                            OrganizationId = organizationId,
+                            UserId = Convert.ToInt32(userId),
+                            SubCompanyId = subCompanyId,
+                            EmailSent = false,
+                            LastDateSent = DateTime.UtcNow
+                        };
+                        if (existingEntry != null)
+                        {
+                            // Update last sent date and email sent status
+                           
+                            await _repository.UpdateAsync(emailEntry2);
+                        }
+                        else
+                        {
+                            // Create new record if it does not exist
+                            await _repository.CreateAsync(emailEntry2);
+                        }
+                    }
+                }
+                else
+                {
+                    resmail.result = false;
+                }
+
+                return resmail;
+            }
+            catch (Exception ex)
+            {
+                // Handle or log the exception
+                return null;
+            }
+        }
 
 
         public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null,string username=null,string encryptedUserId="",string Name=null)
@@ -106,8 +201,7 @@ namespace Uninet.DATA.Services
                 string userOtp = Generate_otp();
                 message.Subject = subject;
                 var ObjTemplateparam = new { TemplateId = Templateid, Lang = lang };
-                var res = _repository.ExecuteGetSP<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam).ToList();
-                // Define the time zone ID for Israel
+                var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
                 string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
                 // Get the Israel time zone
@@ -193,7 +287,7 @@ namespace Uninet.DATA.Services
                         break;
                     case 9:
 
-                        var adminuserobject = _repository.GetFirstObject<AdminUsers>(x => x.Email == To);
+                        var adminuserobject =await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == To);
                         if (adminuserobject != null)
                         {
                             string ResetPasswordLandingPage = "https://panel.uninet-io.com/reset-password?UserResetToken=" + adminuserobject.ResetPasswordToken + "&clicktracking=false";

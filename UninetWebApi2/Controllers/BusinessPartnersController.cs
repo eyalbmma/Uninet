@@ -8,7 +8,11 @@ using System.Threading.Tasks;
 using Uninet.APP.Interfaces;
 using Uninet.APP.Services;
 using Uninet.DATA.Interfaces;
+using Uninet.DATA.Services.MultipleContext;
+using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
+using Uninet.Domain.StoredProcedures.Constants;
+using Uninet.Domain.StoredProcedures.Responses;
 
 namespace UninetWebApi2.Controllers
 {
@@ -16,16 +20,18 @@ namespace UninetWebApi2.Controllers
     [ApiController]
     public class BusinessPartnersController : ControllerBase
     {
-        private readonly IUninetOutPutAppService _uninetOutPutAppService;
-        private readonly EnumRepository _enumRepository;
-       
         
-        public BusinessPartnersController(IUninetOutPutAppService uninetOutPutAppService, EnumRepository enumRepository, IDataMailassist dataMailassist, IMongoClient client)
+        private readonly EnumRepository _enumRepository;
+        private readonly IMailassist _mailasist;
+        //private readonly IRepository<UninetContext> _repository;
+        private IUninetOutPutAppService _uninetOutPutAppService;
+        public BusinessPartnersController(IMailassist mailassist, EnumRepository enumRepository, IUninetOutPutAppService uninetOutPutAppService)
         {
-           
-            _uninetOutPutAppService = uninetOutPutAppService;
-            _enumRepository = enumRepository;
-           
+            
+
+             _enumRepository = enumRepository;
+            _mailasist = mailassist;
+            _uninetOutPutAppService = uninetOutPutAppService;   
         }
 
 
@@ -35,23 +41,13 @@ namespace UninetWebApi2.Controllers
        
         public async Task<ActionResult> SendEmail([FromBody] SendEmailRequest sendEmailRequest)
         {
-            /*
-            public class BusinessPartnerProp
-                {
-                    public string BusinesspartnerName { get; set; }
-                    public string VatId { get; set; }
-                    public int DocAmount { get; set; }
-                    public string Status { get; set; }
-                    public DateTime LastInvitationDate { get; set; }
-
-                    public ActionItem Actions { get; set; }
-                }
-            
-            */
            
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var ObjTemplateparam = new { TemplateId = 3, Lang = 2 };
+            //var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
 
-            _uninetOutPutAppService.SendEmail(sendEmailRequest.VatId, userId, sendEmailRequest.Lang);
+
+            var res=await _mailasist.BusinessPartnerSendEmail(sendEmailRequest.VatId, userId, sendEmailRequest.Lang);
 
             
            

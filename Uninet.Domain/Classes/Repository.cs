@@ -222,7 +222,19 @@ namespace Uninet.Domain.Classes
             }
         }
 
-
+        public async Task<List<T>> GetListOfObjectsAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class
+        {
+            try
+            {
+                // Asynchronously execute the query and convert to a list
+                return await dbContext.Set<T>().Where(filterExpression).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                // Optionally log the exception here
+                return null;
+            }
+        }
         public List<T> GetListOfObjects<T>(Expression<Func<T, bool>> filterExpression) where T : class
         {
             try
@@ -346,6 +358,11 @@ namespace Uninet.Domain.Classes
 
         }
 
+
+        public async Task<T> GetFirstObjectAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class
+        {
+            return await dbContext.Set<T>().FirstOrDefaultAsync(filterExpression);
+        }
 
 
         /// <summary>
