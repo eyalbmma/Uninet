@@ -99,7 +99,7 @@ namespace UninetWebApi2.Controllers
                 var ForgotPasswordResponse = new ForgotPasswordResponse
                 {
                     Success = false,
-                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "An error occurred, the password was not reset" : "אירעה שגיאה, הסיסמא לא אופסה"
 
                 };
                 return Ok(ForgotPasswordResponse);

@@ -95,7 +95,7 @@ namespace UninetWebApi2.Controllers
                 res = new InviteBusinessPartnerResult
                 {
                     Success = true,
-                    textResponse = Lang == 1 ? "Email sent to all partners" : "נשלחו מיילים לשותפים העסקיים שלך"
+                    textResponse = Lang == 1 ? "Email sent to all business partners" : "נשלחו מיילים לשותפים העסקיים שלך"
                 };
                 //}
                 //else
@@ -115,7 +115,7 @@ namespace UninetWebApi2.Controllers
                 var res = new InviteBusinessPartnerResult
                 {
                     Success = false,
-                    textResponse = Lang == 1 ? "Failed to send Emails" : "כישלון בשליחת המיילים "
+                    textResponse = Lang == 1 ? "Failed to send Emails" : "כשלון בשליחת המיילים"
                 };
                 return Ok(res);
             }
@@ -143,11 +143,11 @@ namespace UninetWebApi2.Controllers
                 {
                     if (res.Result)
                     {
-                        message = RegisterUserReqWrap.Lang == 1 ? "company was added successfully" : "החברה התווספה בהצלחה";
+                        message = RegisterUserReqWrap.Lang == 1 ? "The new organization was added successfully" : "הארגון התווסף בבהצלחה";
                     }
                     else
                     {
-                        message = RegisterUserReqWrap.Lang == 1 ? "Error Occured Company Wasnt Added" : "החברה לא התווספה";
+                        message = RegisterUserReqWrap.Lang == 1 ? "Error Occurred, the organization wasn't added" : "התרחשה שגיאה, הארגון לא התווסף למערכת";
                     }
 
 
@@ -482,7 +482,7 @@ namespace UninetWebApi2.Controllers
                 {
                     if (verifyEmailLinkRequest.Lang == 1)
                     {
-                        Resmessage = "EmailLink verified Succesfully";
+                        Resmessage = "Email link verified successfully";
                     }
                     else
                     {
@@ -493,7 +493,7 @@ namespace UninetWebApi2.Controllers
                 {
                     if (verifyEmailLinkRequest.Lang == 1)
                     {
-                        Resmessage = "EmailLink failed to verified";
+                        Resmessage = "Email link failed to verified";
                     }
                     else
                     {
@@ -658,7 +658,7 @@ namespace UninetWebApi2.Controllers
                     {
 
                         sucess = false,
-                        textResponse = RegisterUserReq.Lang == 1 ? "User already exist, please log in through the sign in page " : "משתמש כבר קיים, יש להתחבר דרך מסך ההתחברות ולא ההרשמה ",
+                        textResponse = RegisterUserReq.Lang == 1 ? "User already exists, please login through the sign-in page " : "משתמש כבר קיים, יש להתחבר דרך מסך ההתחברות ולא ההרשמה ",
                         encryptedUser = res.EncryptedUserid,
                         verified= ReturnUser.verified
                     };

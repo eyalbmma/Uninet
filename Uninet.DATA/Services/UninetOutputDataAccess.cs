@@ -1843,7 +1843,7 @@ namespace Uninet.DATA.Services
                     var res = new RejectDocumenResponse
                     {
                         Success = true,
-                        textResponse = requestRejectDocument.Lang == 1 ? "Document rejected Succesfully" : "המסמך נדחה בהצלחה"
+                        textResponse = requestRejectDocument.Lang == 1 ? "Document rejected Successfully" : "המסמך נדחה בהצלחה"
                     };
                     return res;
 
@@ -1853,7 +1853,7 @@ namespace Uninet.DATA.Services
                     var res = new RejectDocumenResponse
                     {
                         Success = true,
-                        textResponse = requestRejectDocument.Lang == 1 ? "Error occurred, document wasnt rejected " : "ארעה שגיאה, המסמך לא נדחה "
+                        textResponse = requestRejectDocument.Lang == 1 ? "An error occurred, the document was not rejected. " : "אירעה שגיאה המסמך לא נדחה "
                     };
                     return res;
                 }
@@ -1865,7 +1865,7 @@ namespace Uninet.DATA.Services
                 var res = new RejectDocumenResponse
                 {
                     Success = false,
-                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המסמך לא נדחה "
+                    textResponse = requestRejectDocument.Lang == 1 ? "An error occurred, the document was not rejected. " : "אירעה שגיאה המסמך לא נדחה "
                 };
                 return res;
             }
@@ -2036,7 +2036,7 @@ namespace Uninet.DATA.Services
 
                     var res2= new AddGenericexpenseTypeResponse
                     {
-                        textResponse = addexpenseTypeRequest.Lang == 1 ? "expense type added succesfully" : "סוג הוצאה התווסף בהצלחה",
+                        textResponse = addexpenseTypeRequest.Lang == 1 ? "The expense type was added successfully" : "סוג הוצאה התווסף בהצלחה",
                         ExpenseTypeList = res
                     };
                     return res2;
@@ -2048,7 +2048,7 @@ namespace Uninet.DATA.Services
                 {
                     var res2 = new AddGenericexpenseTypeResponse
                     {
-                        textResponse = addexpenseTypeRequest.Lang == 1 ? "failed to AddexpenseType from icount" : "נכשל ביצירת הוצאה ",
+                        textResponse = addexpenseTypeRequest.Lang == 1 ? "Failed to Add Expense type" : "נכשל ביצירת הוצאה ",
                         ExpenseTypeList = res
                     };
                     return res2;

@@ -97,14 +97,14 @@ namespace UninetWebApi2.Controllers
             if (result.status)
             {
                 
-                    message = expensesUserDoRequest.Lang == 1 ? "Document transfered to Uninet System" : "המסמכים התקבלו בהצלחה במערכות יונינט";
+                    message = expensesUserDoRequest.Lang == 1 ? "Document transferred to Uninet successfully" : "המסמכים התקבלו בהצלחה ביונינט";
                
 
 
             }
             else
             {
-                message = expensesUserDoRequest.Lang == 1 ? "There was An Error Document wasnt transfered to Uninet system" : "ארעה שגיאה המסמכים לא התקבלו במערכת יונינט";
+                message = expensesUserDoRequest.Lang == 1 ? "There was an error, the document failed to transfer the Uninet" : "אירעה שגיאה, המסמכים לא התקבלו";
             }
             result.textResponse= message;
 

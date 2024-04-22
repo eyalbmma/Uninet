@@ -50,7 +50,7 @@ namespace Uninet.APP.Services
                 var res = new ActiveTabResponse
                 {
                     ActiveTabNaem = "",
-                    textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retriev active tab" : "כשלון באיחזור טאב פעיל "
+                    textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retrieve active tab" : "כשלון באיחזור טאב פעיל "
                 };
                 return res;
             }
@@ -139,7 +139,7 @@ namespace Uninet.APP.Services
                 var ForgotPasswordResponse = new ForgotPasswordResponse
                 {
                     Success = false,
-                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "An error occurred, the password was not reset" : "אירעה שגיאה, הסיסמא לא אופסה"
 
                 };
                 return ForgotPasswordResponse;
@@ -157,7 +157,7 @@ namespace Uninet.APP.Services
                 var resgoogleSignin = new GoogleSigninResponse
                 {
                     Success = true,
-                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed" + ex.InnerException + ex.Message : " האימות נכשל "
+                    textResponse = googlesignInrequest.lang == 1 ? "Verification failed" + ex.InnerException + ex.Message : " האימות נכשל "
                 };
 
                 return resgoogleSignin;

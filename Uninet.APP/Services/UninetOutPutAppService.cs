@@ -64,7 +64,7 @@ namespace Uninet.APP.Services
                 var res = new RejectDocumenResponse
                 {
                     Success = false,
-                    textResponse = requestRejectDocument.Lang == 1 ? "error occured Document wasnt rejected " : "ארעה שגיאה המסמך לא נדחה "
+                    textResponse = requestRejectDocument.Lang == 1 ? "An error occurred, the document was not rejected. " : "אירעה שגיאה המסמך לא נדחה "
                 };
                 return res;
             }

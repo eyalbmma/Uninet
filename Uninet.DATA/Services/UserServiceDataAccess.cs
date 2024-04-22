@@ -650,7 +650,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             var res = new ResSaveExternalCustomized
                             {
                                 Success = true,
-                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "your credentials saved succesfully" : "הנתונים עבור המערכת החיצונית נשמרו בהצלחה ",
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "Your credentials were saved successfully" : "נתוני מערכת הכספים נשמרו בהצלחה! ",
                                 SystemRegisteredInuninet = true,
                                 ValidExternalsystemCredenatials = true,
                                 FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
@@ -689,7 +689,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var res = new ResSaveExternalCustomized
                         {
                             Success = false,
-                            textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "we couldnt authneticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
+                            textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "We couldn't authenticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
                             SystemRegisteredInuninet = false,
                             ValidExternalsystemCredenatials = false,
                             FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
@@ -1283,7 +1283,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = false,
-                                    Desc = Lang == 1 ? "Can't send OTP more than five times in the last five minutes": "לא ניתן לבקש לשלוח סיסמה יותר מחמש פעמים בחמש דקות האחרונות",
+                                    Desc = Lang == 1 ?  "In the last five minutes, you cannot send OTP more than five times": "לא ניתן לבקש לשלוח קוד אימות יותר מחמש פעמים בחמש דקות האחרונות",
                                     userid = 0,
                                     otp = null
                                 };
@@ -1316,7 +1316,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var res = new ResponseResendOtp
                                     {
                                         Success = true,
-                                        Desc = Lang == 1 ? "OTP sent successfully":"קוד נשלח בהצלחה",
+                                        Desc = Lang == 1 ? "OTP was sent successfully" : "קוד אימות נשלח בהצלחה",
                                         userid= result.AdminUserid,
                                         otp= sendsmtpmailres.OTP
                                     };
@@ -1327,7 +1327,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var res = new ResponseResendOtp
                                     {
                                         Success = false,
-                                        Desc = Lang == 1 ? "Error Ocured Otp wasnt sent":"ארעה שגיאה קוד לא נישלח",
+                                        Desc = Lang == 1 ? "Error Ocured Otp wasnt sent":"ארעה שגיאה קוד אימות לא נישלח",
                                         userid = 0,
                                         otp = null
                                     };
@@ -1361,7 +1361,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = false,
-                                    Desc = Lang == 1 ? "Error Ocured Otp wasnt sent" : "ארעה שגיאה קוד לא נישלח",
+                                    Desc = Lang == 1 ? "Error Occurred OTP wasn't sent" : "אירעה שגיאה, קוד אימות לא נשלח",
                                     userid = 0,
                                     otp = null
                                 };
@@ -1512,7 +1512,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var ResResetPassword = new ResetPasswordReponse
                         {
                             success = false,
-                            textResponse = resetpasswordrequest.Lang == 1 ? "token expired" : "הזמן למילוי הסיסמה שנשלחה אליך עבר נסה שנית"
+                            textResponse = resetpasswordrequest.Lang == 1 ? "Token expired" : "תוקף איפוס סיסמא פג, יש לנסות שנית"
                         };
                         return ResResetPassword;//BadRequest("Token has expired.");
                     }
@@ -1524,7 +1524,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var ResResetPassword = new ResetPasswordReponse
                         {
                             success = true,
-                            textResponse = resetpasswordrequest.Lang == 1 ? "password updated" : "הסיסמה שונתה בהצלחה"
+                            textResponse = resetpasswordrequest.Lang == 1 ? "The password was updated" : "הסיסמה שונתה בהצלחה"
                         };
                         return ResResetPassword;
                     }
@@ -1535,7 +1535,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var ResResetPassword = new ResetPasswordReponse
                     {
                         success = false,
-                        textResponse = resetpasswordrequest.Lang == 1 ? "the user doesnt exist in our system" : "המשתמש אינו קיים במערכת "
+                        textResponse = resetpasswordrequest.Lang == 1 ? "The user doesn't exist in our system" : "המשתמש אינו קיים במערכת "
                     };
                     return ResResetPassword;
 
@@ -1576,7 +1576,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var res = new ActiveTabResponse
                     {
                         ActiveTabNaem = ActiveKy,
-                        textResponse = getActiveTabRequest.Lang == 1 ? "active tab  return " : "שם טאב פעיל נימצא"
+                        textResponse = getActiveTabRequest.Lang == 1 ? "Active tab return " : "שם טאב פעיל נמצא"
                     };
                     return res;
 
@@ -1586,7 +1586,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var res = new ActiveTabResponse
                     {
                         ActiveTabNaem = "",
-                        textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retriev active tab" : "כשלון באיחזור טאב פעיל "
+                        textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retrieve active tab" : "כשלון באיחזור טאב פעיל "
                     };
                     return res;
                 }
@@ -1597,7 +1597,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var res = new ActiveTabResponse
                 {
                     ActiveTabNaem = "",
-                    textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retriev active tab" : "כשלון באיחזור טאב פעיל "
+                    textResponse = getActiveTabRequest.Lang == 1 ? "Failed to retrieve active tab" : "כשלון באיחזור טאב פעיל "
                 };
                 return res;
             }
@@ -1682,7 +1682,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var ForgotPasswordResponse = new ForgotPasswordResponse
                     {
                         Success = true,
-                        textResponse = forgotPasswordRequest.Lang == 1 ? "reset password was sent to email" : "איפוס סיסמה נישלח למייל"
+                        textResponse = forgotPasswordRequest.Lang == 1 ? "The reset password mail was sent to the email" : "איפוס סיסמא נשלח למייל"
 
                     };
                     return ForgotPasswordResponse;
@@ -1693,7 +1693,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var ForgotPasswordResponse = new ForgotPasswordResponse
                     {
                         Success = false,
-                        textResponse = forgotPasswordRequest.Lang == 1 ? "The credentials you have supllied are wrong please try again " : "הפרטים שסיפקת אינם נכונים אנא נסה שנית "
+                        textResponse = forgotPasswordRequest.Lang == 1 ? "The credentials you have supplied are wrong, please try again " : "הפרטים שסיפקת אינם נכונים יש לנסות שנית"
 
                     };
                     return ForgotPasswordResponse;
@@ -1704,7 +1704,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var ForgotPasswordResponse = new ForgotPasswordResponse
                 {
                     Success = false,
-                    textResponse = forgotPasswordRequest.Lang == 1 ? "there was an error reseting your password" : "ארעה שגיאה באיפוס הסיסמה"
+                    textResponse = forgotPasswordRequest.Lang == 1 ? "An error occurred, the password was not reset" : "אירעה שגיאה, הסיסמא לא אופסה"
 
                 };
                 return ForgotPasswordResponse;
@@ -1768,7 +1768,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                             Success = true,
                                             UserId = existingUseremailandgoogleid.AdminUserid,
                                             verified = existingUseremailandgoogleid.ValidUser,
-                                            textResponse = googlesignInrequest.lang == 1 ? "verfication succeed" : "הזדהות מול גוגל הצליחה"//"Google ID verified and linked to the existing email"
+                                            textResponse = googlesignInrequest.lang == 1 ? "verification succeed" : "הזדהות מול גוגל הצליחה"//"Google ID verified and linked to the existing email"
 
                                         };
 
@@ -1785,7 +1785,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                             Success = false,
                                             UserId = null,
                                             verified = false,
-                                            textResponse = googlesignInrequest.lang == 1 ? "verfication failed1" : " האימות נכשל "  //Invalid email or Google ID
+                                            textResponse = googlesignInrequest.lang == 1 ? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל" //Invalid email or Google ID
                                         };
 
                                         return resgoogleSignin;
@@ -1799,7 +1799,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         Success = false,
                                         UserId = null,
                                         verified = false,
-                                        textResponse = googlesignInrequest.lang == 1? "verfication failed" : " האימות נכשל "  ////Failed to verify user with Google API
+                                        textResponse = googlesignInrequest.lang == 1? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל"  ////Failed to verify user with Google API
                                     };
 
                                     return resgoogleSignin;
@@ -1817,7 +1817,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     Success = true,
                                     UserId = existingUseremailandgoogleid.AdminUserid,
                                     verified = existingUseremailandgoogleid.ValidUser,
-                                    textResponse = googlesignInrequest.lang == 1 ? "User already exists":"משתמש כבר קיים "
+                                    textResponse = googlesignInrequest.lang == 1 ? "User already exists" : "משתמש כבר קיים "
                                 };
                                 return resgoogleSignin;
                                 // return Ok(new { Message = "User already exists" });
@@ -1862,7 +1862,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                                 Success = false,
                                                 UserId =null,
                                                 verified = false,
-                                                textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל " //google id you supplied doesnt match your credentials  "
+                                                textResponse = googlesignInrequest.lang == 1 ? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל" //google id you supplied doesnt match your credentials  "
                                             };
                                         }
 
