@@ -8,7 +8,9 @@ namespace Uninet.Domain.Models
 {
     public  class SendEmailRequest
     {
-        public string VatId { get; set; }
+        public string Email { get; set; }
+        public string Vatid { get; set; }   
         public int Lang { get; set; }
+        public int SubCompanyId { get; set; }
     }
 }

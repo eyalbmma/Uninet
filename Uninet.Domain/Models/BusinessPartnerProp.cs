@@ -19,6 +19,8 @@ namespace Uninet.Domain.Models
         public string VatId { get; set; }
         public string supplier_id { get; set; }
         public int DocAmount { get; set; }
+        public string Email { get; set; }
+        public int SubCompanyId { get; set; }
         public string Type { get; set; }
         public string Status { get; set; }
         public DateTime? LastInvitationDate { get; set; }

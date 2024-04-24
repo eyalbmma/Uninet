@@ -753,7 +753,9 @@ namespace Uninet.DATA.Services
                     //now we should loop on the resSUpplierLIst
                     //and find if the vatId exist in the suplier list
                     var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(expensesUserDoRequest.BusinessVatId));
-
+                    ShowingDocsResults docsResults = new ShowingDocsResults();
+                    docsResults.Success = true;
+                    docsResults.ErrSec = "";
                     if (ItemFound != null)
                     {
                         //string cidvalue = null;
@@ -761,7 +763,7 @@ namespace Uninet.DATA.Services
                         //string passvalue = null;
 
                         //JsonDocumentid
-
+                       
                         List<ExpenseType> res = await CreateExpenseCategorylist(userId, ItemFound.supplier_id.ToString(), expensesUserDoRequest.BusinessVatId, cidvalue, uservalue, passvalue, RowBusinessData.DocumentApprovedtoUninet, RowBusinessData.ExpenseTypeId);
                         var expensesDigitalDocumentProp = new ExpensesDigitalDocumentProp
                         {
@@ -776,7 +778,9 @@ namespace Uninet.DATA.Services
                             Jsondocumentid = expensesUserDoRequest.JsonDocumentid,
                             TaxId = expensesUserDoRequest.BusinessVatId,
                             AmountBeforeVat = AmountBeforeVat == 0 ? total_before_nicuiDouble : AmountBeforeVat,
-                            Vat = DoubleVatresult
+                            Vat = DoubleVatresult,
+                            showingDocsResults= docsResults
+
 
 
                         };
@@ -920,10 +924,11 @@ namespace Uninet.DATA.Services
                             Jsondocumentid = expensesUserDoRequest.JsonDocumentid,
                             TaxId = expensesUserDoRequest.BusinessVatId,
                             AmountBeforeVat = AmountBeforeVat,
-                            Vat = DoubleVatresult
-
+                            Vat = DoubleVatresult,
+                            showingDocsResults = docsResults
 
                         };
+                       
                         return expensesDigitalDocumentProp;
 
                     }
@@ -1220,6 +1225,7 @@ namespace Uninet.DATA.Services
                 string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
                 string vatId = supplierData.GetProperty("vat_id").GetString();
                 string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
+                string SupplierEmail= supplierData.GetProperty("email").GetString();
                 int docAmount =await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue,  uservalue,  passvalue, Supplier_id);
                 string status = await GetStatus(vatId);
                 DateTime? lastInvitationDate = null;
@@ -1266,6 +1272,8 @@ namespace Uninet.DATA.Services
                     VatId = vatId,
                     supplier_id = Supplier_id,
                     DocAmount = docAmount,
+                    Email= SupplierEmail,
+                    SubCompanyId = subCompanyId,
                     Type = "Supplier",
                     Status = status,
                     LastInvitationDate = BusinessPartnersObj?.LastDateSent,
@@ -1296,7 +1304,7 @@ namespace Uninet.DATA.Services
                 var clientData = client.Value;
                 string businesspartnerName = clientData.GetProperty("client_name").GetString();
                 string vatId = clientData.GetProperty("vat_id").GetString();
-
+                string ClientEmail= clientData.GetProperty("email").GetString();
                 int docAmount = await GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue);
                 string status = await GetStatus(vatId);
 
@@ -1339,6 +1347,8 @@ namespace Uninet.DATA.Services
                     BusinesspartnerName = businesspartnerName,
                     VatId = vatId,
                     DocAmount = docAmount,
+                    Email= ClientEmail,
+                    SubCompanyId = subCompanyId,
                     Type = "Client",
                     Status = status,
                     LastInvitationDate = BusinessPartnersObj?.LastDateSent,

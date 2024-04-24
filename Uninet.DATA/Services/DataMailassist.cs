@@ -95,7 +95,7 @@ namespace Uninet.DATA.Services
             return htmlBody;
         }
 
-        public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(string VatId, string userId, int Lang)
+        public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
         {
             try
             {
@@ -105,19 +105,19 @@ namespace Uninet.DATA.Services
                 int subCompanyId = 0;
                 string email = "";
 
-                var companyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", VatId);
-                var companyInfo = await _IcountCompaniesInfoCollection.Find(companyInfoFilterbyVatid).FirstOrDefaultAsync();
-                var companyInfobson = companyInfo["company_info"].AsBsonDocument;
-
-                email = companyInfobson.GetValue("email", "").AsString;
-                organizationId = companyInfobson.GetValue("InternalCompanyId", 0).AsInt32;
-                subCompanyId = companyInfobson.GetValue("SubCompanyId", 0).AsInt32;
-                businessName = companyInfobson.GetValue("businessName", "").AsString;
+                //var companyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", Vatid);
+                //var companyInfo = await _IcountCompaniesInfoCollection.Find(companyInfoFilterbyVatid).FirstOrDefaultAsync();
+                //var companyInfobson = companyInfo["company_info"].AsBsonDocument;
+                var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == sendEmailRequest.SubCompanyId);
+                email = sendEmailRequest.Email;
+                organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
+                subCompanyId = sendEmailRequest.SubCompanyId;
+                //businessName = companyInfobson.GetValue("businessName", "").AsString;
 
                 // Prepare the email entry
                 BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
                 {
-                    VatId = Convert.ToInt32(VatId),
+                    VatId = Convert.ToInt32(sendEmailRequest.Vatid),
                     EntityType = "SomeEntityType",
                     OrganizationId = organizationId,
                     UserId = Convert.ToInt32(userId),
@@ -154,7 +154,7 @@ namespace Uninet.DATA.Services
                     {
                         BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
                         {
-                            VatId = Convert.ToInt32(VatId),
+                            VatId = Convert.ToInt32(sendEmailRequest.Vatid),
                             EntityType = "SomeEntityType",
                             OrganizationId = organizationId,
                             UserId = Convert.ToInt32(userId),

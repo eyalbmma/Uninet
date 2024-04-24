@@ -47,11 +47,11 @@ namespace UninetWebApi2.Controllers
             //var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
 
 
-            var res=await _mailasist.BusinessPartnerSendEmail(sendEmailRequest.VatId, userId, sendEmailRequest.Lang);
+            var res=await _mailasist.BusinessPartnerSendEmail( sendEmailRequest, userId, sendEmailRequest.Lang);
 
             
            
-            return Ok();
+            return Ok(res.result);
         }
 
         // Endpoint to get business partners by filter type

@@ -6,6 +6,12 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
+    public class ShowingDocsResults
+    {
+        public bool Success { get; set; }
+        public string ErrSec { get; set; }
+    }
+    
     public class ExpensesDigitalDocumentProp
     {
         public string Supplier_name_Sender { get; set; }
@@ -30,6 +36,8 @@ namespace Uninet.Domain.Models
         public double AmountBeforeVat { get; set; }
 
         public double Vat { get; set; }
+
+        public ShowingDocsResults showingDocsResults { get; set; }
 
 
     }
