@@ -36,6 +36,7 @@ namespace Uninet.DATA.Services.MultipleContext
 
         public virtual DbSet<SubUserCredentials> SubUserCredentials { get; set; }
         
+         public virtual DbSet<ExternalSystem> ExternalSystem { get; set; }
         public virtual DbSet<BusinessPartnersEmails> BusinessPartnersEmails { get; set; }
 
         public virtual DbSet<InviteBusinessPartnerResult> InviteBusinessPartnerResult { get; set; }
@@ -88,6 +89,11 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<AddUserCredentialsSystemResult>().HasNoKey();
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
+            modelBuilder.Entity<ExternalSystem>().HasKey(u => new { u.ExternalSystemID });
+
+            
+
+
             modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
 
             

@@ -93,6 +93,18 @@ namespace Uninet.APP.Services
 
             
         }
+
+
+        public async Task<string> GetWelcomeToUninet(int Lang,string userId)
+        {
+            try
+            {
+                return await _userServiceDataAccess.GetWelcomeToUninet(Lang, userId);
+            }
+            catch (Exception ex) { return null; }
+
+
+        }
         public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId, int Lang)
         {
             try

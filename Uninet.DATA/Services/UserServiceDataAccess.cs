@@ -797,6 +797,82 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 }
             }
         }
+        public async Task<string> GetWelcomeToUninet(int Lang, string userId)
+        {
+            try
+            {
+                var resBusinesses = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == int.Parse(userId));
+
+                // Query to retrieve the list of MainSubCopmaniesMasters objects
+                var mainSubCompaniesMastersList = await _repository.GetListOfObjectsAsync<MainSubCopmaniesMasters>(
+                    x => x.MainCompanyId == resBusinesses.BusinessId && x.LastTimeDataShowed != null
+                );
+
+                // Once you have the list, you can apply LINQ methods to it
+                var subCompanyId = mainSubCompaniesMastersList
+                    .OrderByDescending(x => x.LastTimeDataShowed)
+                    .Select(x => x.SubCopmanyId)
+                    .FirstOrDefault();
+
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", resBusinesses.BusinessId),
+                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subCompanyId)
+                );
+
+                // Projection to include only the required fields (businessName and vat_id)
+                var projection = Builders<BsonDocument>.Projection.Include("company_info.businessName").Include("company_info.vat_id").Include("company_info.FinancialSoftware");
+
+                // Apply the projection to the filter
+                var existingDocument = await _ICountCompanyInfoCollection
+                    .Find(filter)
+                    .Project(projection)
+                    .FirstOrDefaultAsync();
+
+                // Extract businessName, vat_id, and financial software from the existingDocument
+                string businessName = null;
+                string vatId = null;
+                string financialSoftware = null;
+                if (existingDocument != null)
+                {
+                    businessName = existingDocument["company_info"]["businessName"].AsString;
+                    vatId = existingDocument["company_info"]["vat_id"].AsString;
+                    //financialSoftware = existingDocument["company_info"]["FinancialSoftware"].AsString;
+                }
+
+
+                var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == resBusinesses.BusinessId && x.SubCompayId == subCompanyId
+                );
+
+
+                var ExternalSystemobj = await _repository.GetFirstObjectAsync<ExternalSystem>(
+                    x => x.ExternalSystemID == UsersExternalSystemDynamicFieldsObj.ExternalSystemId 
+                );
+                 financialSoftware = ExternalSystemobj.ExternalSystemName;
+
+                // Determine the language and format the welcome message accordingly
+                string welcomeMessage = "";
+                if (Lang == 1) // English
+                {
+                    welcomeMessage = $"Welcome, {businessName} with VAT number {vatId} who use {financialSoftware} as financial software is part of Uninet network now";
+                }
+                else if (Lang == 2) // Hebrew
+                {
+                    welcomeMessage = $"ברוך הבא, {businessName} עם מספר עוסק {vatId} שמשתמש ב-{financialSoftware} כתוכנת משכורת הינה חלק מרשת Uninet כעת";
+                }
+
+                return welcomeMessage;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if needed
+                Console.WriteLine($"An error occurred: {ex.Message}");
+                return null;
+            }
+        }
+
+
+
 
         public async Task<Dictionary<int, string>> GetExternalSystems(int Lang)
         {

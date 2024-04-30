@@ -19,6 +19,7 @@ namespace Uninet.DATA.Interfaces
         public Task<ResetPasswordReponse> ResetPassword(ResetPasswordRequestcs resetpasswordrequest);
         public Task<GoogleSigninResponse> GoogleSignIn(GoogleSignInModel googlesignInrequest);
         public Task<Dictionary<int, string>> GetExternalSystems(int Lang);
+        public  Task<string> GetWelcomeToUninet(int Lang, string userId);
         public Task<bool> SendOtpByPhone(SendOtpRequest _sendOtpRequest);
         public Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string EncryptedUser, int Lang);
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);

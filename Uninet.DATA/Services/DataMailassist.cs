@@ -97,96 +97,68 @@ namespace Uninet.DATA.Services
 
         public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
         {
+            SendOtpViaMailResponse resmail = null; // Initialize resmail to null
+
             try
             {
-                SendOtpViaMailResponse resmail = new SendOtpViaMailResponse();
+                // Attempt to send the email
+                resmail = await sendsmtpmail("הזמנה להצטרף ליונינט", "eyalbmma@gmail.com", sendEmailRequest.Email, 3, Lang, null, "", userId.ToString(), "");
+
+                // If sendsmtpmail returns null, initialize resmail with a new SendOtpViaMailResponse object
+                if (resmail == null)
+                {
+                    resmail = new SendOtpViaMailResponse { result = false };
+                }
+                else
+                {
+                    // If resmail.result is false, keep it false; otherwise, set it to true
+                    resmail.result = resmail.result ? true : false;
+                }
+
                 string businessName = "";
                 int organizationId = 0;
                 int subCompanyId = 0;
-                string email = "";
 
-                //var companyInfoFilterbyVatid = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", Vatid);
-                //var companyInfo = await _IcountCompaniesInfoCollection.Find(companyInfoFilterbyVatid).FirstOrDefaultAsync();
-                //var companyInfobson = companyInfo["company_info"].AsBsonDocument;
                 var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == sendEmailRequest.SubCompanyId);
-                email = sendEmailRequest.Email;
                 organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
                 subCompanyId = sendEmailRequest.SubCompanyId;
-                //businessName = companyInfobson.GetValue("businessName", "").AsString;
 
-                // Prepare the email entry
-                BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
-                {
-                    VatId = Convert.ToInt32(sendEmailRequest.Vatid),
-                    EntityType = "SomeEntityType",
-                    OrganizationId = organizationId,
-                    UserId = Convert.ToInt32(userId),
-                    SubCompanyId = subCompanyId,
-                    EmailSent = !string.IsNullOrEmpty(email),
-                    LastDateSent = DateTime.UtcNow
-                };
-
-                // Check if a record already exists
-                var existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
-                    e.VatId == emailEntry.VatId &&
-                    e.OrganizationId == emailEntry.OrganizationId &&
-                    e.UserId == emailEntry.UserId &&
-                    e.SubCompanyId == emailEntry.SubCompanyId);
+                BusinessPartnersEmails existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
+                    e.VatId == Convert.ToInt32(sendEmailRequest.Vatid) &&
+                    e.OrganizationId == organizationId &&
+                    e.UserId == Convert.ToInt32(userId) &&
+                    e.SubCompanyId == subCompanyId);
 
                 if (existingEntry != null)
                 {
-                    // Update last sent date and email sent status
+                    // Update last sent date and email sent status on the existing entity
                     existingEntry.LastDateSent = DateTime.UtcNow;
-                    existingEntry.EmailSent = emailEntry.EmailSent;
+                    existingEntry.EmailSent = resmail?.result ?? false;
                     await _repository.UpdateAsync(existingEntry);
                 }
                 else
                 {
+                    BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+                    {
+                        VatId = Convert.ToInt32(sendEmailRequest.Vatid),
+                        EntityType = "SomeEntityType",
+                        OrganizationId = organizationId,
+                        UserId = Convert.ToInt32(userId),
+                        SubCompanyId = subCompanyId,
+                        EmailSent = resmail?.result ?? false,
+                        LastDateSent = DateTime.UtcNow
+                    };
                     // Create new record if it does not exist
                     await _repository.CreateAsync(emailEntry);
                 }
-
-                if (!string.IsNullOrEmpty(email))
-                {
-                    resmail = await sendsmtpmail("הזמנה להצטרף ליונינט", "eyalbmma@gmail.com", email, 3, Lang, null, "", userId.ToString(), businessName);
-                    emailEntry.EmailSent = resmail.result;
-                    if (!resmail.result)
-                    {
-                        BusinessPartnersEmails emailEntry2 = new BusinessPartnersEmails
-                        {
-                            VatId = Convert.ToInt32(sendEmailRequest.Vatid),
-                            EntityType = "SomeEntityType",
-                            OrganizationId = organizationId,
-                            UserId = Convert.ToInt32(userId),
-                            SubCompanyId = subCompanyId,
-                            EmailSent = false,
-                            LastDateSent = DateTime.UtcNow
-                        };
-                        if (existingEntry != null)
-                        {
-                            // Update last sent date and email sent status
-                           
-                            await _repository.UpdateAsync(emailEntry2);
-                        }
-                        else
-                        {
-                            // Create new record if it does not exist
-                            await _repository.CreateAsync(emailEntry2);
-                        }
-                    }
-                }
-                else
-                {
-                    resmail.result = false;
-                }
-
-                return resmail;
             }
             catch (Exception ex)
             {
                 // Handle or log the exception
-                return null;
+                resmail = new SendOtpViaMailResponse { result = false };
             }
+
+            return resmail;
         }
 
 

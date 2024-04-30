@@ -27,7 +27,8 @@ namespace Uninet.APP.Interfaces
         public Task<LoginWithEmailandPasswordResponse> LoginWithEmailPasswordRequest(LoginWithEmailPasswordRequest _LoginWithEmailPasswordRequest);
 
         // public Task<bool> VerifyEmailLink(string Userguid);
-
+        
+        public Task<string> GetWelcomeToUninet(int Lang, string userId);
         public Task<Dictionary<int, string>> GetExternalSystems(int Lang);
         public Task<AddBusinessToUserResult> RegisterBusinessToUser(UserBusinesses userBusinesses);
 

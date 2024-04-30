@@ -122,6 +122,9 @@ namespace UninetWebApi2.Controllers
         }
 
 
+
+
+
         //Q1 to Q3
         [Authorize]
         [HttpPost("RegisterBusinessToUser")]
@@ -226,6 +229,18 @@ namespace UninetWebApi2.Controllers
             var res = await _userServiceApp.GetExternalSystems(Lang);
             return Ok(res);
         }
+
+        [Authorize]
+        [HttpGet("GetWelcomeToUninet")]
+        public async Task<IActionResult> GetWelcomeToUninet(int Lang)
+        {
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var res = await _userServiceApp.GetWelcomeToUninet(Lang, userId);
+            return Ok(res);
+        }
+
+
 
         //[HttpGet("GetToken")]
         //public IActionResult GetToken()

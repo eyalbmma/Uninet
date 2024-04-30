@@ -1260,6 +1260,10 @@ namespace Uninet.DATA.Services
                         }
                     }
                 }
+                else if (status == "Connected to Uninet")
+                {
+                    action = new ActionItem("Connected", ActionType.String);
+                }
                 else
                 {
                     status = "Waiting for invitation";
