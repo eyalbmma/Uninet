@@ -807,6 +807,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var mainSubCompaniesMastersList = await _repository.GetListOfObjectsAsync<MainSubCopmaniesMasters>(
                     x => x.MainCompanyId == resBusinesses.BusinessId && x.LastTimeDataShowed != null
                 );
+                string Firstname = resBusinesses.FirstName;
 
                 // Once you have the list, you can apply LINQ methods to it
                 var subCompanyId = mainSubCompaniesMastersList
@@ -814,51 +815,56 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     .Select(x => x.SubCopmanyId)
                     .FirstOrDefault();
 
+                // Define the filter to match the desired InternalCompanyId and SubCompanyId
                 var filter = Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", resBusinesses.BusinessId),
                     Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subCompanyId)
                 );
 
-                // Projection to include only the required fields (businessName and vat_id)
-                var projection = Builders<BsonDocument>.Projection.Include("company_info.businessName").Include("company_info.vat_id").Include("company_info.FinancialSoftware");
+                // Define the projection to include only the required fields
+                var projection = Builders<BsonDocument>.Projection
+                    .Include("company_info.vat_id")
+                    .Include("company_info.businessName_en")
+                    .Include("company_info.businessName_he");
 
-                // Apply the projection to the filter
-                var existingDocument = await _ICountCompanyInfoCollection
+                // Apply the filter and projection to retrieve the desired fields
+                var existingDocuments = await _ICountCompanyInfoCollection
                     .Find(filter)
                     .Project(projection)
-                    .FirstOrDefaultAsync();
+                    .ToListAsync();
 
                 // Extract businessName, vat_id, and financial software from the existingDocument
                 string businessName = null;
                 string vatId = null;
                 string financialSoftware = null;
-                if (existingDocument != null)
+                foreach (var existingDocument in existingDocuments)
                 {
-                    businessName = existingDocument["company_info"]["businessName"].AsString;
+                    // Extract the desired fields from each document
                     vatId = existingDocument["company_info"]["vat_id"].AsString;
-                    //financialSoftware = existingDocument["company_info"]["FinancialSoftware"].AsString;
+                    var businessNameEn = existingDocument["company_info"]["businessName_en"].AsString;
+                    var businessNameHe = existingDocument["company_info"]["businessName_he"].AsString;
+
+                     businessName = Lang == 1 ? businessNameEn : businessNameHe;
                 }
-
-
+                
                 var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
                     x => x.Companyid == resBusinesses.BusinessId && x.SubCompayId == subCompanyId
                 );
 
-
                 var ExternalSystemobj = await _repository.GetFirstObjectAsync<ExternalSystem>(
-                    x => x.ExternalSystemID == UsersExternalSystemDynamicFieldsObj.ExternalSystemId 
+                    x => x.ExternalSystemID == UsersExternalSystemDynamicFieldsObj.ExternalSystemId
                 );
-                 financialSoftware = ExternalSystemobj.ExternalSystemName;
+                financialSoftware = ExternalSystemobj.ExternalSystemName;
 
                 // Determine the language and format the welcome message accordingly
                 string welcomeMessage = "";
                 if (Lang == 1) // English
                 {
-                    welcomeMessage = $"Welcome, {businessName} with VAT number {vatId} who use {financialSoftware} as financial software is part of Uninet network now";
+                    welcomeMessage = $"Welcome, {Firstname},\nThe new entity has been successfully connected to Uninet network\nEntity details:\nEntity: {businessName}, VAT id: {vatId}, financial software: {financialSoftware}";
                 }
                 else if (Lang == 2) // Hebrew
                 {
-                    welcomeMessage = $"ברוך הבא, {businessName} עם מספר עוסק {vatId} שמשתמש ב-{financialSoftware} כתוכנת משכורת הינה חלק מרשת Uninet כעת";
+                    welcomeMessage = $"ברוך הבא, {Firstname},\nהישות החדשה התחברה בהצלחה לרשת Uninet\nפרטי הישות:\nישות: {businessName}, מספר עוסק: {vatId}, תוכנת כספים: {financialSoftware}";
                 }
 
                 return welcomeMessage;
@@ -870,6 +876,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
+
 
 
 
