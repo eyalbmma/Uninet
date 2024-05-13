@@ -46,6 +46,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _IcountExpenses;
         private readonly IMongoCollection<BsonDocument> _IcountExpensesTypes;
         private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
+        private readonly IMongoCollection<BsonDocument> _Icount_BussinesPartner_Clients_Suplliers;
         private readonly IDataMailassist _dataMailassist;
         //IcountWebhookData
         public UninetOutputDataAccess(IRepository<UninetContext> repository, IMongoClient client, IDataMailassist dataMailassist)//, IloginRepository loginRepository
@@ -59,6 +60,7 @@ namespace Uninet.DATA.Services
             _IcountExpenses = database.GetCollection<BsonDocument>("IcountExpenses");
             _IcountExpensesTypes= database.GetCollection<BsonDocument>("IcountExpensesTypes");
             _IcountWebhookData= database.GetCollection<BsonDocument>("IcountWebhookData");
+            _Icount_BussinesPartner_Clients_Suplliers= database.GetCollection<BsonDocument>("Icount_BussinesPartner_Clients_Suplliers");
             _repository = repository;
             _dataMailassist = dataMailassist;
 
@@ -1209,39 +1211,530 @@ namespace Uninet.DATA.Services
         }
         private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
         {
+
+
             var suppliersList = new List<BusinessPartnerProp>();
 
-            var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
-            var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-            HttpMethod methodsupplierget_list = HttpMethod.Get;
-            var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
-            var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
-            var jsonData = jsonDocument.RootElement;
-            var suppliersData = jsonData.GetProperty("suppliers");
-
-            foreach (var supplier in suppliersData.EnumerateObject())
+            // Check if the document exists in the collection
+            var filterBuilder = Builders<BsonDocument>.Filter;
+            var filter = filterBuilder.Eq("userId", userId) &
+                         filterBuilder.Eq("subCompanyId", subCompanyId) &
+                         filterBuilder.Eq("MainCompanyId", MainCompanyId) &
+                         filterBuilder.Eq("ExtrnalsystemIdOfsubCopmanyId", ExtrnalsystemIdOfsubCopmanyId)&
+                         filterBuilder.Exists("suppliers",true);
+            var existingDocument = await _Icount_BussinesPartner_Clients_Suplliers.Find(filter).FirstOrDefaultAsync();
+            DateTime lastInsertDate = new DateTime();
+            // If the document exists, extract "suppliers" data from it
+            if (existingDocument != null)
             {
-                var supplierData = supplier.Value;
-                string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
-                string vatId = supplierData.GetProperty("vat_id").GetString();
-                string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
-                string SupplierEmail= supplierData.GetProperty("email").GetString();
-                int docAmount =await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue,  uservalue,  passvalue, Supplier_id);
-                string status = await GetStatus(vatId);
-                DateTime? lastInvitationDate = null;
-                ActionItem action = null;
+                var dateString = existingDocument["LastInsertDate"].AsString;
 
-                var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
-
-                if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+                if (DateTime.TryParse(dateString, out lastInsertDate))
                 {
+                    // Now you can convert the DateTime to universal time
+                    lastInsertDate = lastInsertDate.ToUniversalTime();
+                }
+                else
+                {
+                    // Handle the case where the date string cannot be parsed
+                    // This could be due to invalid date format or missing/incorrect data
+                }
+
+                // Calculate the difference between lastInsertDate and current date
+                TimeSpan differenceyear = DateTime.UtcNow - lastInsertDate;
+
+                // Check if the difference is more than one year
+                if (differenceyear.TotalDays < 365)
+                {
+
+                    var suppliersData = existingDocument.GetValue("suppliers");
+                    foreach (var supplier in suppliersData.AsBsonDocument)
+                    {
+                        var supplierData = supplier.Value.AsBsonDocument;
+                        string businesspartnerName = supplierData.GetValue("supplier_name").AsString;
+                        string vatId = supplierData.GetValue("vat_id").AsString;
+                        string Supplier_id = supplierData.GetValue("supplier_id").AsString;
+                        string SupplierEmail = supplierData.GetValue("email").AsString;
+                        int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+                        string status = await GetStatus(vatId);
+                        DateTime? lastInvitationDate = null;
+                        ActionItem action = null;
+
+                        var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+                        if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+                        {
+                            if (status == "Connected to Uninet")
+                            {
+                                action = new ActionItem("Connected", ActionType.String);
+                            }
+                            else if (status == "Still not connected")
+                            {
+                                if (BusinessPartnersObj.EmailSent.Value)
+                                {
+                                    var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                                    if (difference.TotalDays < 365)
+                                    {
+                                        action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                                    }
+                                    else
+                                    {
+                                        action = new ActionItem("Invite", ActionType.Button);
+                                    }
+                                }
+                                else
+                                {
+                                    status = "Missing email details";
+                                    action = new ActionItem("Complete details", ActionType.Button);
+                                }
+                            }
+                        }
+                        else if (status == "Connected to Uninet")
+                        {
+                            action = new ActionItem("Connected", ActionType.String);
+                        }
+                        else
+                        {
+                            status = "Waiting for invitation";
+                            action = new ActionItem("Invite", ActionType.Button);
+                        }
+
+                        suppliersList.Add(new BusinessPartnerProp
+                        {
+                            BusinesspartnerName = businesspartnerName,
+                            VatId = vatId,
+                            supplier_id = Supplier_id,
+                            DocAmount = docAmount,
+                            Email = SupplierEmail,
+                            SubCompanyId = subCompanyId,
+                            Type = "Supplier",
+                            Status = status,
+                            LastInvitationDate = BusinessPartnersObj?.LastDateSent,
+                            Actions = action
+                        });
+                    }
+                }
+                else
+                {
+                    await _Icount_BussinesPartner_Clients_Suplliers.DeleteOneAsync(filter);
+                    var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
+                    var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                    HttpMethod methodsupplierget_list = HttpMethod.Get;
+                    var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
+
+                    // Modify the JSON response by adding the required fields
+                    var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsnesupplierget_list);
+                    modifiedJson["userId"] = userId;
+                    modifiedJson["subCompanyId"] = subCompanyId;
+                    modifiedJson["MainCompanyId"] = MainCompanyId;
+                    modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+                    modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+                    // Insert the modified JSON into the collection
+                    await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+                    var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
+                    var jsonData = jsonDocument.RootElement;
+                    var suppliersData = jsonData.GetProperty("suppliers");
+
+                    foreach (var supplier in suppliersData.EnumerateObject())
+                    {
+                        var supplierData = supplier.Value;
+                        string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
+                        string vatId = supplierData.GetProperty("vat_id").GetString();
+                        string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
+                        string SupplierEmail = supplierData.GetProperty("email").GetString();
+                        int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+                        string status = await GetStatus(vatId);
+                        DateTime? lastInvitationDate = null;
+                        ActionItem action = null;
+
+
+                        var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+                        if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+                        {
+                            if (status == "Connected to Uninet")
+                            {
+                                action = new ActionItem("Connected", ActionType.String);
+                            }
+                            else if (status == "Still not connected")
+                            {
+                                if (BusinessPartnersObj.EmailSent.Value)
+                                {
+                                    var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                                    if (difference.TotalDays < 365)
+                                    {
+                                        action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                                    }
+                                    else
+                                    {
+                                        action = new ActionItem("Invite", ActionType.Button);
+                                    }
+                                }
+                                else
+                                {
+                                    status = "Missing email details";
+                                    action = new ActionItem("Complete details", ActionType.Button);
+                                }
+                            }
+                        }
+                        else if (status == "Connected to Uninet")
+                        {
+                            action = new ActionItem("Connected", ActionType.String);
+                        }
+                        else
+                        {
+                            status = "Waiting for invitation";
+                            action = new ActionItem("Invite", ActionType.Button);
+                        }
+
+                        suppliersList.Add(new BusinessPartnerProp
+                        {
+                            BusinesspartnerName = businesspartnerName,
+                            VatId = vatId,
+                            supplier_id = Supplier_id,
+                            DocAmount = docAmount,
+                            Email = SupplierEmail,
+                            SubCompanyId = subCompanyId,
+                            Type = "Supplier",
+                            Status = status,
+                            LastInvitationDate = lastInvitationDate,
+                            Actions = action
+                        });
+                    }
+                }
+
+            }
+            else
+            {
+                // Document does not exist, fetch data from external source
+
+                var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
+                var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod methodsupplierget_list = HttpMethod.Get;
+                var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
+
+                // Modify the JSON response by adding the required fields
+                var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsnesupplierget_list);
+                modifiedJson["userId"] = userId;
+                modifiedJson["subCompanyId"] = subCompanyId;
+                modifiedJson["MainCompanyId"] = MainCompanyId;
+                modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+                modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+                // Insert the modified JSON into the collection
+                await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+
+
+                var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
+                var jsonData = jsonDocument.RootElement;
+                var suppliersData = jsonData.GetProperty("suppliers");
+
+                foreach (var supplier in suppliersData.EnumerateObject())
+                {
+                    var supplierData = supplier.Value;
+                    string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
+                    string vatId = supplierData.GetProperty("vat_id").GetString();
+                    string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
+                    string SupplierEmail = supplierData.GetProperty("email").GetString();
+                    int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+                    string status = await GetStatus(vatId);
+                    DateTime? lastInvitationDate = null;
+                    ActionItem action = null;
+
+
+                    var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+                    if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+                    {
+                        if (status == "Connected to Uninet")
+                        {
+                            action = new ActionItem("Connected", ActionType.String);
+                        }
+                        else if (status == "Still not connected")
+                        {
+                            if (BusinessPartnersObj.EmailSent.Value)
+                            {
+                                var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                                if (difference.TotalDays < 365)
+                                {
+                                    action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                                }
+                                else
+                                {
+                                    action = new ActionItem("Invite", ActionType.Button);
+                                }
+                            }
+                            else
+                            {
+                                status = "Missing email details";
+                                action = new ActionItem("Complete details", ActionType.Button);
+                            }
+                        }
+                    }
+                    else if (status == "Connected to Uninet")
+                    {
+                        action = new ActionItem("Connected", ActionType.String);
+                    }
+                    else
+                    {
+                        status = "Waiting for invitation";
+                        action = new ActionItem("Invite", ActionType.Button);
+                    }
+
+                    suppliersList.Add(new BusinessPartnerProp
+                    {
+                        BusinesspartnerName = businesspartnerName,
+                        VatId = vatId,
+                        supplier_id = Supplier_id,
+                        DocAmount = docAmount,
+                        Email = SupplierEmail,
+                        SubCompanyId = subCompanyId,
+                        Type = "Supplier",
+                        Status = status,
+                        LastInvitationDate = lastInvitationDate,
+                        Actions = action
+                    });
+                }
+            }
+
+
+           
+
+            
+            return suppliersList;
+        }
+
+
+
+        // Function to handle case 2 logic
+        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
+        {
+            var clientsList = new List<BusinessPartnerProp>();
+
+            // Check if the document exists in the collection
+            var filterBuilder = Builders<BsonDocument>.Filter;
+            var filter = filterBuilder.Eq("userId", userId) &
+                         filterBuilder.Eq("subCompanyId", subCompanyId) &
+                         filterBuilder.Eq("MainCompanyId", MainCompanyId) &
+                         filterBuilder.Eq("ExtrnalsystemIdOfsubCopmanyId", ExtrnalsystemIdOfsubCopmanyId)&
+                         filterBuilder.Exists("clients",true);
+            var existingDocument = await _Icount_BussinesPartner_Clients_Suplliers.Find(filter).FirstOrDefaultAsync();
+            DateTime lastInsertDate = new DateTime();
+
+            // If the document exists, extract "clients" data from it
+            if (existingDocument != null)
+            {
+                var dateString = existingDocument["LastInsertDate"].AsString;
+
+                if (DateTime.TryParse(dateString, out lastInsertDate))
+                {
+                    // Now you can convert the DateTime to universal time
+                    lastInsertDate = lastInsertDate.ToUniversalTime();
+                }
+                else
+                {
+                    // Handle the case where the date string cannot be parsed
+                    // This could be due to invalid date format or missing/incorrect data
+                }
+
+                TimeSpan differenceyear = DateTime.UtcNow - lastInsertDate;
+
+
+
+                // Check if the difference is more than one year
+                if (differenceyear.TotalDays < 365)
+                {
+                    var clientData = existingDocument.GetValue("clients");
+                    foreach (var client in clientData.AsBsonDocument)
+                    {
+                        var clientInfo = client.Value.AsBsonDocument;
+                        string businesspartnerName = clientInfo.GetValue("client_name").AsString;
+                        string vatId = clientInfo.GetValue("vat_id").AsString;
+                        string ClientEmail = clientInfo.GetValue("email").AsString;
+                        int docAmount = await GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue);
+                        string status = await GetStatus(vatId);
+
+                        // Retrieve BusinessPartnersObj from repository based on vatId, userId, subCompanyId, and MainCompanyId
+                        var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+                        ActionItem action = null;
+
+                        if (status == "Connected to Uninet")
+                        {
+                            action = new ActionItem("Connected", ActionType.String);
+                        }
+                        else if (status == "Still not connected")
+                        {
+                            if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value)
+                            {
+                                var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                                if (difference.TotalDays < 365)
+                                {
+                                    action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                                }
+                                else
+                                {
+                                    action = new ActionItem("Invite", ActionType.Button);
+                                }
+                            }
+                            else if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && !BusinessPartnersObj.EmailSent.Value)
+                            {
+                                status = "Missing email details";
+                                action = new ActionItem("Complete details", ActionType.Button);
+                            }
+                            else
+                            {
+                                status = "Waiting for invitation";
+                                action = new ActionItem("Invite", ActionType.Button);
+                            }
+
+                        }
+
+                        clientsList.Add(new BusinessPartnerProp
+                        {
+                            BusinesspartnerName = businesspartnerName,
+                            VatId = vatId,
+                            DocAmount = docAmount,
+                            Email = ClientEmail,
+                            SubCompanyId = subCompanyId,
+                            Type = "Client",
+                            Status = status,
+                            LastInvitationDate = BusinessPartnersObj?.LastDateSent,
+                            Actions = action
+                        });
+                    }
+                }
+                else
+                {
+                    // Remove the existing document
+                    await _Icount_BussinesPartner_Clients_Suplliers.DeleteOneAsync(filter);
+
+                    // Fetch data from the external source
+                    var clientget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
+                    var endpointclientget_list = clientget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                    HttpMethod methodclientget_list = HttpMethod.Get;
+                    var Reponsneclientget_list = await SendRequest(endpointclientget_list, methodclientget_list);
+
+                    // Modify the JSON response by adding the required fields
+                    var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsneclientget_list);
+                    modifiedJson["userId"] = userId;
+                    modifiedJson["subCompanyId"] = subCompanyId;
+                    modifiedJson["MainCompanyId"] = MainCompanyId;
+                    modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+                    modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+                    // Insert the modified JSON into the collection
+                    await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+
+                    // Process the clients data
+                    var jsonDocument = JsonDocument.Parse(Reponsneclientget_list);
+                    var jsonData = jsonDocument.RootElement;
+                    var clientsData = jsonData.GetProperty("clients");
+
+                    foreach (var client in clientsData.EnumerateObject())
+                    {
+                        var clientData = client.Value;
+                        string businesspartnerName = clientData.GetProperty("client_name").GetString();
+                        string vatId = clientData.GetProperty("vat_id").GetString();
+                        string ClientEmail = clientData.GetProperty("email").GetString();
+                        int docAmount = await GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue);
+                        string status = await GetStatus(vatId);
+
+                        // Retrieve BusinessPartnersObj from repository based on vatId, userId, subCompanyId, and MainCompanyId
+                        var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+                        ActionItem action = null;
+
+                        if (status == "Connected to Uninet")
+                        {
+                            action = new ActionItem("Connected", ActionType.String);
+                        }
+                        else if (status == "Still not connected")
+                        {
+                            if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value)
+                            {
+                                var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+                                if (difference.TotalDays < 365)
+                                {
+                                    action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+                                }
+                                else
+                                {
+                                    action = new ActionItem("Invite", ActionType.Button);
+                                }
+                            }
+                            else if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && !BusinessPartnersObj.EmailSent.Value)
+                            {
+                                status = "Missing email details";
+                                action = new ActionItem("Complete details", ActionType.Button);
+                            }
+                            else
+                            {
+                                status = "Waiting for invitation";
+                                action = new ActionItem("Invite", ActionType.Button);
+                            }
+                        }
+
+                        clientsList.Add(new BusinessPartnerProp
+                        {
+                            BusinesspartnerName = businesspartnerName,
+                            VatId = vatId,
+                            DocAmount = docAmount,
+                            Email = ClientEmail,
+                            SubCompanyId = subCompanyId,
+                            Type = "Client",
+                            Status = status,
+                            LastInvitationDate = BusinessPartnersObj?.LastDateSent,
+                            Actions = action
+                        });
+                    }
+                }
+            }
+            else
+            {
+                // Document does not exist, fetch data from external source
+
+                var clientget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
+                var endpointclientget_list = clientget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                HttpMethod methodclientget_list = HttpMethod.Get;
+                var Reponsneclientget_list = await SendRequest(endpointclientget_list, methodclientget_list);
+
+                // Modify the JSON response by adding the required fields
+                var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsneclientget_list);
+                modifiedJson["userId"] = userId;
+                modifiedJson["subCompanyId"] = subCompanyId;
+                modifiedJson["MainCompanyId"] = MainCompanyId;
+                modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+                modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+                // Insert the modified JSON into the collection
+                await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+
+                // Process the clients data
+                var jsonDocument = JsonDocument.Parse(Reponsneclientget_list);
+                var jsonData = jsonDocument.RootElement;
+                var clientsData = jsonData.GetProperty("clients");
+
+                foreach (var client in clientsData.EnumerateObject())
+                {
+                    var clientData = client.Value;
+                    string businesspartnerName = clientData.GetProperty("client_name").GetString();
+                    string vatId = clientData.GetProperty("vat_id").GetString();
+                    string ClientEmail = clientData.GetProperty("email").GetString();
+                    int docAmount = await GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue);
+                    string status = await GetStatus(vatId);
+
+                    // Retrieve BusinessPartnersObj from repository based on vatId, userId, subCompanyId, and MainCompanyId
+                    var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+                    ActionItem action = null;
+
                     if (status == "Connected to Uninet")
                     {
                         action = new ActionItem("Connected", ActionType.String);
                     }
                     else if (status == "Still not connected")
                     {
-                        if (BusinessPartnersObj.EmailSent.Value)
+                        if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value)
                         {
                             var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
                             if (difference.TotalDays < 365)
@@ -1253,111 +1746,31 @@ namespace Uninet.DATA.Services
                                 action = new ActionItem("Invite", ActionType.Button);
                             }
                         }
-                        else
+                        else if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && !BusinessPartnersObj.EmailSent.Value)
                         {
                             status = "Missing email details";
                             action = new ActionItem("Complete details", ActionType.Button);
                         }
-                    }
-                }
-                else if (status == "Connected to Uninet")
-                {
-                    action = new ActionItem("Connected", ActionType.String);
-                }
-                else
-                {
-                    status = "Waiting for invitation";
-                    action = new ActionItem("Invite", ActionType.Button);
-                }
-
-                suppliersList.Add(new BusinessPartnerProp
-                {
-                    BusinesspartnerName = businesspartnerName,
-                    VatId = vatId,
-                    supplier_id = Supplier_id,
-                    DocAmount = docAmount,
-                    Email= SupplierEmail,
-                    SubCompanyId = subCompanyId,
-                    Type = "Supplier",
-                    Status = status,
-                    LastInvitationDate = BusinessPartnersObj?.LastDateSent,
-                    Actions = action
-                });
-            }
-
-            return suppliersList;
-        }
-
-
-
-        // Function to handle case 2 logic
-        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
-        {
-            var clientsList = new List<BusinessPartnerProp>();
-
-            var clientget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
-            var endpointclientget_list = clientget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-            HttpMethod methodclientget_list = HttpMethod.Get;
-            var Reponsneclientget_list = await SendRequest(endpointclientget_list, methodclientget_list);
-            var jsonDocumentclientget_list = JsonDocument.Parse(Reponsneclientget_list);
-            var jsonDataclientget_list = jsonDocumentclientget_list.RootElement;
-            var clientget_lisData = jsonDataclientget_list.GetProperty("clients");
-
-            foreach (var client in clientget_lisData.EnumerateObject())
-            {
-                var clientData = client.Value;
-                string businesspartnerName = clientData.GetProperty("client_name").GetString();
-                string vatId = clientData.GetProperty("vat_id").GetString();
-                string ClientEmail= clientData.GetProperty("email").GetString();
-                int docAmount = await GetDocAmountclient(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue);
-                string status = await GetStatus(vatId);
-
-                var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
-
-                ActionItem action = null;
-
-                if (status == "Connected to Uninet")
-                {
-                    action = new ActionItem("Connected", ActionType.String);
-                }
-                else if (status == "Still not connected")
-                {
-                    if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && BusinessPartnersObj.EmailSent.Value)
-                    {
-                        var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
-                        if (difference.TotalDays < 365)
-                        {
-                            action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
-                        }
                         else
                         {
+                            status = "Waiting for invitation";
                             action = new ActionItem("Invite", ActionType.Button);
                         }
                     }
-                    else if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue && !BusinessPartnersObj.EmailSent.Value)
-                    {
-                        status = "Missing email details";
-                        action = new ActionItem("Complete details", ActionType.Button);
-                    }
-                    else
-                    {
-                        status = "Waiting for invitation";
-                        action = new ActionItem("Invite", ActionType.Button);
-                    }
-                }
 
-                clientsList.Add(new BusinessPartnerProp
-                {
-                    BusinesspartnerName = businesspartnerName,
-                    VatId = vatId,
-                    DocAmount = docAmount,
-                    Email= ClientEmail,
-                    SubCompanyId = subCompanyId,
-                    Type = "Client",
-                    Status = status,
-                    LastInvitationDate = BusinessPartnersObj?.LastDateSent,
-                    Actions = action
-                });
+                    clientsList.Add(new BusinessPartnerProp
+                    {
+                        BusinesspartnerName = businesspartnerName,
+                        VatId = vatId,
+                        DocAmount = docAmount,
+                        Email = ClientEmail,
+                        SubCompanyId = subCompanyId,
+                        Type = "Client",
+                        Status = status,
+                        LastInvitationDate = BusinessPartnersObj?.LastDateSent,
+                        Actions = action
+                    });
+                }
             }
 
             return clientsList;
