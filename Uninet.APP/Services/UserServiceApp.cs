@@ -38,7 +38,17 @@ namespace Uninet.APP.Services
             }
         }
 
-
+        public async Task<CurrentExternalSystemDetails> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput, int userid)
+        {
+            try
+            {
+                return await _userServiceDataAccess.ShowCurrentExternalSystemDetails(detailsForExternakSystemInput, userid);
+            }
+            catch 
+            {
+                return null;
+            }
+        }
         public async Task<ActiveTabResponse> GetActiveTab(GetActiveTabRequest getActiveTabRequest)
         {
             try

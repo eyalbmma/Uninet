@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Uninet.APP.Interfaces;
 using Uninet.APP.Services;
+using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
@@ -37,7 +38,22 @@ namespace UninetWebApi2.Controllers
             Configuration = configuration;
         }
 
+
         [Authorize]
+        [HttpPost("ShowCurrentExternalSystemDetails")]
+        public async Task<ActionResult> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var ExternalSystemResult = await _userServiceApp.ShowCurrentExternalSystemDetails(detailsForExternakSystemInput, Convert.ToInt32(userId));
+                return Ok(ExternalSystemResult);
+            }
+            catch (Exception ex) { return null; }
+        }
+
+
+                [Authorize]
         [HttpPost("InviteBusinessPartners")]
         public async Task<ActionResult> InviteBusinessPartners(int Lang)
         {

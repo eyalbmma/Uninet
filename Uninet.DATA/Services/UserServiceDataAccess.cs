@@ -401,6 +401,38 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
         }
 
+        public async Task<CurrentExternalSystemDetails> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput, int userid)
+        {
+            try
+            {
+                // Fetch the list of dynamic fields
+                var BusinessesObj = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == detailsForExternakSystemInput.mainCompanyId
+                         && x.SubCompayId == detailsForExternakSystemInput.subCopmanyId
+                         && x.Userid == userid);
+
+                // Group by ExternalSystemId and select the first group
+                var group = BusinessesObj
+                    .GroupBy(x => x.ExternalSystemId)
+                    .FirstOrDefault();
+
+                if (group != null)
+                {
+                    var res = new CurrentExternalSystemDetails
+                    {
+                        ExternalSystemId = group.Key,
+                        Fields = group.ToDictionary(x => x.FieldLabelName, x => x.FieldLabelValue)
+                    };
+                    return res;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                // Handle exception
+                return null;
+            }
+        }
 
 
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)

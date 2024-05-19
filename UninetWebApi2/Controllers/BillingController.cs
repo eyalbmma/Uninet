@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Uninet.APP.Interfaces;
 using Uninet.Domain.Models;
 
 namespace UninetWebApi2.Controllers
@@ -10,6 +11,16 @@ namespace UninetWebApi2.Controllers
     [ApiController]
     public class BillingController : ControllerBase
     {
+
+
+        private IbillingService _billingService;
+        public BillingController(IbillingService billingService)
+        {
+            _billingService = billingService;
+            
+        }
+
+
         [Authorize]
         [HttpPost("Save")]
 
@@ -25,6 +36,23 @@ namespace UninetWebApi2.Controllers
             { 
                 var failureMessage = BillingMessage.GetFailureMessage();
                 return BadRequest(failureMessage);
+            }
+
+        }
+
+
+        [Authorize]
+        [HttpPost("ShowUserBillingDetails")]
+        public async Task<ActionResult> ShowUserBillingDetails([FromBody] UserDetails userDetails)
+        {
+            try
+            {
+                var res = await _billingService.ShowUserBillingDetails(userDetails);
+                return Ok(res);
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
 
         }

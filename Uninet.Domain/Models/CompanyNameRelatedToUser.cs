@@ -12,5 +12,6 @@ namespace Uninet.Domain.Models
         public string CompanyName { get; set; }
 
         public bool IsDefault { get; set; }
+        public int TotalDocs { get; set; }
     }
 }

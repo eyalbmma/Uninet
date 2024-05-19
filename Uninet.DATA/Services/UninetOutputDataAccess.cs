@@ -1066,15 +1066,20 @@ namespace Uninet.DATA.Services
 
 
         // Method to populate ListOfSubCompaniesandNames
-        public async Task<List<CompanyNameRelatedToUser>> PopulateListOfSubCompaniesandNames(List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser)
+        public async Task<List<CompanyNameRelatedToUser>> PopulateListOfSubCompaniesandNames(List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser,int UserID)
         {
             List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames = new List<CompanyNameRelatedToUser>();
 
             // Find the most recent LastTimeDataShowed
             DateTime mostRecentTime = ResListOfCompaniesRelatedToLogedinUser.Max(c => c.LastTimeDataShowed);
-
+            //int ClientVat_idfor_MainCompanyId_SubCopmanyId= await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 77);
+           
             foreach (var company in ResListOfCompaniesRelatedToLogedinUser)
             {
+                var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId== company.MainCompanyId && x.SubCompanyId== company.SubCopmanyId);
+                var Clientvatid= await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == BusinessVatId.BusinessVatId);
+                var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Clientvatid.ClientVat_id);
+
                 string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
                 if (companyName != null)
                 {
@@ -1084,7 +1089,8 @@ namespace Uninet.DATA.Services
                     {
                         SubCopmanyId = company.SubCopmanyId,
                         CompanyName = companyName,
-                        IsDefault = isDefault
+                        IsDefault = isDefault,
+                        TotalDocs= totalCountObj.Count()
                     });
                 }
             }
@@ -1127,7 +1133,7 @@ namespace Uninet.DATA.Services
                 // Fetch the paginated list of digital documents using the updated repository method
                 var digitalDocuments = _repository.GetListOfObjectsPaging<BusinessData>(
                     x => x.ClientVat_id == Convert.ToUInt32(vatId) &&
-                         (documentApprovedToUninet == null || x.DocumentApprovedtoUninet == documentApprovedToUninet),
+                         ( x.DocumentApprovedtoUninet == documentApprovedToUninet),
                     pageNumber,
                     pageSize
                 ).OrderByDescending(x => x.docDate).ToList();
@@ -1915,6 +1921,7 @@ namespace Uninet.DATA.Services
             try
             {
                 // List<DigitalDocumentToApprove> List_DigitalDocumentToApprove = new List<DigitalDocumentToApprove>();
+                
                 string FullName = "";
                 List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser = null;
                 DigitalDocumentToApproveObj resObj = new DigitalDocumentToApproveObj();
@@ -2000,8 +2007,7 @@ namespace Uninet.DATA.Services
                 if (result != null)
                     {
                         var vatId = result["company_info"]["vat_id"].AsString;
-
-
+                       
 
 
                         //now we go to BusinessData  table that has all digitaldocument sent to clients and check if client is there by his vat_id
@@ -2243,7 +2249,7 @@ namespace Uninet.DATA.Services
                 {
                     listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
                     TotallistDigitalDocumentToApprove = totalCount,
-                    ListOfSubCompaniesandNames = await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser),
+                    ListOfSubCompaniesandNames = await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser, UserID),
                     fullname = FullName
                 };
                 return Objres;

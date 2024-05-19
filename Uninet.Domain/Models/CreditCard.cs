@@ -15,4 +15,13 @@ namespace Uninet.Domain.Models
         public string CVV { get; set; }
     }
 
+
+    public class UserDetails
+    {
+        public int UserId { get; set; }
+        public int BusinessId { get; set; }
+        public int SubCompanyId { get; set; }
+       
+    }
+
 }

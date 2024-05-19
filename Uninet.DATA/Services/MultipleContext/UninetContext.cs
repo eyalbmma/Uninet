@@ -19,6 +19,14 @@ namespace Uninet.DATA.Services.MultipleContext
 
 
         }
+        
+            
+            
+
+
+        public virtual DbSet<UserCreditCardHolderList> UserCreditCardHolderList { get; set; }
+        public virtual DbSet<UserDetails> UserDetails { get; set; }
+        public virtual DbSet<UserCreditCardHolderTable> UserCreditCardHolderTable { get; set; }
 
         public virtual DbSet<TestResponse> TestResponse { get; set; }
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
@@ -91,10 +99,13 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
             modelBuilder.Entity<ExternalSystem>().HasKey(u => new { u.ExternalSystemID });
 
-            
 
 
-            modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
+          
+        modelBuilder.Entity<UserDetails>().HasNoKey();
+        modelBuilder.Entity<UserCreditCardHolderList>().HasNoKey();
+        modelBuilder.Entity<UserCreditCardHolderTable>().HasKey(u => new { u.UserId, u.BusinessId, u.SubCompanyId ,u.ExternalSystemId });
+        modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
 
             
             modelBuilder.Entity<MainSubCopmaniesMasters>().HasKey(u => new { u.MainCompanyId,u.SubCopmanyId });

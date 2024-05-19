@@ -83,9 +83,13 @@ namespace UninetWebApi2.Controllers
             services.AddScoped<IDataMailassist, DataMailassist>();
 
 
-            services.AddScoped<IUninetOutPutAppService, UninetOutPutAppService>();
-            services.AddScoped<IUninetOutputDataAccess, UninetOutputDataAccess>();
+            services.AddScoped<IbillingService, billingServiceApp>();
+            services.AddScoped<IbillingServiceDataaccess, billingServiceDataaccess>();
 
+
+
+            services.AddScoped<IUninetInputDataAccess, UninetInputDataAccess>();
+            services.AddScoped<IUninetInputAppService, UninetInputAppService>();
             //services.AddScoped<PullUsersData>();
             services.AddScoped<IUninetInputDataAccess, UninetInputDataAccess>();
             services.AddScoped<IUninetInputAppService, UninetInputAppService>();
