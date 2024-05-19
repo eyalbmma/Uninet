@@ -24,9 +24,9 @@ namespace Uninet.DATA.Services.MultipleContext
             
 
 
-        public virtual DbSet<UserCreditCardHolderList> UserCreditCardHolderList { get; set; }
-        public virtual DbSet<UserDetails> UserDetails { get; set; }
-        public virtual DbSet<UserCreditCardHolderTable> UserCreditCardHolderTable { get; set; }
+        //public virtual DbSet<UserCreditCardHolderList> UserCreditCardHolderList { get; set; }
+        //public virtual DbSet<UserDetails> UserDetails { get; set; }
+        public virtual DbSet<UserCreditCardHolder> UserCreditCardHolder { get; set; }
 
         public virtual DbSet<TestResponse> TestResponse { get; set; }
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
@@ -35,7 +35,8 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<AddUserCredentialsSystemResult> AddUserCredentialsSystemResult { get; set; }
         
         public virtual DbSet<InsertdatatoJobbatchlogResult> InsertdatatoJobbatchlogResult { get; set; }
-
+        
+           
         public virtual DbSet<AdminUsers> AdminUsers { get; set; }
         public virtual DbSet<LUTIcountSourceWebhookCompanyMapping> LUTIcountSourceWebhookCompanyMapping { get; set; }
         public virtual DbSet<Jobbatchlog> Jobbatchlog { get; set; }
@@ -98,14 +99,14 @@ namespace Uninet.DATA.Services.MultipleContext
             modelBuilder.Entity<AdminUsers>().HasKey(u => new { u.AdminUserid, u.Email, u.PhoneNumber });
             modelBuilder.Entity<Businesses>().HasKey(u => new { u.AdminUserid, u.BusinessId });
             modelBuilder.Entity<ExternalSystem>().HasKey(u => new { u.ExternalSystemID });
+           
+            
 
 
-
-          
-        modelBuilder.Entity<UserDetails>().HasNoKey();
-        modelBuilder.Entity<UserCreditCardHolderList>().HasNoKey();
-        modelBuilder.Entity<UserCreditCardHolderTable>().HasKey(u => new { u.UserId, u.BusinessId, u.SubCompanyId ,u.ExternalSystemId });
-        modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
+            //modelBuilder.Entity<UserDetails>().HasNoKey();
+            //modelBuilder.Entity<UserCreditCardHolderList>().HasNoKey();
+            modelBuilder.Entity<UserCreditCardHolder>().HasKey(u => new { u.UserId, u.BusinessId, u.SubCompanyId ,u.ExternalSystemId });
+            modelBuilder.Entity<LUTIcountSourceWebhookCompanyMapping>().HasKey(u => new { u.WebHookSourceid });
 
             
             modelBuilder.Entity<MainSubCopmaniesMasters>().HasKey(u => new { u.MainCompanyId,u.SubCopmanyId });

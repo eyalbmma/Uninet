@@ -29,7 +29,7 @@ namespace Uninet.DATA.Services
             try
             {
                 // Fetch the list of UserCreditCardHolderTable objects based on UserId and BusinessId
-                var creditCardHolders = await _repository.GetListOfObjectsAsync<UserCreditCardHolderTable>(
+                var creditCardHolders = await _repository.GetListOfObjectsAsync<UserCreditCardHolder>(
                     x => x.UserId == userDetails.UserId && x.BusinessId == userDetails.BusinessId);
 
                 // Map the fetched objects to a list of CreditCardHolderUser objects

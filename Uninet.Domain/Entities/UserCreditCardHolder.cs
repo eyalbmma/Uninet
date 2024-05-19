@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Uninet.Domain.Entities
 {
     [Table("UserCreditCardHolder")]
-    public class UserCreditCardHolderTable
+    public class UserCreditCardHolder
     {
         [Key]
         public int UserId { get; set; }
