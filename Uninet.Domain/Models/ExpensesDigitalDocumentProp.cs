@@ -24,7 +24,8 @@ namespace Uninet.Domain.Models
 
         public double AmountAV { get; set; }
 
-
+        public string currencyName { get; set; }
+        public decimal CurrenctRateValue { get; set; }
         public List<ExpenseType> ExpenseTypeList { get; set; }
 
         public Int32 internalCompanyId { get; set; }

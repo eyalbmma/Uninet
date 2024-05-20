@@ -32,9 +32,101 @@ using System.Numerics;
 using Twilio.TwiML.Voice;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
+using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 
 namespace Uninet.DATA.Services
 {
+    public class ApiResponse
+    {
+        [JsonProperty("api")]
+        public ApiDetailsCurrencyInfo Api { get; set; }
+
+        [JsonProperty("status")]
+        public bool Status { get; set; }
+
+        [JsonProperty("reason")]
+        public string Reason { get; set; }
+
+        [JsonProperty("currency_rates")]
+        public Dictionary<string, decimal> CurrencyRates { get; set; }
+    }
+
+    public class ApiDetailsCurrencyInfo
+    {
+        [JsonProperty("version")]
+        public int Version { get; set; }
+
+        [JsonProperty("tz")]
+        public int Tz { get; set; }
+
+        [JsonProperty("ts")]
+        public double Ts { get; set; }
+
+        [JsonProperty("lang")]
+        public string Lang { get; set; }
+
+        [JsonProperty("rid")]
+        public int Rid { get; set; }
+
+        [JsonProperty("module")]
+        public string Module { get; set; }
+
+        [JsonProperty("method")]
+        public string Method { get; set; }
+    }
+    public class CurrencyRateRequest
+    {
+        public string sid { get; set; }
+        public string cid { get; set; }
+        public string user { get; set; }
+        public string pass { get; set; }
+    }
+
+    public class ApiResponseinfo
+    {
+        public ApiDetails Api { get; set; }
+        public bool Status { get; set; }
+        public string Reason { get; set; }
+        public string Currency { get; set; }
+        public int CurrencyId { get; set; }
+        public string CurrencyCode { get; set; }
+        public string CurrencySign { get; set; }
+    }
+
+    public class ApiDetails
+    {
+        public int Version { get; set; }
+        public int Tz { get; set; }
+        public double Ts { get; set; }
+        public string Lang { get; set; }
+        public int Rid { get; set; }
+        public string Module { get; set; }
+        public string Method { get; set; }
+    }
+
+    public class CurrencyId
+    {
+        [JsonProperty("Base type")]
+        public int BaseType { get; set; }
+    }
+
+    public class CurrencyCode
+    {
+        [JsonProperty("Base type")]
+        public string BaseType { get; set; }
+    }
+
+    public class CurrencyInfo
+    {
+        public string sid { get; set; }
+        public string cid { get; set; }
+        public string user { get; set; }
+        public string pass { get; set; }
+        public CurrencyId currency_id { get; set; }
+        public CurrencyCode currency_code { get; set; }
+        public string Currency { get; set; }
+    }
+
     public class UninetOutputDataAccess : IUninetOutputDataAccess
     {
         private readonly IRepository<UninetContext> _repository;
@@ -379,13 +471,27 @@ namespace Uninet.DATA.Services
 
             //return expenseTypeList;
         }
+        public async Task<string> SendRequestCurrency(string url, HttpMethod method, string postData)
+        {
+            using (var client = new HttpClient())
+            using (var request = new HttpRequestMessage(method, url))
+            {
+                request.Content = new StringContent(postData, Encoding.UTF8, "application/json");
 
+                using (var response = await client.SendAsync(request))
+                {
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStringAsync();
+                }
+            }
+        }
         public async Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId)
         {
             try
             {
                 Int32 InternalCompanyId = 0;
                 int SubCompanyId = 0;
+                int SubCompanyid_clientRelated = 0;
                 string Email = "";
                 string addressCity = "";
                 string addressState = "";
@@ -433,9 +539,13 @@ namespace Uninet.DATA.Services
 
                 //we get all list of supliers for the user loged into uninet and get his suplierid and supliername
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
+                List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslistClient = null;
                 var CheckUsermasterExist =await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
                 if (CheckUsermasterExist != null)
                 {
+                    var SubCompanyidClientObj = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == userId && x.BusinessId == InternalCompanyId && x.ClientVat_id == Convert.ToInt32(expensesUserDoRequest.ClientVat_id));
+                    UserexternalSystemDynamicFieldslistClient = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyidClientObj.SubCompanyId);
+
                     UserexternalSystemDynamicFieldslist =await  _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId== SubCompanyId);
                 }
                 else
@@ -444,7 +554,40 @@ namespace Uninet.DATA.Services
                     UserexternalSystemDynamicFieldslist =await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
                     userId = GetRelatedMasterId.Userid;
                 }
-                 
+                //client credentials
+                string cidvalueclient = null;
+                string uservalueclient = null;
+                string passvalueclient = null;
+                foreach (var dynamicField in UserexternalSystemDynamicFieldslistClient)
+                {
+                    string fieldLabelName = dynamicField.FieldLabelName;
+                    string fieldLabelValue = dynamicField.FieldLabelValue;
+
+                    if (fieldLabelName == "cid")
+                    {
+                        cidvalueclient = fieldLabelValue;
+                        // Use the cid value as needed
+                    }
+                    else if (fieldLabelName == "user")
+                    {
+                        uservalueclient = fieldLabelValue;
+                        // Use the user value as needed
+                    }
+                    else if (fieldLabelName == "pass")
+                    {
+                        passvalueclient = fieldLabelValue;
+                        // Use the pass value as needed
+                    }
+
+
+
+
+
+
+                }
+
+
+                /////suplier credentials
                 string cidvalue = null;
                 string uservalue = null;
                 string passvalue = null;
@@ -481,6 +624,10 @@ namespace Uninet.DATA.Services
                 //BusinessData
                 var RowBusinessData = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == expensesUserDoRequest.JsonDocumentid);
                 //extract doctype,DocDate,total from IcountDocInfo
+                string currencyName = "";
+                string currency = "";
+                decimal currenctRateValue = 0;
+                string rate = "";
                 string docnum = "";
                 string Doctype = "";
                 string dateissuedstr = "";
@@ -689,9 +836,65 @@ namespace Uninet.DATA.Services
 
                         if (webhookdoc != null)
                         {
+                            currency= webhookdoc["doc_info"]["currency"].AsString;
+                            rate= webhookdoc["doc_info"]["rate"].AsString;
+
+                            var currencyInfoObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 87);
+                            //string EndpointcurrencyInfo = currencyInfoObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                            HttpMethod method = HttpMethod.Post;
+
+                            var currencyInfo = new CurrencyInfo
+                            {
+                                sid = "",
+                                cid = cidvalueclient,
+                                user = uservalueclient,
+                                pass = passvalueclient,
+                                currency_id = new CurrencyId
+                                {
+                                    BaseType = 0
+                                },
+                                currency_code = new CurrencyCode
+                                {
+                                    BaseType = currency
+                                },
+                                Currency = ""
+                            };
+
+                            string postData = JsonConvert.SerializeObject(currencyInfo);
+                            string result = await SendRequestCurrency(currencyInfoObj.Endpoint, method, postData);
+                            // Deserialize the response to extract the "currency" field
+                            var apiResponse = JsonConvert.DeserializeObject<ApiResponseinfo>(result);
+                             currencyName = apiResponse.Currency;
+
+                            //////////////////////////////////////////////////////////
+
+                            var currencyRateObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 85);
+                            //string EndpointcurrencyInfo = currencyInfoObj.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+                            HttpMethod method1 = HttpMethod.Post;
+                            var currencyRateRequest = new CurrencyRateRequest
+                            {
+                                sid = "",
+                                cid = cidvalueclient,
+                                user = uservalueclient,
+                                pass = passvalueclient
+                            };
+
+                            string postData1 = JsonConvert.SerializeObject(currencyRateRequest);
+
+                            string result1 = await SendRequestCurrency(currencyRateObj.Endpoint, method1, postData1);
+
+                            // Deserialize the response
+                            var apiResponse1 = JsonConvert.DeserializeObject<ApiResponse>(result1);
+
+                            // Example: Get the rate for USD
+                            
+                            if (apiResponse1.CurrencyRates.TryGetValue(currencyName, out decimal rate1))
+                            {
+                                currenctRateValue = rate1;
+                            }
+                            
 
                             docnum = webhookdoc["doc_info"]["docnum"].AsString;
-
                             Doctype = webhookdoc["doc_info"]["doctype"].AsString;
 
 
@@ -775,6 +978,8 @@ namespace Uninet.DATA.Services
                             Doctype = Doctype,
                             DocDate = DocDate,
                             AmountAV = total,
+                            currencyName= currencyName,
+                            CurrenctRateValue = currenctRateValue,
                             ExpenseTypeList = res,
                             internalCompanyId = InternalCompanyId,
                             Jsondocumentid = expensesUserDoRequest.JsonDocumentid,
@@ -921,6 +1126,8 @@ namespace Uninet.DATA.Services
                             Doctype = Doctype,
                             DocDate = DocDate,
                             AmountAV = total,
+                            currencyName = currencyName,
+                            CurrenctRateValue = currenctRateValue,
                             ExpenseTypeList = res,
                             internalCompanyId = InternalCompanyId,
                             Jsondocumentid = expensesUserDoRequest.JsonDocumentid,
