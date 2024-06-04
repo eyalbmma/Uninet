@@ -71,8 +71,9 @@ namespace Uninet.DATA.Services.MultipleContext
         public virtual DbSet<CompanyPulledDataLog> CompanyPulledDataLog { get; set; }
         public virtual DbSet<GetUserIdByRefreshTokenResponse> GetUserIdByRefreshTokenResponse { get; set; }
         public DbSet<LUT_ExtrenalFieldsType> LUT_ExtrenalFieldsTypes { get; set; }
+        public DbSet<FirstTimeConsoleIndication> FirstTimeConsoleIndication { get; set; }
 
-
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -80,6 +81,7 @@ namespace Uninet.DATA.Services.MultipleContext
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<SystemsEndpoints>().HasKey(u => new { u.Id, u.ExternalSystemId, u.Endpoint ,u.MethodeType });
             
+                modelBuilder.Entity<FirstTimeConsoleIndication>().HasKey(u => new { u.Userid, u.Mainorganization, u.Subcompanyid });
             modelBuilder.Entity<CompanyPulledDataLog>().HasKey(u => new { u.CompanyVatid});
             modelBuilder.Entity<VerifyUserByOtpUserIdAndTimeStampResponse>().HasNoKey();
 

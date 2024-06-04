@@ -114,9 +114,10 @@ namespace Uninet.Domain.Models
         [JsonPropertyName("BusinessVatId")]
         public string  BusinessVatId { get; set; }
 
-        
 
 
+        [JsonPropertyName("Lang")]
+        public int Lang { get; set; }
 
 
 

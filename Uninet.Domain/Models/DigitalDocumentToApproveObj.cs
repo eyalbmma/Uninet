@@ -10,10 +10,12 @@ namespace Uninet.Domain.Models
     {
         public List<DigitalDocumentToApprove> listDigitalDocumentToApprove { get; set; }
         
-        public int TotallistDigitalDocumentToApprove { get; set; }
+       // public int TotallistDigitalDocumentToApprove { get; set; }
         public string fullname { get; set; }
 
         public List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames { get; set; }
 
+        public bool ShowFirstTimeMessage { get; set; }
+        public bool ShowExceedsMessage { get; set; }
     }
 }
