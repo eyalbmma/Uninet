@@ -40,6 +40,13 @@ using static System.Net.WebRequestMethods;
 
 namespace Uninet.DATA.Services
 {
+    public class WelcomeResponse
+    {
+        public string Name { get; set; }
+        public string Subtitle { get; set; }
+        public string EntityDetail { get; set; }
+        public string Entity { get; set; }
+    }
     public class UserServiceDataAccess: IUserServiceDataAccess
     {
         private readonly IRepository<UninetContext> _repository;
@@ -829,6 +836,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 }
             }
         }
+        
+
+
         public async Task<string> GetWelcomeToUninet(int Lang, string userId)
         {
             try
@@ -876,9 +886,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var businessNameEn = existingDocument["company_info"]["businessName_en"].AsString;
                     var businessNameHe = existingDocument["company_info"]["businessName_he"].AsString;
 
-                     businessName = Lang == 1 ? businessNameEn : businessNameHe;
+                    businessName = Lang == 1 ? businessNameEn : businessNameHe;
                 }
-                
+
                 var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
                     x => x.Companyid == resBusinesses.BusinessId && x.SubCompayId == subCompanyId
                 );
@@ -888,18 +898,18 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 );
                 financialSoftware = ExternalSystemobj.ExternalSystemName;
 
-                // Determine the language and format the welcome message accordingly
-                string welcomeMessage = "";
-                if (Lang == 1) // English
+                // Create the response object
+                var response = new WelcomeResponse
                 {
-                    welcomeMessage = $"Welcome, {Firstname},\nThe new entity has been successfully connected to Uninet network\nEntity details:\nEntity: {businessName}, VAT id: {vatId}, financial software: {financialSoftware}";
-                }
-                else if (Lang == 2) // Hebrew
-                {
-                    welcomeMessage = $"ברוך הבא, {Firstname},\nהישות החדשה התחברה בהצלחה לרשת Uninet\nפרטי הישות:\nישות: {businessName}, מספר עוסק: {vatId}, תוכנת כספים: {financialSoftware}";
-                }
+                    Name = $"Welcome, {Firstname}",
+                    Subtitle = Lang == 1 ? "The new entity has been successfully connected to Uninet network" : "הישות החדשה התחברה בהצלחה לרשת Uninet",
+                    EntityDetail = Lang == 1 ? $"Entity: {businessName}, VAT id: {vatId}, financial software: {financialSoftware}"
+                                             : $"ישות: {businessName}, מספר עוסק: {vatId}, תוכנת כספים: {financialSoftware}",
+                    Entity = businessName
+                };
 
-                return welcomeMessage;
+                // Serialize the response object to JSON
+                return JsonConvert.SerializeObject(response);
             }
             catch (Exception ex)
             {
@@ -908,7 +918,6 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
-
 
 
 
