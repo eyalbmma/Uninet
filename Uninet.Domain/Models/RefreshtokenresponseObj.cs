@@ -8,7 +8,7 @@ namespace Uninet.Domain.Models
 {
     public class RefreshtokenresponseObj
     {
-        public DateTime RefreshTokenExpireTime { get; set; }
         public string RefreshToken { get; set; }
+        public DateTimeOffset RefreshTokenExpireTime { get; set; }
     }
 }

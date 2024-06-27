@@ -409,44 +409,31 @@ namespace Uninet.Domain.Classes
 
         /// <returns></returns>
 
+ 
+
+
         public async Task<List<TRes>> ExecuteGetSPAsync<TRes>(string spName, object parameters = null) where TRes : class
         {
-            var paramsArr = new Collection<object>();
-            var spStringCommand = BuildSpCommand(spName, ref paramsArr, parameters);
+            try
+            {
+                var paramsArr = new Collection<object>();
+                var spStringCommand = BuildSpCommand(spName, ref paramsArr, parameters);
 
-            return await this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
+                return await this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log the exception here for debugging purposes
+                Console.WriteLine(ex);
+                return null;
+            }
         }
 
 
 
 
-        //public Task<List<TRes>> ExecuteGetSPAsync<TRes>(string spName, object parameters = null) where TRes : class
-
-        //{
-
-        //    var paramsArr = new Collection<object>();
-
-        //    var spStringCommand = BuildSpCommand(spName, ref paramsArr, parameters);
 
 
-
-        //    return  this.dbContext.Set<TRes>().FromSqlRaw(spStringCommand, paramsArr.ToArray()).ToListAsync();
-
-        //}
-
-
-
-        /// <summary>
-
-        ///
-
-        /// </summary>
-
-        /// <param name="spName"></param>
-
-        /// <param name="parameters"></param>
-
-        /// <returns></returns>
 
         public Task<int> ExecuteSqlCommandAsync(string spName, object parameters = null)
 

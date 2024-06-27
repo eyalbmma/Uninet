@@ -20,19 +20,48 @@ namespace Uninet.Domain.Models
             ButtonLabel = buttonLabel;
         }
 
-        // Static methods to easily get predefined messages
-        public static BillingMessage GetSuccessMessage()
+        // Static methods to easily get predefined messages based on language
+        public static BillingMessage GetSuccessMessage(int lang)
         {
-            return new BillingMessage("Billing Succeed", "", "Ok");
+            if (lang == 1) // English
+            {
+                return new BillingMessage("Billing Succeed", "", "Ok");
+            }
+            else if (lang == 2) // Hebrew
+            {
+                return new BillingMessage("החיוב הצליח", "", "אישור");
+            }
+            else // Default to English if language is not recognized
+            {
+                return new BillingMessage("Billing Succeed", "", "Ok");
+            }
         }
 
-        public static BillingMessage GetFailureMessage()
+        public static BillingMessage GetFailureMessage(int lang)
         {
-            return new BillingMessage(
-                "Billing Failed",
-                "There was an error with the billing process, please try again later or contact us.",
-                "Ok");
+            if (lang == 1) // English
+            {
+                return new BillingMessage(
+                    "Billing Failed",
+                    "There was an error with the billing process, please try again later or contact us.",
+                    "Ok");
+            }
+            else if (lang == 2) // Hebrew
+            {
+                return new BillingMessage(
+                    "החיוב נכשל",
+                    "אירעה שגיאה בתהליך החיוב, אנא נסה שוב מאוחר יותר או פנה אלינו.",
+                    "אישור");
+            }
+            else // Default to English if language is not recognized
+            {
+                return new BillingMessage(
+                    "Billing Failed",
+                    "There was an error with the billing process, please try again later or contact us.",
+                    "Ok");
+            }
         }
     }
+
 
 }

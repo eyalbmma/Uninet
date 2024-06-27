@@ -440,8 +440,6 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
-
-
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try
@@ -456,7 +454,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
                     userid = UserId,
                     ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
-                    CompanyId= spInputExternalSystemCompanyDetails.Companyid
+                    CompanyId = spInputExternalSystemCompanyDetails.Companyid
                 };
 
                 // Convert the JSON object to string
@@ -464,9 +462,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var UserParam = new
                 {
                     jsonInput = jsonString
-                    
+
                 };
-               
+
                 var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
 
                 if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
@@ -488,7 +486,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         }
                     }
 
-                   
+
 
                     var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
                     var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
@@ -508,183 +506,98 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                         var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
-                        if (spresult.AdminUserid==0)//if i get userid=0  than  i need to insert the new company credentials to table
+                        if (spresult.OperationType == "insert" || spresult.OperationType == "update") // check if an insert or update was performed
                         {
-                            //here i need to insert the logic that call to 
-                            //https://api.icount.co.il/api/v3.php/webhook/add
-                            //but before calling i need to find out if it already exist in our database related to an internal companyid
-                            //start logic of addig webhook to icount
-                            var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
-
-                            string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
-                            JsonElement rootWebhookEndpointjsonDocument;
-
-                            if (LUTIcountSourceWebhookCompanyMappingRow != null)
+                            if (spresult.OperationType == "insert")
                             {
-                                baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+                                //here i need to insert the logic that call to 
+                                //https://api.icount.co.il/api/v3.php/webhook/add
+                                //but before calling i need to find out if it already exist in our database related to an internal companyid
+                                //start logic of addig webhook to icount
+                                var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
 
-                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
-                                rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
-                            }
-                            else
-                            {
-                                var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+                                string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+                                JsonElement rootWebhookEndpointjsonDocument;
+
+                                if (LUTIcountSourceWebhookCompanyMappingRow != null)
                                 {
-                                    Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
-                                    SubCompanyId = spresult.NewSubCompanyId
-                                };
+                                    baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
 
-                                var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
-
-                                baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
-
-                                var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
-                                rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
-                            }
-
-
-
-
-
-                            bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
-                            int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
-
-                            if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
-                            {
-                                var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
-                                if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
-                                {
-                                    LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
-
-                                    // Call your UpdateAsync method to save the changes
-                                    await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+                                    var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
+                                    rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
                                 }
-                            }
-
-                            ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
-
-
-
-                            // Parse the JSON string to a dynamic object
-                            dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
-
-                            // Add the new property to the company_info object
-                            dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
-                            dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
-
-                            // Convert the modified object back to JSON
-                            string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
-
-
-
-                            // Get the vat_id value
-                            string vatId = dynamicCompanyInfo.company_info.vat_id;
-
-                            // Check if a document with the same vat_id already exists in the collection
-                            var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
-                            var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-
-                            if (existingDocument == null)
-                            {
-
-                                // Parse the modified JSON string to a BsonDocument
-                                BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
-
-                                // Insert the modified document into the collection
-                                try
+                                else
                                 {
-                                    await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
-                                }
-                                catch (Exception ex)
-                                {
-                                    // Log or handle the exception here
-                                    Console.WriteLine($"An error occurred: {ex.Message}");
-                                }
-                            }
-                            else
-                            {
-                                // Document with the same vat_id already exists, handle accordingly
-                                Console.WriteLine("Document with the same vat_id already exists");
-                            }
-
-
-                           /* remarked ny eyal 25/03/2024
-                            string vatid = "";
-                           
-                            string propertyPathstart_date = "company_info.start_date";
-                            if (ReponsneCompanyInfo != null)
-                            {
-                                //DateTime startDate = ExtractPropertyValue<DateTime>(ReponsneCompanyInfo.ToString(), propertyPathstart_date);
-                                var AdminUserRow = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(UserId));
-                                // Define the time zone ID for Israel
-                                string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
-
-                                // Get the Israel time zone
-                                TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
-
-                                // Convert server's DateTime.Now to Israel local time
-                                DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
-
-                                string propertyPathVatid = "company_info.vat_id";
-                                vatid = ExtractPropertyValue<string>(ReponsneCompanyInfo.ToString(), propertyPathVatid);
-                                startPulldata = AdminUserRow.DateCreated;
-                                EndPulldata = israelNow;
-
-                                var companyPulledDataLog = await _repository.FindAsync<CompanyPulledDataLog>(log => log.CompanyVatid == Convert.ToInt32(vatid));
-                                if (companyPulledDataLog != null)
-                                {
-                                    startPulldata = companyPulledDataLog.LastPullDataDate;
-                                }
-
-                                await SetLastPullDataDate(Convert.ToInt32(vatid));
-                            }
-                            var docsearchEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 71);//call icount-https://api.icount.co.il/api/v3.php/doc/search
-
-                            string endpointUrldocsearch = docsearchEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&start_ts=" + startPulldata.ToString("MM/dd/yyyy HH:mm:ss") + "&end_ts=" + EndPulldata.ToString("MM/dd/yyyy HH:mm:ss");
-                            HttpMethod methoddocsearch = HttpMethod.Get;
-                            var Reponsnedocsearch = await _UninetInputDataAccess.SendRequest(endpointUrldocsearch, methoddocsearch);
-
-                            if (Reponsnedocsearch != null)
-                            {
-
-                                // insert  compay cutomer invoices to mongodb collection name icount
-                                ///JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString());
-
-
-
-                                using (JsonDocument jsonDocument = JsonDocument.Parse(Reponsnedocsearch.ToString()))
-                                {
-                                    string SupplierVat_id = vatid; //we send thie vat it to add it to the icountClientInfo so that each node of client will have its suplier_vat_id
-
-                                    if (jsonDocument.RootElement.TryGetProperty("results_list", out JsonElement resultsListElement) &&
-                                        resultsListElement.ValueKind == JsonValueKind.Array && resultsListElement.GetArrayLength() > 0)
+                                    var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
                                     {
-                                        // results_list exists and has items
-                                        JsonElement resultsList = resultsListElement;
+                                        Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
+                                        SubCompanyId = spresult.NewSubCompanyId
+                                    };
 
-                                        // Your logic here
-                                        InsertDocumentsToMongoDB(resultsList, vatid, UserId, spInputExternalSystemCompanyDetails.Companyid);
+                                    var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
 
-                                        //loop and the invoce list resultsList and get for each client a detailed client data from --https://api.icount.co.il/api/v3.php/client/info
-                                        var resExtractClientIds = await ExtractClientIdsAndInsertToMongoDb(resultsList, cidvalue, uservalue, passvalue, SupplierVat_id);
+                                    baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
 
+                                    var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
+                                    rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+                                }
 
+                                bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
+                                int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
 
-                                        //loop on all invoice and get  for each invoce a detailed invoce  and save it in icountdocinfo collection
-                                        //https://api.icount.co.il/api/v3.php/doc/info?cid=uninetttt&user=eyalberda&pass=Ilayshaked10&doctype=invoice&docnum=2002
-                                        //foreach invoce in resultsList get property value of doctype and docnum
-                                        var resCreateListOfDetail = await CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(resultsList, cidvalue, uservalue, passvalue);
+                                if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
+                                {
+                                    var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
+                                    if (LUTIcountSourceWebhookCompanyMappingnewRow != null)
+                                    {
+                                        LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
 
+                                        // Call your UpdateAsync method to save the changes
+                                        await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
                                     }
                                 }
 
+                                ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
 
+                                // Parse the JSON string to a dynamic object
+                                dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
 
+                                // Add the new property to the company_info object
+                                dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+                                dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
 
+                                // Convert the modified object back to JSON
+                                string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
 
+                                // Get the vat_id value
+                                string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+                                // Check if a document with the same vat_id already exists in the collection
+                                var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+                                var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+                                if (existingDocument == null)
+                                {
+                                    // Parse the modified JSON string to a BsonDocument
+                                    BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+                                    // Insert the modified document into the collection
+                                    try
+                                    {
+                                        await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // Log or handle the exception here
+                                        Console.WriteLine($"An error occurred: {ex.Message}");
+                                    }
+                                }
+                                else
+                                {
+                                    // Document with the same vat_id already exists, handle accordingly
+                                    Console.WriteLine("Document with the same vat_id already exists");
+                                }
                             }
-
-                            */
 
                             var res = new ResSaveExternalCustomized
                             {
@@ -695,25 +608,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
                             };
                             return res;
-
-
-
                         }
                         else //here i get the userid related to masteruser from adminusers table
                         {
-
                             //added logic eyal to return valid message  that there is already a master user that has  
                             //same credentials and this is his details 
                             //please ask the master to add you to our system than  this user will be able to enter his 
                             //email and password and get  into the master console system 
-
-                           
-
-
                             var res = new ResSaveExternalCustomized
                             {
                                 Success = false,
-                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user "+ spresult.FirstName+" "+ spresult.LastName+" "+"from this organiztion "+ spresult.OrganizationName+" is the master user on your organzation please contact him via his email "+ spresult.Email+"so he can add you to our system": 
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user " + spresult.FirstName + " " + spresult.LastName + " " + "from this organiztion " + spresult.OrganizationName + " is the master user on your organzation please contact him via his email " + spresult.Email + "so he can add you to our system" :
                                 "משתמש " + spresult.FirstName + " " + spresult.LastName + " " + "מהארגון שלך " + spresult.OrganizationName + "הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + "על מנת שיוסיף אותך למערכת שלנו",
                                 SystemRegisteredInuninet = false,
                                 ValidExternalsystemCredenatials = true,
@@ -732,14 +637,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             SystemRegisteredInuninet = false,
                             ValidExternalsystemCredenatials = false,
                             FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
-            };
+                        };
                         return res;
                     }
-
-
-
-
-
                 }
                 else//external data wasnt saved to database 
                 {
@@ -748,16 +648,16 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     {
                         Companyid = spInputExternalSystemCompanyDetails.Companyid,
                         Userid = Convert.ToInt32(UserId),
-                        ExternalSystemId=spInputExternalSystemCompanyDetails.ExternalSystemId,
-                        FieldLabelName="N",
-                        FieldLabelValue= spInputExternalSystemCompanyDetails.ExternalSystemId==18? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
+                        ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId,
+                        FieldLabelName = "N",
+                        FieldLabelValue = spInputExternalSystemCompanyDetails.ExternalSystemId == 18 ? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
                         // Set other properties as needed
                     };
                     Int32 intuserid = Convert.ToInt32(UserId);
-                    var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields> (x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid== intuserid);
+                    var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
                     if (res_UninetExternalSystems != null)
                     {
-                       await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
+                        await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
                         _repository.Create<UsersExternalSystemDynamicFields>(newUsersExternalSystemDynamicFields);
                     }
                     else
@@ -766,19 +666,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     }
 
                     var res = new ResSaveExternalCustomized
-                        {
-                            Success = false,
-                            textResponse = "data wasnt saved ",
-                            SystemRegisteredInuninet = false,
-                           ValidExternalsystemCredenatials=null,
-                            FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+                    {
+                        Success = false,
+                        textResponse = "data wasnt saved ",
+                        SystemRegisteredInuninet = false,
+                        ValidExternalsystemCredenatials = null,
+                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
                     };
-                        return res;
-                    
+                    return res;
                 }
-               
-                
-
             }
             catch (Exception ex)
             {
@@ -787,12 +683,289 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     Success = false,
                     textResponse = "",
                     SystemRegisteredInuninet = false,
-                    ValidExternalsystemCredenatials=null,
+                    ValidExternalsystemCredenatials = null,
                     FullName = ""
                 };
                 return res;
-            };
+            }
         }
+
+
+        //public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
+        //{
+        //    try
+        //    {
+        //        DateTime startPulldata = new DateTime();
+        //        DateTime EndPulldata = new DateTime();
+        //        string cidvalue = null;
+        //        string uservalue = null;
+        //        string passvalue = null;
+        //        var jsonObject = new
+        //        {
+        //            listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
+        //            userid = UserId,
+        //            ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
+        //            CompanyId= spInputExternalSystemCompanyDetails.Companyid
+        //        };
+
+        //        // Convert the JSON object to string
+        //        var jsonString = JsonConvert.SerializeObject(jsonObject);
+        //        var UserParam = new
+        //        {
+        //            jsonInput = jsonString
+
+        //        };
+
+        //        var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
+
+        //        if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
+        //        {
+        //            //before saving data into tables we need to verify the credentials are valid
+        //            foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
+        //            {
+        //                if (item.FieldLabelName == "cid")
+        //                {
+        //                    cidvalue = item.FieldLabelValue;
+        //                }
+        //                else if (item.FieldLabelName == "user")
+        //                {
+        //                    uservalue = item.FieldLabelValue;
+        //                }
+        //                else if (item.FieldLabelName == "pass")
+        //                {
+        //                    passvalue = item.FieldLabelValue;
+        //                }
+        //            }
+
+
+
+        //            var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+        //            var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+        //            HttpMethod methodcomopanyinfo = HttpMethod.Get;
+        //            var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
+
+        //            // Deserialize the JSON response
+        //            var ReponsneCompanyInfojsonDocument = JsonDocument.Parse(ReponsneCompanyInfo);
+        //            var root = ReponsneCompanyInfojsonDocument.RootElement;
+
+        //            // Extract the "status" value from api response to acount
+        //            bool statusValue = root.GetProperty("status").GetBoolean();
+
+        //            if (statusValue)
+        //            {
+        //                //AddUserCredentialsSystemResult
+
+        //                var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
+
+        //                if (spresult.AdminUserid==0)//if i get userid=0  than  i need to insert the new company credentials to table
+        //                {
+        //                    //here i need to insert the logic that call to 
+        //                    //https://api.icount.co.il/api/v3.php/webhook/add
+        //                    //but before calling i need to find out if it already exist in our database related to an internal companyid
+        //                    //start logic of addig webhook to icount
+        //                    var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
+
+        //                    string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+        //                    JsonElement rootWebhookEndpointjsonDocument;
+
+        //                    if (LUTIcountSourceWebhookCompanyMappingRow != null)
+        //                    {
+        //                        baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+
+        //                        var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
+        //                        rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+        //                    }
+        //                    else
+        //                    {
+        //                        var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+        //                        {
+        //                            Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
+        //                            SubCompanyId = spresult.NewSubCompanyId
+        //                        };
+
+        //                        var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
+
+        //                        baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+
+        //                        var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
+        //                        rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+        //                    }
+
+
+
+
+
+        //                    bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
+        //                    int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
+
+        //                    if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
+        //                    {
+        //                        var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
+        //                        if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
+        //                        {
+        //                            LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
+
+        //                            // Call your UpdateAsync method to save the changes
+        //                            await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+        //                        }
+        //                    }
+
+        //                    ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
+
+
+
+        //                    // Parse the JSON string to a dynamic object
+        //                    dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
+
+        //                    // Add the new property to the company_info object
+        //                    dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+        //                    dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
+
+        //                    // Convert the modified object back to JSON
+        //                    string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
+
+
+
+        //                    // Get the vat_id value
+        //                    string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+        //                    // Check if a document with the same vat_id already exists in the collection
+        //                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+        //                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+        //                    if (existingDocument == null)
+        //                    {
+
+        //                        // Parse the modified JSON string to a BsonDocument
+        //                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+        //                        // Insert the modified document into the collection
+        //                        try
+        //                        {
+        //                            await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+        //                        }
+        //                        catch (Exception ex)
+        //                        {
+        //                            // Log or handle the exception here
+        //                            Console.WriteLine($"An error occurred: {ex.Message}");
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        // Document with the same vat_id already exists, handle accordingly
+        //                        Console.WriteLine("Document with the same vat_id already exists");
+        //                    }
+
+
+
+
+        //                    var res = new ResSaveExternalCustomized
+        //                    {
+        //                        Success = true,
+        //                        textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "Your credentials were saved successfully" : "נתוני מערכת הכספים נשמרו בהצלחה! ",
+        //                        SystemRegisteredInuninet = true,
+        //                        ValidExternalsystemCredenatials = true,
+        //                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //                    };
+        //                    return res;
+
+
+
+        //                }
+        //                else //here i get the userid related to masteruser from adminusers table
+        //                {
+
+        //                    //added logic eyal to return valid message  that there is already a master user that has  
+        //                    //same credentials and this is his details 
+        //                    //please ask the master to add you to our system than  this user will be able to enter his 
+        //                    //email and password and get  into the master console system 
+
+
+
+
+        //                    //var res = new ResSaveExternalCustomized
+        //                    //{
+        //                    //    Success = false,
+        //                    //    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user "+ spresult.FirstName+" "+ spresult.LastName+" "+"from this organiztion "+ spresult.OrganizationName+" is the master user on your organzation please contact him via his email "+ spresult.Email+"so he can add you to our system": 
+        //                    //    "משתמש " + spresult.FirstName + " " + spresult.LastName + " " + "מהארגון שלך " + spresult.OrganizationName + "הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + "על מנת שיוסיף אותך למערכת שלנו",
+        //                    //    SystemRegisteredInuninet = false,
+        //                    //    ValidExternalsystemCredenatials = true,
+        //                    //    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //                    //};
+        //                    //return res;
+        //                }
+
+        //            }
+        //            else
+        //            {
+        //                var res = new ResSaveExternalCustomized
+        //                {
+        //                    Success = false,
+        //                    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "We couldn't authenticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
+        //                    SystemRegisteredInuninet = false,
+        //                    ValidExternalsystemCredenatials = false,
+        //                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //    };
+        //                return res;
+        //            }
+
+
+
+
+
+        //        }
+        //        else//external data wasnt saved to database 
+        //        {
+        //            //here we need to save the user with the wanted system id  in table UsersExternalSystemDynamicFields 
+        //            var newUsersExternalSystemDynamicFields = new UsersExternalSystemDynamicFields
+        //            {
+        //                Companyid = spInputExternalSystemCompanyDetails.Companyid,
+        //                Userid = Convert.ToInt32(UserId),
+        //                ExternalSystemId=spInputExternalSystemCompanyDetails.ExternalSystemId,
+        //                FieldLabelName="N",
+        //                FieldLabelValue= spInputExternalSystemCompanyDetails.ExternalSystemId==18? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
+        //                // Set other properties as needed
+        //            };
+        //            Int32 intuserid = Convert.ToInt32(UserId);
+        //            var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields> (x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid== intuserid);
+        //            if (res_UninetExternalSystems != null)
+        //            {
+        //               await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
+        //                _repository.Create<UsersExternalSystemDynamicFields>(newUsersExternalSystemDynamicFields);
+        //            }
+        //            else
+        //            {
+        //                _repository.Create<UsersExternalSystemDynamicFields>(newUsersExternalSystemDynamicFields);
+        //            }
+
+        //            var res = new ResSaveExternalCustomized
+        //                {
+        //                    Success = false,
+        //                    textResponse = "data wasnt saved ",
+        //                    SystemRegisteredInuninet = false,
+        //                   ValidExternalsystemCredenatials=null,
+        //                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //            };
+        //                return res;
+
+        //        }
+
+
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var res = new ResSaveExternalCustomized
+        //        {
+        //            Success = false,
+        //            textResponse = "",
+        //            SystemRegisteredInuninet = false,
+        //            ValidExternalsystemCredenatials=null,
+        //            FullName = ""
+        //        };
+        //        return res;
+        //    };
+        //}
         public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid,string InternalUserId,int InternalComopanyId )
         {
             foreach (var item in resultsList.EnumerateArray())

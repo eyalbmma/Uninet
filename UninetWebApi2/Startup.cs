@@ -44,11 +44,12 @@ namespace UninetWebApi2.Controllers
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Workspaces.API", Version = "v1" });
             });
             services.AddControllers();
-           
-            services.AddDbContextPool<UninetContext>(options =>
-            {
-                options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
-            });
+            services.AddDbContext<UninetContext>(options =>
+              options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString")));
+            //services.AddDbContextPool<UninetContext>(options =>
+            //{
+            //    options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
+            //});
 
 
             services.AddSingleton<EnumRepository>();

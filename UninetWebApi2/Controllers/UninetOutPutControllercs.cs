@@ -34,16 +34,44 @@ namespace UninetWebApi2.Controllers
 
 
 
-        [Authorize]
-        [HttpPost("ShowDigitalDocumentDetails")]
-        
+
+
+        [HttpPost]
+        [Route("ShowDigitalDocumentDetails")]
         public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _uninetOutPutAppService.ShowDigitalDocumentDetails(expensesUserDoRequest, Convert.ToInt32(userId));
 
+            if (string.IsNullOrEmpty(expensesUserDoRequest.ClientVat_id))
+            {
+                var nullResponse = new ExpensesDigitalDocumentProp
+                {
+                    Supplier_name_Sender = null,
+                    Supplier_ID = 0,
+                    DocNumber = null,
+                    Doctype = null,
+                    DocDate = default(DateTime),
+                    AmountAV = 0.0,
+                    currencyName = null,
+                    CurrenctRateValue = 0,
+                    ExpenseTypeList = null,
+                    internalCompanyId = 0,
+                    Jsondocumentid = null,
+                    TaxId = null,
+                    AmountBeforeVat = 0.0,
+                    Vat = 0.0,
+                    showingDocsResults = null
+                };
+
+                return Ok(nullResponse);
+            }
+
+            // Check for other fields if necessary
+            // Assuming your service handles the business logic and can work with optional fields
+            var result = await _uninetOutPutAppService.ShowDigitalDocumentDetails(expensesUserDoRequest, Convert.ToInt32(userId));
             return Ok(result);
         }
+
 
 
         [Authorize]

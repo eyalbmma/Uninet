@@ -74,8 +74,10 @@ namespace UninetWebApi2.Controllers
                 //Role = User.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty,
                 accessToken = newJwtToken.Accesstoken,
                 refreshToken = newRefreshToken.RefreshToken,
-                success = true
-                
+                success = true,
+                AccesstokenExpiredTime = Convert.ToDateTime(newJwtToken.ExpirationDateAccesstoken),
+                RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime.DateTime
+
             }); ;
 
 
@@ -158,7 +160,7 @@ namespace UninetWebApi2.Controllers
                         BusinessId= res1_4.BusinessID,
                         Fullname= res1_4.Fullname,
                         AccesstokenExpiredTime = token.ExpirationDateAccesstoken,
-                        RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime
+                        RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime.DateTime
                         //Userid = Res.Userid
                     });
 
@@ -328,7 +330,7 @@ namespace UninetWebApi2.Controllers
                         BusinessId = Res.BusinessID,
                         Fullname = Res.FullName,
                         AccesstokenExpiredTime = Convert.ToDateTime(token.ExpirationDateAccesstoken),
-                        RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime
+                        RefreshTokenExpiredTime = newRefreshToken.RefreshTokenExpireTime.DateTime
                         //Userid = Res.Userid
                     });
 

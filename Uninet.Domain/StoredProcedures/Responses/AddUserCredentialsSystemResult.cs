@@ -17,5 +17,6 @@ namespace Uninet.Domain.StoredProcedures.Responses
 
         public int? NewSubCompanyId { get; set; }
 
+        public string? OperationType { get; set; }
     }
 }

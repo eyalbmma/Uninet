@@ -9,6 +9,6 @@ namespace Uninet.Domain.StoredProcedures.Responses
     public  class SaveRefreshTokenResponse
     {
         public bool Result { get; set; }
-        public DateTime RefreshTokenExpireTime { get; set; }
+        public DateTimeOffset RefreshTokenExpireTime { get; set; }
     }
 }

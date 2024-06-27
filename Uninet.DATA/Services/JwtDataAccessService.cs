@@ -163,6 +163,8 @@ namespace Uninet.DATA.Services
             }
         }
 
+
+
         public async Task<RefreshtokenresponseObj> GenerateRefreshToken(int? Userid)
         {
             var randomNumber = new byte[32];
@@ -170,22 +172,20 @@ namespace Uninet.DATA.Services
             {
                 rng.GetBytes(randomNumber);
 
-                //SP_SaveRefreshToken
-
-                var refreshtoken= Convert.ToBase64String(randomNumber);
+                // Generate the refresh token
+                var refreshtoken = Convert.ToBase64String(randomNumber);
 
                 var Input = new
                 {
-                    RefreshToken= refreshtoken,
+                    RefreshToken = refreshtoken,
                     userId = Userid
                 };
-                var result =await _repository.ExecuteGetSPAsync<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
-                
+                var result = await _repository.ExecuteGetSPAsync<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
 
-                if (result.Count > 0 && result[0].Result )
+                if (result.Count > 0 && result[0].Result)
                 {
                     // Extract the RefreshTokenExpireTime from the result
-                    DateTime refreshTokenExpireTime = result[0].RefreshTokenExpireTime;
+                    DateTimeOffset refreshTokenExpireTime = result[0].RefreshTokenExpireTime;
 
                     // Create and return the RefreshtokenresponseObj
                     var refreshtokenresponse = new RefreshtokenresponseObj
@@ -201,11 +201,53 @@ namespace Uninet.DATA.Services
                     // Return null or handle the error as needed
                     return null;
                 }
-
-
-
             }
         }
+
+
+        //public async Task<RefreshtokenresponseObj> GenerateRefreshToken(int? Userid)
+        //{
+        //    var randomNumber = new byte[32];
+        //    using (var rng = RandomNumberGenerator.Create())
+        //    {
+        //        rng.GetBytes(randomNumber);
+
+        //        //SP_SaveRefreshToken
+
+        //        var refreshtoken= Convert.ToBase64String(randomNumber);
+
+        //        var Input = new
+        //        {
+        //            RefreshToken= refreshtoken,
+        //            userId = Userid
+        //        };
+        //        var result =await _repository.ExecuteGetSPAsync<SaveRefreshTokenResponse>(ConstUninetStoredprocedure.SP_SaveRefreshToken, Input);
+
+
+        //        if (result.Count > 0 && result[0].Result )
+        //        {
+        //            // Extract the RefreshTokenExpireTime from the result
+        //            DateTime refreshTokenExpireTime = result[0].RefreshTokenExpireTime;
+
+        //            // Create and return the RefreshtokenresponseObj
+        //            var refreshtokenresponse = new RefreshtokenresponseObj
+        //            {
+        //                RefreshTokenExpireTime = refreshTokenExpireTime,
+        //                RefreshToken = refreshtoken
+        //            };
+
+        //            return refreshtokenresponse;
+        //        }
+        //        else
+        //        {
+        //            // Return null or handle the error as needed
+        //            return null;
+        //        }
+
+
+
+        //    }
+        //}
         //public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         //{
         //    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));

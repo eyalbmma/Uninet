@@ -29,12 +29,12 @@ namespace UninetWebApi2.Controllers
 
             try
             {
-                var successMessage = BillingMessage.GetSuccessMessage();
+                var successMessage = BillingMessage.GetSuccessMessage(creditCard.Lang);
                 return Ok(successMessage);
             }
             catch (Exception ex) 
             { 
-                var failureMessage = BillingMessage.GetFailureMessage();
+                var failureMessage = BillingMessage.GetFailureMessage(creditCard.Lang);
                 return BadRequest(failureMessage);
             }
 
@@ -47,6 +47,8 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                userDetails.UserId = Convert.ToInt32(userId);
                 var res = await _billingService.ShowUserBillingDetails(userDetails);
                 return Ok(res);
             }

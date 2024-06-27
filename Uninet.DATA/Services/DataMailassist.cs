@@ -173,7 +173,30 @@ namespace Uninet.DATA.Services
                 string userOtp = Generate_otp();
                 message.Subject = subject;
                 var ObjTemplateparam = new { TemplateId = Templateid, Lang = lang };
-                var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
+                //var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
+                OTPHtmlBody res;
+                try
+                {
+                    //test eyal need to remov  this  line
+                    var test = await _repository.GetListOfObjectsAsync<Businesses>(x => x.AdminUserid == 627);
+                    
+                    res = (await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam)).FirstOrDefault();
+                }
+                catch (Exception ex)
+                {
+                    // Log exception or handle it appropriately
+                    throw new Exception("Error executing stored procedure", ex);
+                }
+
+                if (res == null)
+                {
+                    throw new Exception("Failed to retrieve template.");
+                }
+
+
+
+
+
                 string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
 
                 // Get the Israel time zone
@@ -200,7 +223,7 @@ namespace Uninet.DATA.Services
                             {"OTPREDIRECTURL",OtpRedirectUrl }
                         };
 
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values1);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values1);
                         break;
                     case 2:
                         
@@ -208,7 +231,7 @@ namespace Uninet.DATA.Services
                         {
                             { "Username", username }
                         };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values2);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values2);
                        
 
 
@@ -220,7 +243,7 @@ namespace Uninet.DATA.Services
                            
                             
                         };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values3);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values3);
                         
                         break;
                     case 4:
@@ -232,7 +255,7 @@ namespace Uninet.DATA.Services
                               { "DocLink", InputMailDetails.DocLink }
                             
                         };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values4);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values4);
                         break;
                     case 5:
                         Dictionary<string, string> values5= new Dictionary<string, string>
@@ -243,7 +266,7 @@ namespace Uninet.DATA.Services
                              { "docID", "111 " }
 
                         };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values5);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values5);
                         break;
                     case 6:
                         Dictionary<string, string> values6 = new Dictionary<string, string>
@@ -255,7 +278,7 @@ namespace Uninet.DATA.Services
                             {"doc status","opened" }
 
                         };
-                        message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values6);
+                        message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values6);
                         break;
                     case 9:
 
@@ -268,7 +291,7 @@ namespace Uninet.DATA.Services
                                { "RESET_URL", ResetPasswordLandingPage },
                            };
 
-                            message.Body = ReplaceDynamicPlaceholders(res[0].HtmlBody, values7);
+                            message.Body = ReplaceDynamicPlaceholders(res.HtmlBody, values7);
                         }
 
 
