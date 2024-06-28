@@ -15,7 +15,6 @@ namespace Uninet.Domain.Models
 
         public List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames { get; set; }
 
-        public bool ShowFirstTimeMessage { get; set; }
-        public bool ShowExceedsMessage { get; set; }
+        
     }
 }

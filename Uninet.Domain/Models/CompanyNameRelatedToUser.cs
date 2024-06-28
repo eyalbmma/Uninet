@@ -16,5 +16,10 @@ namespace Uninet.Domain.Models
         public int TotalDocs { get; set; }
 
         public int MainCompanyId { get; set; }
+
+
+        public bool ShowFirstTimeMessage { get; set; }
+        public bool ShowExceedsMessage { get; set; }
+
     }
 }

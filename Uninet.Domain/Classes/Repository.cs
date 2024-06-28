@@ -203,15 +203,17 @@ namespace Uninet.Domain.Classes
 
         }
 
-        public List<T> GetListOfObjectsPaging<T>(Expression<Func<T, bool>> filterExpression, int pageNumber, int pageSize) where T : class
+        public List<T> GetListOfObjectsPaging<T>(Expression<Func<T, bool>> filterExpression, int startIndex, int itemsToTake) where T : class
         {
             try
             {
-                // Calculate the number of items to skip based on the page number and page size
-                int itemsToSkip = (pageNumber - 1) * pageSize;
-
                 // Retrieve the items from the database with pagination
-                var query = dbContext.Set<T>().Where(filterExpression).Skip(itemsToSkip).Take(pageSize).ToList();
+                var query = dbContext.Set<T>()
+                    .Where(filterExpression)
+                    .OrderByDescending(x => EF.Property<DateTime?>(x, "docDate")) // Ensure items are ordered consistently
+                    .Skip(startIndex)
+                    .Take(itemsToTake)
+                    .ToList();
 
                 return query;
             }
@@ -221,6 +223,8 @@ namespace Uninet.Domain.Classes
                 return new List<T>();
             }
         }
+
+
 
         public async Task<List<T>> GetListOfObjectsAsync<T>(Expression<Func<T, bool>> filterExpression) where T : class
         {

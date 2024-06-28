@@ -1369,7 +1369,7 @@ namespace Uninet.DATA.Services
 
 
         // Method to populate ListOfSubCompaniesandNames
-        public async Task<List<CompanyNameRelatedToUser>> PopulateListOfSubCompaniesandNames(List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser, int UserID)
+        public async Task<List<CompanyNameRelatedToUser>> PopulateListOfSubCompaniesandNames(List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser, int UserID,int ExternalSystemId)
         {
             List<CompanyNameRelatedToUser> ListOfSubCompaniesandNames = new List<CompanyNameRelatedToUser>();
 
@@ -1378,22 +1378,132 @@ namespace Uninet.DATA.Services
             string Clientvatidvalue = "";
             foreach (var company in ResListOfCompaniesRelatedToLogedinUser)
             {
-                var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId == company.MainCompanyId && x.SubCompanyId == company.SubCopmanyId);
-                int totalDocs = 0;
+                //var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId == company.MainCompanyId && x.SubCompanyId == company.SubCopmanyId);
+                //string VatidFromIcountCompanisInfo = "";
+                //int totalDocs = 0;
+                //int DocsAccepeted = 0;
 
-                if (BusinessVatId != null)
+                //if (BusinessVatId != null)
+                //{
+                //    var Clientvatid = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == BusinessVatId.BusinessVatId);
+                //    if (Clientvatid != null)
+                //    {
+
+                //        var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == null);
+                //        totalDocs = totalCountObj.Count();
+                //        var DocsAccepetedobj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == true);
+                //        DocsAccepeted = DocsAccepetedobj.Count();
+                //    }
+                //}
+                //else
+                //{
+                //    var filter = Builders<BsonDocument>.Filter.And(
+                //   Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", company.MainCompanyId),
+                //   Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", company.SubCopmanyId)
+                //        );
+
+                //    var companyRow = await _IcountCompaniesInfoCollection.Find(filter).FirstOrDefaultAsync();
+                //    if (companyRow != null)
+                //    {
+                //        var companyInfo = companyRow["company_info"].AsBsonDocument;
+                //        if (companyInfo.Contains("vat_id"))
+                //        {
+                //            VatidFromIcountCompanisInfo = companyInfo["vat_id"].AsString;
+
+                //            // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
+                //        }
+                //    }
+                //}
+                int totalDocs = 0;
+                int DocsAccepeted = 0;
+               
+
+                string VatidFromIcountCompanisInfo = "";
+                var filter = Builders<BsonDocument>.Filter.And(
+                   Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", company.MainCompanyId),
+                   Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", company.SubCopmanyId)
+                        );
+
+                var companyRow = await _IcountCompaniesInfoCollection.Find(filter).FirstOrDefaultAsync();
+                if (companyRow != null)
                 {
-                    var Clientvatid = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == BusinessVatId.BusinessVatId);
-                    if (Clientvatid != null)
+                    var companyInfo = companyRow["company_info"].AsBsonDocument;
+                    if (companyInfo.Contains("vat_id"))
                     {
-                        
-                        var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == null);
-                        totalDocs = totalCountObj.Count();
+                        VatidFromIcountCompanisInfo = companyInfo["vat_id"].AsString;
+
+                        // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
                     }
                 }
 
+                var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == null);
+                totalDocs = totalCountObj.Count();
+
+                var DocsAccepetedobj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == true);
+                DocsAccepeted = DocsAccepetedobj.Count();
+
                 string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
-                string BUssinesVatidValue = BusinessVatId == null ? "" : BusinessVatId.BusinessVatId;
+                string BUssinesVatidValue = VatidFromIcountCompanisInfo;
+
+                ////added eyal  new logic
+                ///
+                var FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == company.MainCompanyId && x.Subcompanyid == company.SubCopmanyId);
+
+                if (FirstTimeConsoleIndicationObj != null) //the user already visited the page 
+                {
+                    if (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true)
+                    {
+                        FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity = false;
+                        await _repository.UpdateAsync(FirstTimeConsoleIndicationObj);
+                    }
+
+
+                }
+                else
+                {//he user first time on the console  page 
+                    var objrowFirstTimeConsoleIndication = new FirstTimeConsoleIndication
+                    {
+                        Userid = UserID,
+                        Mainorganization = company.MainCompanyId,
+                        Subcompanyid = company.SubCopmanyId,
+                        FirsttimeOnConsoleForEntity = true
+                    };
+                    await _repository.CreateAsync(objrowFirstTimeConsoleIndication);
+                    FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == company.MainCompanyId && x.Subcompanyid == company.SubCopmanyId);
+                }
+                var UserCreditCardHolderObj = await _repository.GetFirstObjectAsync<UserCreditCardHolder>(x => x.UserId == UserID && x.BusinessId == company.MainCompanyId && x.SubCompanyId == company.SubCopmanyId && x.ExternalSystemId == ExternalSystemId);
+
+
+                ///ar BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId == company.MainCompanyId && x.SubCompanyId == company.SubCopmanyId);
+                //IEnumerable<BusinessData> totalCountObj = Enumerable.Empty<BusinessData>();
+
+                //if (BusinessVatId != null)
+                //{
+                //    var Clientvatid = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == BusinessVatId.BusinessVatId);
+                //    if (Clientvatid != null)
+                //    {
+                //        totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Clientvatid.ClientVat_id);
+                //        //var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == null);
+                //    }
+                //}
+
+
+
+
+
+
+
+
+
+
+
+                ///end eyal added new logic
+
+
+
+
+
+
                 if (companyName != null)
                 {
                     bool isDefault = company.LastTimeDataShowed == mostRecentTime;
@@ -1404,7 +1514,9 @@ namespace Uninet.DATA.Services
                         CompanyName = companyName +"_"+ BUssinesVatidValue,
                         IsDefault = isDefault,
                         TotalDocs = totalDocs,
-                        MainCompanyId = company.MainCompanyId
+                        MainCompanyId = company.MainCompanyId,
+                        ShowFirstTimeMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true),
+                        ShowExceedsMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == false && DocsAccepeted > 4 && UserCreditCardHolderObj == null)
                     });
                 }
             }
@@ -1450,17 +1562,21 @@ namespace Uninet.DATA.Services
             return ResListOfCompaniesRelatedToLogedinUser;
         }
 
-        private async Task<List<BusinessData>> FetchPaginatedDigitalDocuments(int UserID, string Typelist, int? subCompanyId, string vatId, int pageNumber, int pageSize, bool? documentApprovedToUninet)
+        private async Task<List<BusinessData>> FetchPaginatedDigitalDocuments(int UserID, string Typelist, int? subCompanyId, string vatId, int currentPage, int itemsPerPage, int maxPages, bool? documentApprovedToUninet)
         {
             try
             {
+                // Calculate startIndex and endIndex
+                int startIndex = (currentPage - 1) * itemsPerPage * maxPages;
+                int itemsToTake = itemsPerPage * maxPages;
+
                 // Fetch the paginated list of digital documents using the updated repository method
                 var digitalDocuments = _repository.GetListOfObjectsPaging<BusinessData>(
                     x => x.ClientVat_id == Convert.ToUInt32(vatId) &&
                          (x.DocumentApprovedtoUninet == documentApprovedToUninet),
-                    pageNumber,
-                    pageSize
-                ).OrderByDescending(x => x.docDate).ToList();
+                    startIndex,
+                    itemsToTake
+                );
 
                 return digitalDocuments;
             }
@@ -1470,6 +1586,7 @@ namespace Uninet.DATA.Services
                 return new List<BusinessData>();
             }
         }
+
 
         public async Task<int> GetDocAmountSupplier(string vatId, int UserID, int subCopmanyId, int MainCompanyId, string cidvalue, string uservalue, string passvalue, string Supplier_id)
         {
@@ -2362,19 +2479,19 @@ namespace Uninet.DATA.Services
                             //var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
                             //totalCount= totalCountObj.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, null);
                             break;
                         case "Rejected":
                             //var totalCountObj1 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
                             //totalCount = totalCountObj1.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, false);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, false);
                             break;
                         case "Approved":
                             //var totalCountObj2 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
                             //totalCount = totalCountObj2.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, true);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, true);
                             break;
                         default:
                             // Handle invalid Typelist value
@@ -2617,10 +2734,9 @@ namespace Uninet.DATA.Services
                 {
                     listDigitalDocumentToApprove = resObj.listDigitalDocumentToApprove,
                     //TotallistDigitalDocumentToApprove = totalCount,
-                    ListOfSubCompaniesandNames = await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser, UserID),
-                    fullname = FullName,
-                    ShowFirstTimeMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true),
-                    ShowExceedsMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == false && totalCountObj.Count() > 4 && UserCreditCardHolderObj == null)
+                    ListOfSubCompaniesandNames = await PopulateListOfSubCompaniesandNames(ResListOfCompaniesRelatedToLogedinUser, UserID, UserexternalSystemDynamicFieldslist[0].ExternalSystemId),
+                    fullname = FullName
+                    
                 };
 
                 return Objres;
@@ -2784,8 +2900,16 @@ namespace Uninet.DATA.Services
                 else
                 {
                     var GetRelatedMasterId = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
-                    UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
-                    userId = GetRelatedMasterId.Userid;
+                    if (GetRelatedMasterId!=null)
+                    {
+                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                        userId = GetRelatedMasterId.Userid;
+                    }
+                    else
+                    {
+                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                    }
+                    
                 }
 
                 //var InternalCompanyId = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
