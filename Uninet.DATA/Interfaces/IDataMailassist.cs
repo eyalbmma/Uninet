@@ -13,6 +13,6 @@ namespace Uninet.DATA.Interfaces
         Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To, int Templateid, int lang , RequestedMailObject InputMailDetails = null, string username = null,string encryptedUserId=null, string Name = null);
 
 
-        Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang);
+        Task<List<SendEmailResponse>> BusinessPartnerSendEmail(List<SendEmailRequest> sendEmailRequest, string userId);
     }
 }

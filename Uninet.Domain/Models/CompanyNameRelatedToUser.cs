@@ -14,7 +14,8 @@ namespace Uninet.Domain.Models
 
         public bool IsDefault { get; set; }
         public int TotalDocs { get; set; }
-
+        public int TotalDocsAccepted { get; set; }
+        public int TotalDocsRejected { get; set; }
         public int MainCompanyId { get; set; }
 
 

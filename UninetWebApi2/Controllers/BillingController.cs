@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Uninet.APP.Interfaces;
+using Uninet.APP.Services;
 using Uninet.Domain.Models;
 
 namespace UninetWebApi2.Controllers
@@ -40,7 +41,18 @@ namespace UninetWebApi2.Controllers
 
         }
 
-
+        [Authorize]
+        [HttpPost("ContinueFreeBilling")]
+        public async Task<ActionResult> ContinueFreeBilling(ContinueFreeInput continueFreeInput)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var ContinueFreeBillingResult = await _billingService.ContinueFreeBilling(continueFreeInput, Convert.ToInt32(userId));
+                return Ok(ContinueFreeBillingResult);
+            }
+            catch (Exception ex) { return null; }
+        }
         [Authorize]
         [HttpPost("ShowUserBillingDetails")]
         public async Task<ActionResult> ShowUserBillingDetails([FromBody] UserDetails userDetails)

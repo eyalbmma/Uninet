@@ -33,6 +33,8 @@ using Twilio.TwiML.Voice;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
 using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
+//Refactor the following method to improve performance
+
 
 namespace Uninet.DATA.Services
 {
@@ -564,7 +566,7 @@ namespace Uninet.DATA.Services
                 if (CheckUsermasterExist != null)
                 {
                     var SubCompanyidClientObj = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == userId && x.BusinessId == InternalCompanyId && x.ClientVat_id == Convert.ToInt32(expensesUserDoRequest.ClientVat_id));
-                    UserexternalSystemDynamicFieldslistClient = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyidClientObj.SubCompanyId);
+                    UserexternalSystemDynamicFieldslistClient = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyid_clientRelated);
 
                     UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
                 }
@@ -1378,45 +1380,10 @@ namespace Uninet.DATA.Services
             string Clientvatidvalue = "";
             foreach (var company in ResListOfCompaniesRelatedToLogedinUser)
             {
-                //var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId == company.MainCompanyId && x.SubCompanyId == company.SubCopmanyId);
-                //string VatidFromIcountCompanisInfo = "";
-                //int totalDocs = 0;
-                //int DocsAccepeted = 0;
-
-                //if (BusinessVatId != null)
-                //{
-                //    var Clientvatid = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessVatId == BusinessVatId.BusinessVatId);
-                //    if (Clientvatid != null)
-                //    {
-
-                //        var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == null);
-                //        totalDocs = totalCountObj.Count();
-                //        var DocsAccepetedobj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(BusinessVatId.BusinessVatId) && x.DocumentApprovedtoUninet == true);
-                //        DocsAccepeted = DocsAccepetedobj.Count();
-                //    }
-                //}
-                //else
-                //{
-                //    var filter = Builders<BsonDocument>.Filter.And(
-                //   Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", company.MainCompanyId),
-                //   Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", company.SubCopmanyId)
-                //        );
-
-                //    var companyRow = await _IcountCompaniesInfoCollection.Find(filter).FirstOrDefaultAsync();
-                //    if (companyRow != null)
-                //    {
-                //        var companyInfo = companyRow["company_info"].AsBsonDocument;
-                //        if (companyInfo.Contains("vat_id"))
-                //        {
-                //            VatidFromIcountCompanisInfo = companyInfo["vat_id"].AsString;
-
-                //            // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
-                //        }
-                //    }
-                //}
+           
                 int totalDocs = 0;
                 int DocsAccepeted = 0;
-               
+                int totalDocsRejected = 0;
 
                 string VatidFromIcountCompanisInfo = "";
                 var filter = Builders<BsonDocument>.Filter.And(
@@ -1439,8 +1406,18 @@ namespace Uninet.DATA.Services
                 var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == null);
                 totalDocs = totalCountObj.Count();
 
+
+
+
+
                 var DocsAccepetedobj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == true);
                 DocsAccepeted = DocsAccepetedobj.Count();
+
+
+
+
+                var DocsRejectedobj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == false);
+                totalDocsRejected = DocsRejectedobj.Count();
 
                 string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
                 string BUssinesVatidValue = VatidFromIcountCompanisInfo;
@@ -1514,9 +1491,11 @@ namespace Uninet.DATA.Services
                         CompanyName = companyName +"_"+ BUssinesVatidValue,
                         IsDefault = isDefault,
                         TotalDocs = totalDocs,
+                        TotalDocsAccepted= DocsAccepeted,
+                        TotalDocsRejected= totalDocsRejected,
                         MainCompanyId = company.MainCompanyId,
-                        ShowFirstTimeMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true),
-                        ShowExceedsMessage = (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == false && DocsAccepeted > 4 && UserCreditCardHolderObj == null)
+                        ShowFirstTimeMessage = ( FirstTimeConsoleIndicationObj.UserClicksonContinueFree==null),
+                        ShowExceedsMessage = ( DocsAccepeted >= 15 && UserCreditCardHolderObj == null  )
                     });
                 }
             }
@@ -1527,12 +1506,12 @@ namespace Uninet.DATA.Services
 
 
 
-        public List<MainSubCopmaniesMasters> GetMainSubCompanies(int userId, int companyId)
+        public List<MainSubCopmaniesMasters> GetMainSubCompanies(int userId, int companyId,int SubCompanyid)
         {
             List<MainSubCopmaniesMasters> ResListOfCompaniesRelatedToLogedinUser = new List<MainSubCopmaniesMasters>();
 
             // Get SubUserCredentials based on userId
-            var subUserCredentials = _repository.GetListOfObjects<SubUserCredentials>(x => x.SubUserId == userId);
+            var subUserCredentials = _repository.GetListOfObjects<SubUserCredentials>(x => x.SubUserId == userId && x.SubCompanyId== SubCompanyid);
 
             // Get MainSubCopmaniesMasters
             var mainSubCompaniesMasters = _repository.GetListOfObjects<MainSubCopmaniesMasters>(x => x.MainCompanyId == companyId);
@@ -1562,20 +1541,19 @@ namespace Uninet.DATA.Services
             return ResListOfCompaniesRelatedToLogedinUser;
         }
 
-        private async Task<List<BusinessData>> FetchPaginatedDigitalDocuments(int UserID, string Typelist, int? subCompanyId, string vatId, int currentPage, int itemsPerPage, int maxPages, bool? documentApprovedToUninet)
+        private async Task<List<BusinessData>> FetchPaginatedDigitalDocuments(int UserID, string Typelist, int? subCompanyId, string vatId, int currentPage, int itemsPerPage, bool? documentApprovedToUninet)
         {
             try
             {
-                // Calculate startIndex and endIndex
-                int startIndex = (currentPage - 1) * itemsPerPage * maxPages;
-                int itemsToTake = itemsPerPage * maxPages;
+                // Calculate startIndex based on currentPage and itemsPerPage
+                int startIndex = (currentPage - 1) * itemsPerPage;
 
                 // Fetch the paginated list of digital documents using the updated repository method
                 var digitalDocuments = _repository.GetListOfObjectsPaging<BusinessData>(
                     x => x.ClientVat_id == Convert.ToUInt32(vatId) &&
                          (x.DocumentApprovedtoUninet == documentApprovedToUninet),
                     startIndex,
-                    itemsToTake
+                    itemsPerPage
                 );
 
                 return digitalDocuments;
@@ -1586,6 +1564,7 @@ namespace Uninet.DATA.Services
                 return new List<BusinessData>();
             }
         }
+
 
 
         public async Task<int> GetDocAmountSupplier(string vatId, int UserID, int subCopmanyId, int MainCompanyId, string cidvalue, string uservalue, string passvalue, string Supplier_id)
@@ -1656,10 +1635,9 @@ namespace Uninet.DATA.Services
                 return "Still not connected";
             }
         }
-        private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
+
+        private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId, int pageNumber, int pageSize)
         {
-
-
             var suppliersList = new List<BusinessPartnerProp>();
 
             // Check if the document exists in the collection
@@ -1693,7 +1671,6 @@ namespace Uninet.DATA.Services
                 // Check if the difference is more than one year
                 if (differenceyear.TotalDays < 365)
                 {
-
                     var suppliersData = existingDocument.GetValue("suppliers");
                     foreach (var supplier in suppliersData.AsBsonDocument)
                     {
@@ -1795,7 +1772,6 @@ namespace Uninet.DATA.Services
                         DateTime? lastInvitationDate = null;
                         ActionItem action = null;
 
-
                         var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
 
                         if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
@@ -1850,7 +1826,6 @@ namespace Uninet.DATA.Services
                         });
                     }
                 }
-
             }
             else
             {
@@ -1872,7 +1847,6 @@ namespace Uninet.DATA.Services
                 // Insert the modified JSON into the collection
                 await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
 
-
                 var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
                 var jsonData = jsonDocument.RootElement;
                 var suppliersData = jsonData.GetProperty("suppliers");
@@ -1888,7 +1862,6 @@ namespace Uninet.DATA.Services
                     string status = await GetStatus(vatId);
                     DateTime? lastInvitationDate = null;
                     ActionItem action = null;
-
 
                     var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
 
@@ -1945,17 +1918,316 @@ namespace Uninet.DATA.Services
                 }
             }
 
+            // Sort the list by DocAmount in descending order
+            suppliersList = suppliersList.OrderByDescending(s => s.DocAmount).ToList();
 
-
-
+            // Apply pagination
+            suppliersList = suppliersList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
 
             return suppliersList;
         }
 
 
+        //private async Task<List<BusinessPartnerProp>> GetSuppliers(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId, int pageNumber, int pageSize)
+        //{
+
+
+        //    var suppliersList = new List<BusinessPartnerProp>();
+
+        //    // Check if the document exists in the collection
+        //    var filterBuilder = Builders<BsonDocument>.Filter;
+        //    var filter = filterBuilder.Eq("userId", userId) &
+        //                 filterBuilder.Eq("subCompanyId", subCompanyId) &
+        //                 filterBuilder.Eq("MainCompanyId", MainCompanyId) &
+        //                 filterBuilder.Eq("ExtrnalsystemIdOfsubCopmanyId", ExtrnalsystemIdOfsubCopmanyId) &
+        //                 filterBuilder.Exists("suppliers", true);
+        //    var existingDocument = await _Icount_BussinesPartner_Clients_Suplliers.Find(filter).FirstOrDefaultAsync();
+        //    DateTime lastInsertDate = new DateTime();
+        //    // If the document exists, extract "suppliers" data from it
+        //    if (existingDocument != null)
+        //    {
+        //        var dateString = existingDocument["LastInsertDate"].AsString;
+
+        //        if (DateTime.TryParse(dateString, out lastInsertDate))
+        //        {
+        //            // Now you can convert the DateTime to universal time
+        //            lastInsertDate = lastInsertDate.ToUniversalTime();
+        //        }
+        //        else
+        //        {
+        //            // Handle the case where the date string cannot be parsed
+        //            // This could be due to invalid date format or missing/incorrect data
+        //        }
+
+        //        // Calculate the difference between lastInsertDate and current date
+        //        TimeSpan differenceyear = DateTime.UtcNow - lastInsertDate;
+
+        //        // Check if the difference is more than one year
+        //        if (differenceyear.TotalDays < 365)
+        //        {
+
+        //            var suppliersData = existingDocument.GetValue("suppliers");
+        //            foreach (var supplier in suppliersData.AsBsonDocument)
+        //            {
+        //                var supplierData = supplier.Value.AsBsonDocument;
+        //                string businesspartnerName = supplierData.GetValue("supplier_name").AsString;
+        //                string vatId = supplierData.GetValue("vat_id").AsString;
+        //                string Supplier_id = supplierData.GetValue("supplier_id").AsString;
+        //                string SupplierEmail = supplierData.GetValue("email").AsString;
+        //                int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+        //                string status = await GetStatus(vatId);
+        //                DateTime? lastInvitationDate = null;
+        //                ActionItem action = null;
+
+        //                var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+        //                if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+        //                {
+        //                    if (status == "Connected to Uninet")
+        //                    {
+        //                        action = new ActionItem("Connected", ActionType.String);
+        //                    }
+        //                    else if (status == "Still not connected")
+        //                    {
+        //                        if (BusinessPartnersObj.EmailSent.Value)
+        //                        {
+        //                            var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+        //                            if (difference.TotalDays < 365)
+        //                            {
+        //                                action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+        //                            }
+        //                            else
+        //                            {
+        //                                action = new ActionItem("Invite", ActionType.Button);
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            status = "Missing email details";
+        //                            action = new ActionItem("Complete details", ActionType.Button);
+        //                        }
+        //                    }
+        //                }
+        //                else if (status == "Connected to Uninet")
+        //                {
+        //                    action = new ActionItem("Connected", ActionType.String);
+        //                }
+        //                else
+        //                {
+        //                    status = "Waiting for invitation";
+        //                    action = new ActionItem("Invite", ActionType.Button);
+        //                }
+
+        //                suppliersList.Add(new BusinessPartnerProp
+        //                {
+        //                    BusinesspartnerName = businesspartnerName,
+        //                    VatId = vatId,
+        //                    supplier_id = Supplier_id,
+        //                    DocAmount = docAmount,
+        //                    Email = SupplierEmail,
+        //                    SubCompanyId = subCompanyId,
+        //                    Type = "Supplier",
+        //                    Status = status,
+        //                    LastInvitationDate = BusinessPartnersObj?.LastDateSent,
+        //                    Actions = action
+        //                });
+        //            }
+        //        }
+        //        else
+        //        {
+        //            await _Icount_BussinesPartner_Clients_Suplliers.DeleteOneAsync(filter);
+        //            var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
+        //            var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+        //            HttpMethod methodsupplierget_list = HttpMethod.Get;
+        //            var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
+
+        //            // Modify the JSON response by adding the required fields
+        //            var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsnesupplierget_list);
+        //            modifiedJson["userId"] = userId;
+        //            modifiedJson["subCompanyId"] = subCompanyId;
+        //            modifiedJson["MainCompanyId"] = MainCompanyId;
+        //            modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+        //            modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+        //            // Insert the modified JSON into the collection
+        //            await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+        //            var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
+        //            var jsonData = jsonDocument.RootElement;
+        //            var suppliersData = jsonData.GetProperty("suppliers");
+
+        //            foreach (var supplier in suppliersData.EnumerateObject())
+        //            {
+        //                var supplierData = supplier.Value;
+        //                string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
+        //                string vatId = supplierData.GetProperty("vat_id").GetString();
+        //                string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
+        //                string SupplierEmail = supplierData.GetProperty("email").GetString();
+        //                int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+        //                string status = await GetStatus(vatId);
+        //                DateTime? lastInvitationDate = null;
+        //                ActionItem action = null;
+
+
+        //                var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+        //                if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+        //                {
+        //                    if (status == "Connected to Uninet")
+        //                    {
+        //                        action = new ActionItem("Connected", ActionType.String);
+        //                    }
+        //                    else if (status == "Still not connected")
+        //                    {
+        //                        if (BusinessPartnersObj.EmailSent.Value)
+        //                        {
+        //                            var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+        //                            if (difference.TotalDays < 365)
+        //                            {
+        //                                action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+        //                            }
+        //                            else
+        //                            {
+        //                                action = new ActionItem("Invite", ActionType.Button);
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            status = "Missing email details";
+        //                            action = new ActionItem("Complete details", ActionType.Button);
+        //                        }
+        //                    }
+        //                }
+        //                else if (status == "Connected to Uninet")
+        //                {
+        //                    action = new ActionItem("Connected", ActionType.String);
+        //                }
+        //                else
+        //                {
+        //                    status = "Waiting for invitation";
+        //                    action = new ActionItem("Invite", ActionType.Button);
+        //                }
+
+        //                suppliersList.Add(new BusinessPartnerProp
+        //                {
+        //                    BusinesspartnerName = businesspartnerName,
+        //                    VatId = vatId,
+        //                    supplier_id = Supplier_id,
+        //                    DocAmount = docAmount,
+        //                    Email = SupplierEmail,
+        //                    SubCompanyId = subCompanyId,
+        //                    Type = "Supplier",
+        //                    Status = status,
+        //                    LastInvitationDate = lastInvitationDate,
+        //                    Actions = action
+        //                });
+        //            }
+        //        }
+
+        //    }
+        //    else
+        //    {
+        //        // Document does not exist, fetch data from external source
+
+        //        var supplierget_listEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
+        //        var endpointsupplierget_list = supplierget_listEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+        //        HttpMethod methodsupplierget_list = HttpMethod.Get;
+        //        var Reponsnesupplierget_list = await SendRequest(endpointsupplierget_list, methodsupplierget_list);
+
+        //        // Modify the JSON response by adding the required fields
+        //        var modifiedJson = JsonConvert.DeserializeObject<JObject>(Reponsnesupplierget_list);
+        //        modifiedJson["userId"] = userId;
+        //        modifiedJson["subCompanyId"] = subCompanyId;
+        //        modifiedJson["MainCompanyId"] = MainCompanyId;
+        //        modifiedJson["ExtrnalsystemIdOfsubCopmanyId"] = ExtrnalsystemIdOfsubCopmanyId;
+        //        modifiedJson["LastInsertDate"] = DateTime.UtcNow;
+
+        //        // Insert the modified JSON into the collection
+        //        await _Icount_BussinesPartner_Clients_Suplliers.InsertOneAsync(BsonDocument.Parse(modifiedJson.ToString()));
+
+
+        //        var jsonDocument = JsonDocument.Parse(Reponsnesupplierget_list);
+        //        var jsonData = jsonDocument.RootElement;
+        //        var suppliersData = jsonData.GetProperty("suppliers");
+
+        //        foreach (var supplier in suppliersData.EnumerateObject())
+        //        {
+        //            var supplierData = supplier.Value;
+        //            string businesspartnerName = supplierData.GetProperty("supplier_name").GetString();
+        //            string vatId = supplierData.GetProperty("vat_id").GetString();
+        //            string Supplier_id = supplierData.GetProperty("supplier_id").GetString();
+        //            string SupplierEmail = supplierData.GetProperty("email").GetString();
+        //            int docAmount = await GetDocAmountSupplier(vatId, userId, subCompanyId, MainCompanyId, cidvalue, uservalue, passvalue, Supplier_id);
+        //            string status = await GetStatus(vatId);
+        //            DateTime? lastInvitationDate = null;
+        //            ActionItem action = null;
+
+
+        //            var BusinessPartnersObj = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(x => x.VatId == Convert.ToInt32(vatId) && x.UserId == userId && x.SubCompanyId == subCompanyId && x.OrganizationId == MainCompanyId);
+
+        //            if (BusinessPartnersObj != null && BusinessPartnersObj.EmailSent.HasValue)
+        //            {
+        //                if (status == "Connected to Uninet")
+        //                {
+        //                    action = new ActionItem("Connected", ActionType.String);
+        //                }
+        //                else if (status == "Still not connected")
+        //                {
+        //                    if (BusinessPartnersObj.EmailSent.Value)
+        //                    {
+        //                        var difference = DateTime.Now - BusinessPartnersObj.LastDateSent.Value;
+        //                        if (difference.TotalDays < 365)
+        //                        {
+        //                            action = new ActionItem(BusinessPartnersObj.LastDateSent.Value.ToString(), ActionType.DateTime);
+        //                        }
+        //                        else
+        //                        {
+        //                            action = new ActionItem("Invite", ActionType.Button);
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        status = "Missing email details";
+        //                        action = new ActionItem("Complete details", ActionType.Button);
+        //                    }
+        //                }
+        //            }
+        //            else if (status == "Connected to Uninet")
+        //            {
+        //                action = new ActionItem("Connected", ActionType.String);
+        //            }
+        //            else
+        //            {
+        //                status = "Waiting for invitation";
+        //                action = new ActionItem("Invite", ActionType.Button);
+        //            }
+
+        //            suppliersList.Add(new BusinessPartnerProp
+        //            {
+        //                BusinesspartnerName = businesspartnerName,
+        //                VatId = vatId,
+        //                supplier_id = Supplier_id,
+        //                DocAmount = docAmount,
+        //                Email = SupplierEmail,
+        //                SubCompanyId = subCompanyId,
+        //                Type = "Supplier",
+        //                Status = status,
+        //                LastInvitationDate = lastInvitationDate,
+        //                Actions = action
+        //            });
+        //        }
+        //    }
+
+
+
+
+
+        //    return suppliersList;
+        //}
+
+
 
         // Function to handle case 2 logic
-        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId)
+        private async Task<List<BusinessPartnerProp>> GetClients(string cidvalue, string uservalue, string passvalue, int userId, int subCompanyId, int MainCompanyId, int ExtrnalsystemIdOfsubCopmanyId, int pageNumber, int pageSize)
         {
             var clientsList = new List<BusinessPartnerProp>();
 
@@ -2220,11 +2492,25 @@ namespace Uninet.DATA.Services
                 }
             }
 
+
+
+
+            // Sort the list by DocAmount in descending order
+            clientsList = clientsList.OrderByDescending(s => s.DocAmount).ToList();
+
+           
+
+
+
+
+
+            clientsList = clientsList.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
             return clientsList;
         }
 
 
-        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId, int subCopmanyId)
+        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId, int subCopmanyId, int pageNumber, int pageSize)
         {
             try
             {
@@ -2272,14 +2558,14 @@ namespace Uninet.DATA.Services
                 {
                     case 1:
                         //get suppliers
-                        businessPartnersSupliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
+                        businessPartnersSupliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId,  pageNumber,  pageSize);
                         return businessPartnersSupliers;
 
 
 
                         break;
                     case 2:
-                        businessPartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
+                        businessPartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId, pageNumber, pageSize);
                         return businessPartnersClients;
 
 
@@ -2288,14 +2574,32 @@ namespace Uninet.DATA.Services
 
                         break;
                     case 3:
-                        var PartnersSuppliers = await GetSuppliers(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
-                        var PartnersClients = await GetClients(cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId);
-                        var mergedList = PartnersSuppliers.Concat(PartnersClients).ToList();
-                        return mergedList;
+                        // Retrieve and sort suppliers by DocAmount in descending order
+                        var PartnersSuppliers = await GetSuppliers(
+                            cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId, 1, int.MaxValue
+                        ); // Retrieve all suppliers
 
+                        // Retrieve and sort clients by DocAmount in descending order
+                        var PartnersClients = await GetClients(
+                            cidvalue, uservalue, passvalue, userId, subCopmanyId, MainCompanyId, ExtrnalsystemIdOfsubCopmanyId, 1, int.MaxValue
+                        ); // Retrieve all clients
 
+                        // Combine both lists and sort by DocAmount in descending order
+                        var mergedList = PartnersSuppliers
+                            .Concat(PartnersClients)
+                            .OrderByDescending(p => p.DocAmount)
+                            .ToList();
+
+                        // Apply pagination to the merged and sorted list
+                        var paginatedMergedList = mergedList
+                            .Skip((pageNumber - 1) * pageSize)
+                            .Take(pageSize)
+                            .ToList();
+
+                        return paginatedMergedList;
 
                         break;
+
 
                 }
 
@@ -2377,7 +2681,9 @@ namespace Uninet.DATA.Services
                 }
                 else
                 {
-                    var MainCompanyIdObj = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == UserID);
+                    var Companyid= await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == UserID);
+                    var  subCompanyIdObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Userid == UserID && x.Companyid == Companyid.BusinessId);
+                    var MainCompanyIdObj = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == UserID && x.SubCompanyId== subCompanyIdObj.SubCompayId);
                     if (MainCompanyIdObj!=null)
                     {
                         MainCompanyId = MainCompanyIdObj.CompanyId;
@@ -2391,7 +2697,7 @@ namespace Uninet.DATA.Services
                    
                     
                     
-                    ResListOfCompaniesRelatedToLogedinUser = GetMainSubCompanies(UserID, MainCompanyId);
+                    ResListOfCompaniesRelatedToLogedinUser = GetMainSubCompanies(UserID, MainCompanyId, subCompanyIdObj.SubCompayId);
                 }
 
 
@@ -2479,19 +2785,19 @@ namespace Uninet.DATA.Services
                             //var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
                             //totalCount= totalCountObj.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, null);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null);
                             break;
                         case "Rejected":
                             //var totalCountObj1 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
                             //totalCount = totalCountObj1.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, false);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, false);
                             break;
                         case "Approved":
                             //var totalCountObj2 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
                             //totalCount = totalCountObj2.Count();
                             ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize,10, true);
+                                UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, true);
                             break;
                         default:
                             // Handle invalid Typelist value
@@ -2691,31 +2997,31 @@ namespace Uninet.DATA.Services
                 //}
                 ///eyal add logic to show alert window with biling details first time or billing wlert window when excceeds the number of files
 
-                var FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == MainCompanyId && x.Subcompanyid == subCompanyId);
+                //var FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == MainCompanyId && x.Subcompanyid == subCompanyId);
 
-                if (FirstTimeConsoleIndicationObj != null) //the user already visited the page 
-                {
-                    if (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true)
-                    {
-                        FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity = false;
-                        await _repository.UpdateAsync(FirstTimeConsoleIndicationObj);
-                    }
+                //if (FirstTimeConsoleIndicationObj != null) //the user already visited the page 
+                //{
+                //    if (FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity == true)
+                //    {
+                //        FirstTimeConsoleIndicationObj.FirsttimeOnConsoleForEntity = false;
+                //        await _repository.UpdateAsync(FirstTimeConsoleIndicationObj);
+                //    }
 
 
-                }
-                else
-                {//he user first time on the console  page 
-                    var objrowFirstTimeConsoleIndication = new FirstTimeConsoleIndication
-                    {
-                        Userid = UserID,
-                        Mainorganization = MainCompanyId,
-                        Subcompanyid = subCompanyId,
-                        FirsttimeOnConsoleForEntity = true
-                    };
-                    await _repository.CreateAsync(objrowFirstTimeConsoleIndication);
-                    FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == MainCompanyId && x.Subcompanyid == subCompanyId);
-                }
-                var UserCreditCardHolderObj = await _repository.GetFirstObjectAsync<UserCreditCardHolder>(x => x.UserId == UserID && x.BusinessId == MainCompanyId && x.SubCompanyId == subCompanyId && x.ExternalSystemId == UserexternalSystemDynamicFieldslist[0].ExternalSystemId);
+                //}
+                //else
+                //{//he user first time on the console  page 
+                //    var objrowFirstTimeConsoleIndication = new FirstTimeConsoleIndication
+                //    {
+                //        Userid = UserID,
+                //        Mainorganization = MainCompanyId,
+                //        Subcompanyid = subCompanyId,
+                //        FirsttimeOnConsoleForEntity = true
+                //    };
+                //    await _repository.CreateAsync(objrowFirstTimeConsoleIndication);
+                //    FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == UserID && x.Mainorganization == MainCompanyId && x.Subcompanyid == subCompanyId);
+                //}
+                //var UserCreditCardHolderObj = await _repository.GetFirstObjectAsync<UserCreditCardHolder>(x => x.UserId == UserID && x.BusinessId == MainCompanyId && x.SubCompanyId == subCompanyId && x.ExternalSystemId == UserexternalSystemDynamicFieldslist[0].ExternalSystemId);
 
 
                 var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.UserId == UserID && x.BusinessId == MainCompanyId && x.SubCompanyId == subCompanyId);
@@ -2907,7 +3213,7 @@ namespace Uninet.DATA.Services
                     }
                     else
                     {
-                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
+                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
                     }
                     
                 }

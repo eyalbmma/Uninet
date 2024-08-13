@@ -9,6 +9,7 @@ namespace Uninet.APP.Interfaces
 {
     public interface IbillingService
     {
+        public Task<bool> ContinueFreeBilling(ContinueFreeInput continueFreeInput, int userId);
         public Task<UserCreditCardHolderList> ShowUserBillingDetails(UserDetails userDetails);
     }
 }

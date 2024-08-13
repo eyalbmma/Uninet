@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography;
@@ -36,6 +37,7 @@ using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Net.WebRequestMethods;
 
 namespace Uninet.DATA.Services
@@ -47,7 +49,7 @@ namespace Uninet.DATA.Services
         public string EntityDetail { get; set; }
         public string Entity { get; set; }
     }
-    public class UserServiceDataAccess: IUserServiceDataAccess
+    public class UserServiceDataAccess : IUserServiceDataAccess
     {
         private readonly IRepository<UninetContext> _repository;
         private readonly IDataMailassist _dataMailassist;
@@ -56,7 +58,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientSuppliersCollection;
-       
+
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
@@ -66,13 +68,13 @@ namespace Uninet.DATA.Services
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
             _ICountCompanyInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
-            _IcountClientInfoCollection= database.GetCollection<BsonDocument>("icountClientInfo");
+            _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
             _IcountClientSuppliersCollection = database.GetCollection<BsonDocument>("icountClientSuppliers");
             _repository = repository;
             Configuration = configuration;
             _dataMailassist = dataMailassist;
             _UninetInputDataAccess = uninetInputDataAccess;
-            
+
         }
 
         protected string Generate_otp()
@@ -92,41 +94,41 @@ namespace Uninet.DATA.Services
 
 
 
-public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
-    {
-        JsonDocument jsonDocument = JsonDocument.Parse(jsonString);
-        JsonElement propertyElement = jsonDocument.RootElement;
-
-        // Traverse the property path to reach the desired property
-        foreach (var propertyName in propertyPath.Split('.'))
+        public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
-            if (propertyElement.TryGetProperty(propertyName, out var nextPropertyElement))
+            JsonDocument jsonDocument = JsonDocument.Parse(jsonString);
+            JsonElement propertyElement = jsonDocument.RootElement;
+
+            // Traverse the property path to reach the desired property
+            foreach (var propertyName in propertyPath.Split('.'))
             {
-                propertyElement = nextPropertyElement;
+                if (propertyElement.TryGetProperty(propertyName, out var nextPropertyElement))
+                {
+                    propertyElement = nextPropertyElement;
+                }
+                else
+                {
+                    throw new ArgumentException($"Property '{propertyPath}' not found in the JSON.");
+                }
             }
-            else
+
+            // Convert and return the property value
+            return propertyElement.ValueKind switch
             {
-                throw new ArgumentException($"Property '{propertyPath}' not found in the JSON.");
-            }
+                JsonValueKind.String => propertyElement.GetString() != null ? (T)Convert.ChangeType(propertyElement.GetString(), typeof(T)) : default,
+                JsonValueKind.Number => (T)Convert.ChangeType(propertyElement.GetDouble(), typeof(T)),
+                JsonValueKind.True => (T)Convert.ChangeType(true, typeof(T)),
+                JsonValueKind.False => (T)Convert.ChangeType(false, typeof(T)),
+                _ => throw new ArgumentException($"Property '{propertyPath}' cannot be converted to type {typeof(T).Name}.")
+            };
         }
-
-        // Convert and return the property value
-        return propertyElement.ValueKind switch
-        {
-            JsonValueKind.String => propertyElement.GetString() != null ? (T)Convert.ChangeType(propertyElement.GetString(), typeof(T)) : default,
-            JsonValueKind.Number => (T)Convert.ChangeType(propertyElement.GetDouble(), typeof(T)),
-            JsonValueKind.True => (T)Convert.ChangeType(true, typeof(T)),
-            JsonValueKind.False => (T)Convert.ChangeType(false, typeof(T)),
-            _ => throw new ArgumentException($"Property '{propertyPath}' cannot be converted to type {typeof(T).Name}.")
-        };
-    }
         public enum MongoDbDestination
         {
             DocinfoDB,
             ClientInfoDB
         }
 
-        public async void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination,string SupplierVat_id)
+        public async void InsertDocumentInfo(JsonElement jsonData, MongoDbDestination destination, string SupplierVat_id)
         {
             // Convert the JsonElement to a BsonDocument
             BsonDocument document = BsonDocument.Parse(jsonData.GetRawText());
@@ -218,8 +220,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             BusinessPartnerLists BPL = new BusinessPartnerLists();
             var emailList = new List<ClientObj>(); // Initialize the list to collect email addresses
-            var supplierList=new List<SupplierObj>();
-            var existingUser =await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == userid);
+            var supplierList = new List<SupplierObj>();
+            var existingUser = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == userid);
             existingUser.ClickedButtonToInviteBusinessPartners = true;
             await _repository.UpdateAsync(existingUser);
             var UsercompanyObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userid);
@@ -263,10 +265,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 foreach (var client in clients)
                 {
                     var email = client.Value["email"].ToString();
-                    var client_name= client.Value["client_name"].ToString();
+                    var client_name = client.Value["client_name"].ToString();
                     emailList.Add(new ClientObj { Email = email, Name = client_name }); // Add the email address to the list
                 }
-                BPL.ClientEmailList= emailList;
+                BPL.ClientEmailList = emailList;
 
                 var IcountgetSupplierListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
                 var IcountgetSupplierListEndpointEdited = IcountgetSupplierListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
@@ -280,15 +282,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 foreach (var supplier in suppliers)
                 {
                     var email = supplier.Value["email"].ToString();
-                    var supplier_name= supplier.Value["supplier_name"].ToString();
+                    var supplier_name = supplier.Value["supplier_name"].ToString();
                     // Ensure the email is not empty before adding
                     if (!string.IsNullOrWhiteSpace(email))
                     {
                         supplierList.Add(new SupplierObj { Email = email, Name = supplier_name });
                     }
-                    
-                       
-                   
+
+
+
                 }
                 BPL.SupplierList = supplierList;
 
@@ -298,7 +300,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         }
 
 
-        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue,string SupplierVat_id)
+        public async Task<bool> ExtractClientIdsAndInsertToMongoDb(JsonElement resultsList, string cidvalue, string uservalue, string passvalue, string SupplierVat_id)
         {
             // Loop over the items in the results_list array
             foreach (JsonElement item in resultsList.EnumerateArray())
@@ -311,15 +313,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 // var ReponsneDocInfo = await _UninetInputDataAccess.SendRequest(endpointdocInfo, methoddocinfo);
                 var ReponsneClientInfo = await _UninetInputDataAccess.SendRequest(endpointClinetinfo, methodclientinfo);
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneClientInfo);
-                
+
                 JsonElement jsonData = jsonDocument.RootElement;
 
                 MongoDbDestination destination = MongoDbDestination.ClientInfoDB;
-                  InsertDocumentInfo(jsonData, destination, SupplierVat_id);
+                InsertDocumentInfo(jsonData, destination, SupplierVat_id);
             }
             return true;
         }
-        public async Task<bool> CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(JsonElement resultsList,string cidvalue, string uservalue, string passvalue)
+        public async Task<bool> CreateListOfDetailedDocinfoAndInsertToMongoDBCollection(JsonElement resultsList, string cidvalue, string uservalue, string passvalue)
         {
 
             // Iterate over each element in the 'results_list' and create a get endpoint methode to get docinfo from icount
@@ -338,20 +340,20 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 JsonDocument jsonDocument = JsonDocument.Parse(ReponsneDocInfo);
                 JsonElement jsonData = jsonDocument.RootElement;
                 MongoDbDestination destination = MongoDbDestination.DocinfoDB;
-                 InsertDocumentInfo(jsonData, destination,"");
+                InsertDocumentInfo(jsonData, destination, "");
 
             }
 
             return true;
 
 
-                
 
-           
+
+
         }
         public async Task SetLastPullDataDate(int companyVatid)
         {
-            
+
 
             var existingRow = await _repository.GetByIdAsync<CompanyPulledDataLog>(companyVatid);
 
@@ -444,6 +446,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
+                var AdminObj = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(UserId));
+
                 DateTime startPulldata = new DateTime();
                 DateTime EndPulldata = new DateTime();
                 string cidvalue = null;
@@ -462,14 +466,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var UserParam = new
                 {
                     jsonInput = jsonString
-
                 };
 
                 var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
 
                 if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
                 {
-                    //before saving data into tables we need to verify the credentials are valid
+                    // Before saving data into tables we need to verify the credentials are valid
                     foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
                     {
                         if (item.FieldLabelName == "cid")
@@ -486,9 +489,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         }
                     }
 
-
-
-                    var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+                    var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); // call-https://api.icount.co.il/api/v3.php/company/info
                     var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
                     HttpMethod methodcomopanyinfo = HttpMethod.Get;
                     var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
@@ -497,23 +498,18 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var ReponsneCompanyInfojsonDocument = JsonDocument.Parse(ReponsneCompanyInfo);
                     var root = ReponsneCompanyInfojsonDocument.RootElement;
 
-                    // Extract the "status" value from api response to acount
+                    // Extract the "status" value from API response
                     bool statusValue = root.GetProperty("status").GetBoolean();
 
                     if (statusValue)
                     {
-                        //AddUserCredentialsSystemResult
-
                         var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
                         if (spresult.OperationType == "insert" || spresult.OperationType == "update") // check if an insert or update was performed
                         {
                             if (spresult.OperationType == "insert")
                             {
-                                //here i need to insert the logic that call to 
-                                //https://api.icount.co.il/api/v3.php/webhook/add
-                                //but before calling i need to find out if it already exist in our database related to an internal companyid
-                                //start logic of addig webhook to icount
+                                // Logic for adding webhook to iCount
                                 var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
 
                                 string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
@@ -545,7 +541,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
                                 int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
 
-                                if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
+                                if (status) // Save webhook ID in table LUTIcountSourceWebhookCompanyMapping
                                 {
                                     var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
                                     if (LUTIcountSourceWebhookCompanyMappingnewRow != null)
@@ -556,8 +552,6 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
                                     }
                                 }
-
-                                ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
 
                                 // Parse the JSON string to a dynamic object
                                 dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
@@ -605,28 +599,54 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "Your credentials were saved successfully" : "נתוני מערכת הכספים נשמרו בהצלחה! ",
                                 SystemRegisteredInuninet = true,
                                 ValidExternalsystemCredenatials = true,
-                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
                             };
                             return res;
                         }
-                        else //here i get the userid related to masteruser from adminusers table
+                        else if (spresult.OperationType == "master_user") // Handle case where there is a master user
                         {
-                            //added logic eyal to return valid message  that there is already a master user that has  
-                            //same credentials and this is his details 
-                            //please ask the master to add you to our system than  this user will be able to enter his 
-                            //email and password and get  into the master console system 
+                            // Message indicating a master user already exists
                             var res = new ResSaveExternalCustomized
                             {
                                 Success = false,
-                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user " + spresult.FirstName + " " + spresult.LastName + " " + "from this organiztion " + spresult.OrganizationName + " is the master user on your organzation please contact him via his email " + spresult.Email + "so he can add you to our system" :
-                                "משתמש " + spresult.FirstName + " " + spresult.LastName + " " + "מהארגון שלך " + spresult.OrganizationName + "הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + "על מנת שיוסיף אותך למערכת שלנו",
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user " + spresult.FirstName + " " + spresult.LastName + " from this organization " + spresult.OrganizationName + " is the master user on your organization please contact him via his email " + spresult.Email + " so he can add you to our system" :
+                                "משתמש " + spresult.FirstName + " " + spresult.LastName + " מהארגון שלך " + spresult.OrganizationName + " הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + " על מנת שיוסיף אותך למערכת שלנו",
                                 SystemRegisteredInuninet = false,
                                 ValidExternalsystemCredenatials = true,
-                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
                             };
                             return res;
                         }
-
+                        else if (spresult.OperationType == "no_change") // Handle no_change operation
+                        {
+                            // Message indicating no change was made
+                            var res = new ResSaveExternalCustomized
+                            {
+                                Success = false,
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "No changes were made to your credentials." : "לא נעשו שינויים בפרטי ההתחברות שלך.",
+                                SystemRegisteredInuninet = false,
+                                ValidExternalsystemCredenatials = true,
+                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
+                            };
+                            return res;
+                        }
+                        else
+                        {
+                            // Handle unexpected OperationType
+                            var res = new ResSaveExternalCustomized
+                            {
+                                Success = false,
+                                textResponse = "Unexpected OperationType",
+                                SystemRegisteredInuninet = false,
+                                ValidExternalsystemCredenatials = false,
+                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
+                            };
+                            return res;
+                        }
                     }
                     else
                     {
@@ -636,14 +656,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                             textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "We couldn't authenticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
                             SystemRegisteredInuninet = false,
                             ValidExternalsystemCredenatials = false,
-                            FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+                            FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                            ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
                         };
                         return res;
                     }
                 }
-                else//external data wasnt saved to database 
+                else // External data wasn't saved to the database
                 {
-                    //here we need to save the user with the wanted system id  in table UsersExternalSystemDynamicFields 
+                    // Save the user with the desired system ID in the table UsersExternalSystemDynamicFields
                     var newUsersExternalSystemDynamicFields = new UsersExternalSystemDynamicFields
                     {
                         Companyid = spInputExternalSystemCompanyDetails.Companyid,
@@ -651,7 +672,6 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId,
                         FieldLabelName = "N",
                         FieldLabelValue = spInputExternalSystemCompanyDetails.ExternalSystemId == 18 ? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
-                        // Set other properties as needed
                     };
                     Int32 intuserid = Convert.ToInt32(UserId);
                     var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
@@ -668,10 +688,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var res = new ResSaveExternalCustomized
                     {
                         Success = false,
-                        textResponse = "data wasnt saved ",
+                        textResponse = "Data wasn't saved",
                         SystemRegisteredInuninet = false,
                         ValidExternalsystemCredenatials = null,
-                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                        ClickedButtonToInviteBusinessPartners = AdminObj.ClickedButtonToInviteBusinessPartners == true ? true : false
                     };
                     return res;
                 }
@@ -684,17 +705,24 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     textResponse = "",
                     SystemRegisteredInuninet = false,
                     ValidExternalsystemCredenatials = null,
-                    FullName = ""
+                    FullName = "",
+                    ClickedButtonToInviteBusinessPartners =   false
                 };
                 return res;
             }
         }
 
 
+
         //public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         //{
         //    try
         //    {
+
+        //        var AdminObj = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.AdminUserid == Convert.ToInt32(UserId) );
+
+
+
         //        DateTime startPulldata = new DateTime();
         //        DateTime EndPulldata = new DateTime();
         //        string cidvalue = null;
@@ -705,7 +733,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //            listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
         //            userid = UserId,
         //            ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
-        //            CompanyId= spInputExternalSystemCompanyDetails.Companyid
+        //            CompanyId = spInputExternalSystemCompanyDetails.Companyid
         //        };
 
         //        // Convert the JSON object to string
@@ -713,14 +741,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //        var UserParam = new
         //        {
         //            jsonInput = jsonString
-
         //        };
 
         //        var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
 
         //        if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
         //        {
-        //            //before saving data into tables we need to verify the credentials are valid
+        //            // Before saving data into tables we need to verify the credentials are valid
         //            foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
         //            {
         //                if (item.FieldLabelName == "cid")
@@ -737,9 +764,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //                }
         //            }
 
-
-
-        //            var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); /// call-https://api.icount.co.il/api/v3.php/company/info
+        //            var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70); // call-https://api.icount.co.il/api/v3.php/company/info
         //            var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
         //            HttpMethod methodcomopanyinfo = HttpMethod.Get;
         //            var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo);
@@ -748,116 +773,100 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //            var ReponsneCompanyInfojsonDocument = JsonDocument.Parse(ReponsneCompanyInfo);
         //            var root = ReponsneCompanyInfojsonDocument.RootElement;
 
-        //            // Extract the "status" value from api response to acount
+        //            // Extract the "status" value from API response
         //            bool statusValue = root.GetProperty("status").GetBoolean();
 
         //            if (statusValue)
         //            {
-        //                //AddUserCredentialsSystemResult
-
         //                var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
 
-        //                if (spresult.AdminUserid==0)//if i get userid=0  than  i need to insert the new company credentials to table
+        //                if (spresult.OperationType == "insert" || spresult.OperationType == "update") // check if an insert or update was performed
         //                {
-        //                    //here i need to insert the logic that call to 
-        //                    //https://api.icount.co.il/api/v3.php/webhook/add
-        //                    //but before calling i need to find out if it already exist in our database related to an internal companyid
-        //                    //start logic of addig webhook to icount
-        //                    var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
-
-        //                    string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
-        //                    JsonElement rootWebhookEndpointjsonDocument;
-
-        //                    if (LUTIcountSourceWebhookCompanyMappingRow != null)
+        //                    if (spresult.OperationType == "insert")
         //                    {
-        //                        baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+        //                        // Logic for adding webhook to iCount
+        //                        var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
 
-        //                        var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
-        //                        rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
-        //                    }
-        //                    else
-        //                    {
-        //                        var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+        //                        string baseUrl = "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue + "&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=";
+        //                        JsonElement rootWebhookEndpointjsonDocument;
+
+        //                        if (LUTIcountSourceWebhookCompanyMappingRow != null)
         //                        {
-        //                            Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
-        //                            SubCompanyId = spresult.NewSubCompanyId
-        //                        };
+        //                            baseUrl += LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
 
-        //                        var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
-
-        //                        baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
-
-        //                        var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
-        //                        rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
-        //                    }
-
-
-
-
-
-        //                    bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
-        //                    int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
-
-        //                    if (status)///save webhookid in table LUTIcountSourceWebhookCompanyMapping
-        //                    {
-        //                        var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId== spresult.NewSubCompanyId);
-        //                        if (LUTIcountSourceWebhookCompanyMappingnewRow!=null)
+        //                            var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(LUTIcountSourceWebhookCompanyMappingRow, baseUrl);
+        //                            rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+        //                        }
+        //                        else
         //                        {
-        //                            LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
+        //                            var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+        //                            {
+        //                                Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
+        //                                SubCompanyId = spresult.NewSubCompanyId
+        //                            };
 
-        //                            // Call your UpdateAsync method to save the changes
-        //                            await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+        //                            var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
+
+        //                            baseUrl += insertedRow.WebHookSourceid + "_" + spresult.NewSubCompanyId;
+
+        //                            var ReponsneIcountWebhookEndpointjsonDocument = await CallAddWebhookToIcount(insertedRow, baseUrl);
+        //                            rootWebhookEndpointjsonDocument = ReponsneIcountWebhookEndpointjsonDocument.RootElement;
+        //                        }
+
+        //                        bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
+        //                        int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
+
+        //                        if (status) // Save webhook ID in table LUTIcountSourceWebhookCompanyMapping
+        //                        {
+        //                            var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult.NewSubCompanyId);
+        //                            if (LUTIcountSourceWebhookCompanyMappingnewRow != null)
+        //                            {
+        //                                LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
+
+        //                                // Call your UpdateAsync method to save the changes
+        //                                await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+        //                            }
+        //                        }
+
+        //                        // Parse the JSON string to a dynamic object
+        //                        dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
+
+        //                        // Add the new property to the company_info object
+        //                        dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
+        //                        dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
+
+        //                        // Convert the modified object back to JSON
+        //                        string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
+
+        //                        // Get the vat_id value
+        //                        string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+        //                        // Check if a document with the same vat_id already exists in the collection
+        //                        var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+        //                        var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+        //                        if (existingDocument == null)
+        //                        {
+        //                            // Parse the modified JSON string to a BsonDocument
+        //                            BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+        //                            // Insert the modified document into the collection
+        //                            try
+        //                            {
+        //                                await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+        //                            }
+        //                            catch (Exception ex)
+        //                            {
+        //                                // Log or handle the exception here
+        //                                Console.WriteLine($"An error occurred: {ex.Message}");
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            // Document with the same vat_id already exists, handle accordingly
+        //                            Console.WriteLine("Document with the same vat_id already exists");
         //                        }
         //                    }
-
-        //                    ///end logic of adding webhook to icount and save the webhook info on table LUTIcountSourceWebhookCompanyMapping
-
-
-
-        //                    // Parse the JSON string to a dynamic object
-        //                    dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
-
-        //                    // Add the new property to the company_info object
-        //                    dynamicCompanyInfo.company_info.InternalCompanyId = spInputExternalSystemCompanyDetails.Companyid;
-        //                    dynamicCompanyInfo.company_info.SubCompanyId = spresult.NewSubCompanyId;
-
-        //                    // Convert the modified object back to JSON
-        //                    string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
-
-
-
-        //                    // Get the vat_id value
-        //                    string vatId = dynamicCompanyInfo.company_info.vat_id;
-
-        //                    // Check if a document with the same vat_id already exists in the collection
-        //                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
-        //                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-
-        //                    if (existingDocument == null)
-        //                    {
-
-        //                        // Parse the modified JSON string to a BsonDocument
-        //                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
-
-        //                        // Insert the modified document into the collection
-        //                        try
-        //                        {
-        //                            await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
-        //                        }
-        //                        catch (Exception ex)
-        //                        {
-        //                            // Log or handle the exception here
-        //                            Console.WriteLine($"An error occurred: {ex.Message}");
-        //                        }
-        //                    }
-        //                    else
-        //                    {
-        //                        // Document with the same vat_id already exists, handle accordingly
-        //                        Console.WriteLine("Document with the same vat_id already exists");
-        //                    }
-
-
-
 
         //                    var res = new ResSaveExternalCustomized
         //                    {
@@ -868,33 +877,47 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
         //                    };
         //                    return res;
-
-
-
         //                }
-        //                else //here i get the userid related to masteruser from adminusers table
+        //                else if (spresult.OperationType == "master_user") // Handle case where there is a master user
         //                {
-
-        //                    //added logic eyal to return valid message  that there is already a master user that has  
-        //                    //same credentials and this is his details 
-        //                    //please ask the master to add you to our system than  this user will be able to enter his 
-        //                    //email and password and get  into the master console system 
-
-
-
-
-        //                    //var res = new ResSaveExternalCustomized
-        //                    //{
-        //                    //    Success = false,
-        //                    //    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user "+ spresult.FirstName+" "+ spresult.LastName+" "+"from this organiztion "+ spresult.OrganizationName+" is the master user on your organzation please contact him via his email "+ spresult.Email+"so he can add you to our system": 
-        //                    //    "משתמש " + spresult.FirstName + " " + spresult.LastName + " " + "מהארגון שלך " + spresult.OrganizationName + "הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + "על מנת שיוסיף אותך למערכת שלנו",
-        //                    //    SystemRegisteredInuninet = false,
-        //                    //    ValidExternalsystemCredenatials = true,
-        //                    //    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
-        //                    //};
-        //                    //return res;
+        //                    // Message indicating a master user already exists
+        //                    var res = new ResSaveExternalCustomized
+        //                    {
+        //                        Success = false,
+        //                        textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user " + spresult.FirstName + " " + spresult.LastName + " from this organization " + spresult.OrganizationName + " is the master user on your organization please contact him via his email " + spresult.Email + " so he can add you to our system" :
+        //                        "משתמש " + spresult.FirstName + " " + spresult.LastName + " מהארגון שלך " + spresult.OrganizationName + " הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult.Email + " על מנת שיוסיף אותך למערכת שלנו",
+        //                        SystemRegisteredInuninet = false,
+        //                        ValidExternalsystemCredenatials = true,
+        //                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //                    };
+        //                    return res;
         //                }
-
+        //                else if (spresult.OperationType == "no_change") // Handle no_change operation
+        //                {
+        //                    // Message indicating no change was made
+        //                    var res = new ResSaveExternalCustomized
+        //                    {
+        //                        Success = false,
+        //                        textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "No changes were made to your credentials." : "לא נעשו שינויים בפרטי ההתחברות שלך.",
+        //                        SystemRegisteredInuninet = false,
+        //                        ValidExternalsystemCredenatials = true,
+        //                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //                    };
+        //                    return res;
+        //                }
+        //                else
+        //                {
+        //                    // Handle unexpected OperationType
+        //                    var res = new ResSaveExternalCustomized
+        //                    {
+        //                        Success = false,
+        //                        textResponse = "Unexpected OperationType",
+        //                        SystemRegisteredInuninet = false,
+        //                        ValidExternalsystemCredenatials = false,
+        //                        FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //                    };
+        //                    return res;
+        //                }
         //            }
         //            else
         //            {
@@ -905,32 +928,26 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //                    SystemRegisteredInuninet = false,
         //                    ValidExternalsystemCredenatials = false,
         //                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
-        //    };
+        //                };
         //                return res;
         //            }
-
-
-
-
-
         //        }
-        //        else//external data wasnt saved to database 
+        //        else // External data wasn't saved to the database
         //        {
-        //            //here we need to save the user with the wanted system id  in table UsersExternalSystemDynamicFields 
+        //            // Save the user with the desired system ID in the table UsersExternalSystemDynamicFields
         //            var newUsersExternalSystemDynamicFields = new UsersExternalSystemDynamicFields
         //            {
         //                Companyid = spInputExternalSystemCompanyDetails.Companyid,
         //                Userid = Convert.ToInt32(UserId),
-        //                ExternalSystemId=spInputExternalSystemCompanyDetails.ExternalSystemId,
-        //                FieldLabelName="N",
-        //                FieldLabelValue= spInputExternalSystemCompanyDetails.ExternalSystemId==18? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
-        //                // Set other properties as needed
+        //                ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId,
+        //                FieldLabelName = "N",
+        //                FieldLabelValue = spInputExternalSystemCompanyDetails.ExternalSystemId == 18 ? spInputExternalSystemCompanyDetails.ListInputLabelDetails[0].FieldLabelValue : "V"
         //            };
         //            Int32 intuserid = Convert.ToInt32(UserId);
-        //            var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields> (x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid== intuserid);
+        //            var res_UninetExternalSystems = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
         //            if (res_UninetExternalSystems != null)
         //            {
-        //               await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
+        //                await _repository.DeleteAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == spInputExternalSystemCompanyDetails.Companyid && x.Userid == intuserid);
         //                _repository.Create<UsersExternalSystemDynamicFields>(newUsersExternalSystemDynamicFields);
         //            }
         //            else
@@ -939,19 +956,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //            }
 
         //            var res = new ResSaveExternalCustomized
-        //                {
-        //                    Success = false,
-        //                    textResponse = "data wasnt saved ",
-        //                    SystemRegisteredInuninet = false,
-        //                   ValidExternalsystemCredenatials=null,
-        //                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
+        //            {
+        //                Success = false,
+        //                textResponse = "Data wasn't saved",
+        //                SystemRegisteredInuninet = false,
+        //                ValidExternalsystemCredenatials = null,
+        //                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName
         //            };
-        //                return res;
-
+        //            return res;
         //        }
-
-
-
         //    }
         //    catch (Exception ex)
         //    {
@@ -960,13 +973,18 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         //            Success = false,
         //            textResponse = "",
         //            SystemRegisteredInuninet = false,
-        //            ValidExternalsystemCredenatials=null,
+        //            ValidExternalsystemCredenatials = null,
         //            FullName = ""
         //        };
         //        return res;
-        //    };
+        //    }
         //}
-        public void InsertDocumentsToMongoDB(JsonElement resultsList,string vatid,string InternalUserId,int InternalComopanyId )
+
+
+
+
+
+        public void InsertDocumentsToMongoDB(JsonElement resultsList, string vatid, string InternalUserId, int InternalComopanyId)
         {
             foreach (var item in resultsList.EnumerateArray())
             {
@@ -989,7 +1007,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             { "vat_id", vatid },
             {"InternalCompanyId", InternalComopanyId.ToString() },
             {"InternalUserid",InternalUserId }
-            
+
         };
 
                 // Check if the document already exists in the collection
@@ -1009,7 +1027,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 }
             }
         }
-        
+
 
 
         public async Task<string> GetWelcomeToUninet(int Lang, string userId)
@@ -1059,7 +1077,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var businessNameEn = existingDocument["company_info"]["businessName_en"].AsString;
                     var businessNameHe = existingDocument["company_info"]["businessName_he"].AsString;
 
-                    businessName = Lang == 1 ? businessNameEn : businessNameHe;
+                    businessName = Lang == 1 ? (businessNameEn == "" ? businessNameHe : businessNameEn) : businessNameHe;
                 }
 
                 var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
@@ -1127,15 +1145,15 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                                                               //select * from LUT_UninetExternalSystems
 
 
-                var res_logo_video = await _repository.GetFirstObjectAsync< LUT_UninetExternalSystems>(x=>x.SyestemId== ExternalSystemId);
+                var res_logo_video = await _repository.GetFirstObjectAsync<LUT_UninetExternalSystems>(x => x.SyestemId == ExternalSystemId);
                 foreach (var item in res)
                 {
                     var customizedData = new CustomizedDataLIst
                     {
                         FieldLabelName = item.FieldLabelName,
-                        FieldLabelValue=item.FieldLabelValue,
-                        FiledType= item.FieldType,
-                        FieldTypeDesc=item.FiledTypeDesc
+                        FieldLabelValue = item.FieldLabelValue,
+                        FiledType = item.FieldType,
+                        FieldTypeDesc = item.FiledTypeDesc
                     };
 
                     listdata.Add(customizedData);
@@ -1435,9 +1453,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             {
                 BusinessId = business.BusinessId,
                 BusinessType = business.BusinessType,
-               // FirstName = business.FirstName,
+                // FirstName = business.FirstName,
                 //LastName = business.LastName,
-               // MobileNumber = business.MobileNumber,
+                // MobileNumber = business.MobileNumber,
                 OrganizationRole = business.OrganizationRole,
                 OrganizationName = business.OrganizationName,
                 OrganizationType = business.OrganizationType,
@@ -1511,20 +1529,20 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
-                var UserParam = new { userid = Userid , Otp = otp };
+                var UserParam = new { userid = Userid, Otp = otp };
                 //byte[] salt = GenerateSalt(16);
-               // byte[] key = Encoding.UTF8.GetBytes(Configuration["EncryptedUserId:key"]);
+                // byte[] key = Encoding.UTF8.GetBytes(Configuration["EncryptedUserId:key"]);
                 string iv = Configuration["EncryptedUserId:iv"];
                 byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
 
-               
+
 
                 string encryptedUserId = EncryptUserId(Userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
                 Console.WriteLine("Encrypted User ID: " + encryptedUserId);
 
                 var Procedureres = _repository.ExecuteGetSP<SaveIndicationOfSentApprovalMailToCustomerResponse>(ConstUninetStoredprocedure.SP_SaveIndicationOfSentApprovalMailToCustomer, UserParam);
                 bool ProcedureResult = Procedureres.ToList()[0].result;
-                
+
                 var ApprovalMailIndicationResult = new ApprovalMailIndication
                 {
                     result = ProcedureResult,
@@ -1538,19 +1556,19 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             }
         }
 
-        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId,int Lang)
+        public async Task<ResponseResendOtp> ResendOtp(ResentOtpRequest resentOtpRequest, int DecryptedUserId, int Lang)
         {
             try
             {
                 SendOtpViaMailResponse sendsmtpmailres = new SendOtpViaMailResponse();
                 // Check if user already has a row in useradmin so we can send them the OTP again
-                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == resentOtpRequest.Email && x.AdminUserid== DecryptedUserId);
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == resentOtpRequest.Email && x.AdminUserid == DecryptedUserId);
                 if (result == null)
                 {
                     var res = new ResponseResendOtp
                     {
                         Success = false,
-                        Desc = Lang==1? "User didn't register yet, no OTP sent":"משתמש לא נירשם , לא נישלח קוד "
+                        Desc = Lang == 1 ? "User didn't register yet, no OTP sent" : "משתמש לא נירשם , לא נישלח קוד "
                     };
                     return res;
                 }
@@ -1580,7 +1598,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 var res = new ResponseResendOtp
                                 {
                                     Success = false,
-                                    Desc = Lang == 1 ?  "In the last five minutes, you cannot send OTP more than five times": "לא ניתן לבקש לשלוח קוד אימות יותר מחמש פעמים בחמש דקות האחרונות",
+                                    Desc = Lang == 1 ? "In the last five minutes, you cannot send OTP more than five times" : "לא ניתן לבקש לשלוח קוד אימות יותר מחמש פעמים בחמש דקות האחרונות",
                                     userid = 0,
                                     otp = null
                                 };
@@ -1595,7 +1613,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                 sendsmtpmailres = await _dataMailassist.sendsmtpmail("סיסמה חד פעמית UNINET ", "eyalbmma@gmail.com", resentOtpRequest.Email, resentOtpRequest.TemplateId, resentOtpRequest.Lang);
                                 if (sendsmtpmailres.result)
                                 {
-                                    if (result.OtpSentCounter==null)
+                                    if (result.OtpSentCounter == null)
                                     {
                                         result.OtpSentCounter = 0;
                                         result.OtpSentCounter++;
@@ -1605,17 +1623,17 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     else
                                     {
                                         result.OtpSentCounter++;
-                                       
+
                                         _repository.Update(result);
                                     }
-                                     // Assuming you have an update method in your repository
+                                    // Assuming you have an update method in your repository
 
                                     var res = new ResponseResendOtp
                                     {
                                         Success = true,
                                         Desc = Lang == 1 ? "OTP was sent successfully" : "קוד אימות נשלח בהצלחה",
-                                        userid= result.AdminUserid,
-                                        otp= sendsmtpmailres.OTP
+                                        userid = result.AdminUserid,
+                                        otp = sendsmtpmailres.OTP
                                     };
                                     return res;
                                 }
@@ -1624,13 +1642,13 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var res = new ResponseResendOtp
                                     {
                                         Success = false,
-                                        Desc = Lang == 1 ? "Error Ocured Otp wasnt sent":"ארעה שגיאה קוד אימות לא נישלח",
+                                        Desc = Lang == 1 ? "Error Ocured Otp wasnt sent" : "ארעה שגיאה קוד אימות לא נישלח",
                                         userid = 0,
                                         otp = null
                                     };
                                     return res;
                                 }
-                               
+
                             }
                         }
                         else
@@ -1671,7 +1689,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var res = new ResponseResendOtp
                         {
                             Success = false,
-                            Desc = Lang==1? "user is already validated no need for otp":"המשתמש כבר אומת  אין צורך בשליחת קוד לאימות",
+                            Desc = Lang == 1 ? "user is already validated no need for otp" : "המשתמש כבר אומת  אין צורך בשליחת קוד לאימות",
                             userid = 0,
                             otp = null
                         };
@@ -1679,7 +1697,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     }
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
 
                 var res = new ResponseResendOtp
                 {
@@ -1711,25 +1730,25 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     DateCreated = israelNow,
                     ValidUser = false,
                     Email = RegisterUserReq.Email,
-                    passwordEncrypted=RegisterUserReq.Password
+                    passwordEncrypted = RegisterUserReq.Password
                 };
 
-                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == RegisterUserReq.Email );//&& x.passwordEncrypted == RegisterUserReq.Password
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == RegisterUserReq.Email);//&& x.passwordEncrypted == RegisterUserReq.Password
                 if (result != null)
                 {
-                    
+
 
                     var returnuser = new ReturnRegisterUser
                     {
                         Userid = result.AdminUserid,
                         UserStatusIndication = 1,
-                        verified= result.ValidUser
+                        verified = result.ValidUser
                     };
 
                     return returnuser;//user exist
                 }
                 else
-                { 
+                {
                     _repository.Create<AdminUsers>(NewUser);//new user
                     // Retrieve the last inserted identity value
 
@@ -1737,7 +1756,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     // int lastInsertedId = _repository.GetLastInsertedId(NewUser);
                     // Return the AdminUserId
 
-                   
+
 
                     var returnuser = new ReturnRegisterUser
                     {
@@ -1746,10 +1765,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         verified = false
                     };
                     return returnuser;
-                   
+
                 }
-                   
-               
+
+
             }
             catch (Exception ex)
             {
@@ -1800,7 +1819,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 // Convert server's DateTime.Now to Israel local time
                 DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
                 var adminuserObj = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.ResetPasswordToken == resetpasswordrequest.ResetPasswordToken);
-                if (adminuserObj != null) {
+                if (adminuserObj != null)
+                {
 
                     if (israelNow > adminuserObj.ExpiredpasswordTokenDate)
                     {
@@ -1854,11 +1874,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
             try
             {
                 var businessdatarow = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == getActiveTabRequest.JsonDocumentId);
-                if (businessdatarow!=null)
+                if (businessdatarow != null)
                 {
                     string ActiveKy = "";
-                   switch (businessdatarow.DocumentApprovedtoUninet) 
-                   {
+                    switch (businessdatarow.DocumentApprovedtoUninet)
+                    {
                         case null:
                             ActiveKy = "Inbox";
                             break;
@@ -1887,7 +1907,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     };
                     return res;
                 }
-                
+
             }
             catch (Exception ex)
             {
@@ -1943,8 +1963,8 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return null;
             }
         }
-            public async Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
-             {
+        public async Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
+        {
             try
             {
                 // Check if the user exists in the database based on the provided email
@@ -1965,7 +1985,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     DateTime now = israelNow;
                     DateTime futureTime = now.AddMinutes(10);
                     user.ExpiredpasswordTokenDate = futureTime;
-                    
+
                     // Save the changes to the database
                     await _repository.UpdateAsync(user);
 
@@ -2027,11 +2047,11 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     var resgoogleSignin = new GoogleSigninResponse
                     {
                         Success = true,
-                        UserId= existingUseremailandgoogleid.AdminUserid,
-                        verified= existingUseremailandgoogleid.ValidUser,
-                        textResponse = googlesignInrequest.lang==1? " user is succesfully verified  ": "פרטי המשתמש אומתו בהצלחה" //email and googleid exist in DB user is
+                        UserId = existingUseremailandgoogleid.AdminUserid,
+                        verified = existingUseremailandgoogleid.ValidUser,
+                        textResponse = googlesignInrequest.lang == 1 ? " user is succesfully verified  " : "פרטי המשתמש אומתו בהצלחה" //email and googleid exist in DB user is
                     };
-                        
+
                     return resgoogleSignin;
                 }
                 else
@@ -2070,7 +2090,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         };
 
                                         return resgoogleSignin;
-                                        
+
                                         //return Ok(new { Message = "Google ID verified and linked to the existing email" });
                                     }
                                     else
@@ -2086,7 +2106,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         };
 
                                         return resgoogleSignin;
-                                       
+
                                     }
                                 }
                                 else
@@ -2096,7 +2116,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                         Success = false,
                                         UserId = null,
                                         verified = false,
-                                        textResponse = googlesignInrequest.lang == 1? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל"  ////Failed to verify user with Google API
+                                        textResponse = googlesignInrequest.lang == 1 ? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל"  ////Failed to verify user with Google API
                                     };
 
                                     return resgoogleSignin;
@@ -2147,7 +2167,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                                 Success = true,
                                                 UserId = existingUserwithemail.AdminUserid,
                                                 verified = existingUserwithemail.ValidUser,
-                                                textResponse = googlesignInrequest.lang == 1 ? "Google ID is updated  and user is verified ":"משתמש גוגל עודכן ברשומות אצלינו"
+                                                textResponse = googlesignInrequest.lang == 1 ? "Google ID is updated  and user is verified " : "משתמש גוגל עודכן ברשומות אצלינו"
                                             };
 
                                             return resgoogleSignin;
@@ -2157,7 +2177,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                             var resgoogleSignin = new GoogleSigninResponse
                                             {
                                                 Success = false,
-                                                UserId =null,
+                                                UserId = null,
                                                 verified = false,
                                                 textResponse = googlesignInrequest.lang == 1 ? "Failed to verify with Google, unexpected error" : " האימות באמצעות גוגל נכשל" //google id you supplied doesnt match your credentials  "
                                             };
@@ -2177,7 +2197,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     }
 
                                 }
-                                
+
                             }
                         }
                     }
@@ -2225,7 +2245,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     };
                                     return resgoogleSignin;
                                     // return CreatedAtAction(nameof(GoogleSignIn), new { Message = "User created successfully" });
-                                   // return true;
+                                    // return true;
                                 }
                                 else
                                 {
@@ -2233,12 +2253,12 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     var resgoogleSignin = new GoogleSigninResponse
                                     {
                                         Success = false,
-                                        UserId =null,
-                                        verified =false,
+                                        UserId = null,
+                                        verified = false,
                                         textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל " //"Invalid email or Google ID"
                                     };
                                     return resgoogleSignin;
-                                    
+
                                 }
                             }
                             else
@@ -2253,7 +2273,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                                     textResponse = googlesignInrequest.lang == 1 ? "verfication failed" : " האימות נכשל "  //"Failed to verify user with Google API"
                                 };
                                 return resgoogleSignin;
-                               
+
                             }
                         }
                     }
@@ -2278,10 +2298,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 var resgoogleSignin = new GoogleSigninResponse
                 {
                     Success = false,
-                    textResponse = googlesignInrequest.lang == 1? "verfication failed" + ex.InnerException + ex.Message : " האימות נכשל "
+                    textResponse = googlesignInrequest.lang == 1 ? "verfication failed" + ex.InnerException + ex.Message : " האימות נכשל "
                 };
                 return resgoogleSignin;
-                
+
             }
         }
         public async Task<Q1_Q4_Result> GetQ1_Q4_Indication(Q1_Q4_Request q1q4request)
@@ -2299,18 +2319,18 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
                     Q3_InidicationRes = q3_res != null ? true : false,
-                    BusinessID= q1q2_res==null?null: q1q2_res.BusinessId,
-                    Fullname= q1q2_res==null?"": q1q2_res.FirstName+" "+ q1q2_res.LastName
+                    BusinessID = q1q2_res == null ? null : q1q2_res.BusinessId,
+                    Fullname = q1q2_res == null ? "" : q1q2_res.FirstName + " " + q1q2_res.LastName
                 };
                 return Response;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 var Response = new Q1_Q4_Result
                 {
                     Q1_Q2_InidicationRes = false,
                     Q3_InidicationRes = false,
-                    BusinessID =null,
+                    BusinessID = null,
                     Fullname = ""
                 };
                 return Response;
@@ -2320,10 +2340,10 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
         {
             try
             {
-                Businesses q1q2_res=null; // Declare q1q2_res as Businesses type
-                UsersExternalSystemDynamicFields q3_res=null; // Declare q3_res as UsersExternalSystemDynamicFields type
+                Businesses q1q2_res = null; // Declare q1q2_res as Businesses type
+                UsersExternalSystemDynamicFields q3_res = null; // Declare q3_res as UsersExternalSystemDynamicFields type
                 SubUserCredentials q3_res_subuser = null;
-                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted== _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
+                var result = await _repository.GetFirstObjectAsync<AdminUsers>(x => x.Email == _LoginWithEmailPasswordRequest.Email && x.passwordEncrypted == _LoginWithEmailPasswordRequest.Password);// && x.Password == model.Password x.Email == "admin@abc.com
                 if (result != null)
                 {
                     string israelTimeZoneId = "Israel Standard Time";
@@ -2342,9 +2362,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         if (q1q2_res != null)
                         {
                             q3_res = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(x => x.Userid == result.AdminUserid && x.ExternalSystemId == q1q2_res.ExternalSystemId);
-                            if (q3_res==null)
+                            if (q3_res == null)
                             {
-                                q3_res_subuser = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == result.AdminUserid );
+                                q3_res_subuser = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == result.AdminUserid);
                             }
 
 
@@ -2352,7 +2372,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                         var Response = new LoginWithEmailandPasswordResponse
                         {
                             Q1_Q2_InidicationRes = q1q2_res != null ? true : false,
-                            Q3_InidicationRes = (q3_res != null || q3_res_subuser!=null) ? true : false,
+                            Q3_InidicationRes = (q3_res != null || q3_res_subuser != null) ? true : false,
                             Userid = result.AdminUserid,
                             verified = result.ValidUser,
                             BusinessID = q1q2_res == null ? null : q1q2_res.BusinessId,
@@ -2389,22 +2409,22 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                     return Response;
 
                 }
-              
+
             }
             catch (Exception ex)
             {
                 return null;
             }
         }
-       
 
-        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string DecryptedUser,int Lng)
+
+        public async Task<LoginWithOtpResponse> RegisterWithOtpAndEncryptedUser(string otp, string DecryptedUser, int Lng)
         {
             try
             {
                 var res1 = new VerifyUserByOtpUserIdAndTimeStampResponse();
 
-                var Otparam = new { Otp = otp, Userid= DecryptedUser };
+                var Otparam = new { Otp = otp, Userid = DecryptedUser };
                 //var res = _repository.ExecuteGetSP<VerifyUserByOtpUserIdAndTimeStampResponse>(ConstUninetStoredprocedure.SP_VerifyUserByOtpUserIdAndTimeStamp, Otparam).ToList();
 
 
@@ -2452,9 +2472,9 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
 
                     };
                 }
-               
-                      
-               
+
+
+
 
 
 
@@ -2465,7 +2485,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 return new LoginWithOtpResponse()
                 {
                     verified = false,
-                    description = Lng == 1 ? "an error occure please try again ":"ארעה שגיאה אנא נסה שנית "
+                    description = Lng == 1 ? "an error occure please try again " : "ארעה שגיאה אנא נסה שנית "
 
                 };
 
@@ -2482,7 +2502,7 @@ public static T ExtractPropertyValue<T>(string jsonString, string propertyPath)
                 {
                     string Otp = "";
                     Otp = Generate_otp();
-                    bool SendOtpres =await SendOtp("+19142668348", "+972526350902", Otp);
+                    bool SendOtpres = await SendOtp("+19142668348", "+972526350902", Otp);
                     if (SendOtpres)
                     {
 

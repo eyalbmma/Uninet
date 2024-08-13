@@ -18,5 +18,7 @@ namespace Uninet.Domain.Entities
         [Key]
         public int ?Subcompanyid { get; set; }
         public bool FirsttimeOnConsoleForEntity { get; set; }
+
+        public bool? UserClicksonContinueFree { get; set; }
     }
 }

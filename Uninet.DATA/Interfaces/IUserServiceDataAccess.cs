@@ -11,6 +11,7 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IUserServiceDataAccess
     {
+        
         public Task<CurrentExternalSystemDetails> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput, int userid);
         public Task<ActiveTabResponse> GetActiveTab(GetActiveTabRequest getActiveTabRequest);
         public Task<LoginWithEmailandPasswordResponse> VerifyEmailLink(string EmailGuidVerification);

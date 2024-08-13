@@ -38,6 +38,8 @@ namespace Uninet.APP.Services
             }
         }
 
+        
+
         public async Task<CurrentExternalSystemDetails> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput, int userid)
         {
             try

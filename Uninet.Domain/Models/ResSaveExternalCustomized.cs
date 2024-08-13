@@ -16,5 +16,7 @@ namespace Uninet.Domain.Models
         public string FullName { get; set; }
 
         public List<string>  RelatedSubCompanyListIds { get; set; }
+
+        public bool? ClickedButtonToInviteBusinessPartners { get; set; }
     }
 }

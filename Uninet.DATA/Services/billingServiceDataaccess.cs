@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
@@ -23,7 +24,30 @@ namespace Uninet.DATA.Services
             
 
         }
+        public async Task<bool> ContinueFreeBilling(ContinueFreeInput continueFreeInput, int userId)
+        {
+            try
+            {
+               
+                var FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(x => x.Userid == userId && x.Mainorganization == continueFreeInput.mainCompanyId && x.Subcompanyid == continueFreeInput.subCopmanyId);
 
+                if (FirstTimeConsoleIndicationObj != null) //the user already visited the page 
+                {
+
+                    FirstTimeConsoleIndicationObj.UserClicksonContinueFree = true;
+                    await _repository.UpdateAsync(FirstTimeConsoleIndicationObj);
+                    return true;
+
+
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch(Exception ex) { return false; }
+
+        }
         public async Task<UserCreditCardHolderList> ShowUserBillingDetails(UserDetails userDetails)
         {
             try

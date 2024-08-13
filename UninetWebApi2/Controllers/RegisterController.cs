@@ -52,8 +52,10 @@ namespace UninetWebApi2.Controllers
             catch (Exception ex) { return null; }
         }
 
+      
 
-                [Authorize]
+
+        [Authorize]
         [HttpPost("InviteBusinessPartners")]
         public async Task<ActionResult> InviteBusinessPartners(int Lang)
         {

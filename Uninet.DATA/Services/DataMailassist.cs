@@ -94,50 +94,75 @@ namespace Uninet.DATA.Services
 
             return htmlBody;
         }
-
-        public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
+        public async Task<List<SendEmailResponse>> BusinessPartnerSendEmail(List<SendEmailRequest> sendEmailRequests, string userId)
         {
-            SendOtpViaMailResponse resmail = null; // Initialize resmail to null
+            var results = new List<SendEmailResponse>();
+
+            foreach (var request in sendEmailRequests)
+            {
+                var response = await SendSingleEmail(request, userId);
+                results.Add(response);
+            }
+
+            return results;
+        }
+
+        private async Task<SendEmailResponse> SendSingleEmail(SendEmailRequest sendEmailRequest, string userId)
+        {
+            var response = new SendEmailResponse
+            {
+                Email = sendEmailRequest.Email,
+                Vatid = sendEmailRequest.Vatid,
+                Lang = sendEmailRequest.Lang,
+                SubCompanyId = sendEmailRequest.SubCompanyId,
+                result = false // Initialize as false by default
+            };
 
             try
             {
                 // Attempt to send the email
-                resmail = await sendsmtpmail("הזמנה להצטרף ליונינט", "eyalbmma@gmail.com", sendEmailRequest.Email, 3, Lang, null, "", userId.ToString(), "");
+                var resmail = await sendsmtpmail(
+                    "הזמנה להצטרף ליונינט",
+                    "eyalbmma@gmail.com",
+                    sendEmailRequest.Email,
+                    3,
+                    sendEmailRequest.Lang,
+                    null,
+                    "",
+                    userId,
+                    ""
+                );
 
-                // If sendsmtpmail returns null, initialize resmail with a new SendOtpViaMailResponse object
-                if (resmail == null)
+                if (resmail != null)
                 {
-                    resmail = new SendOtpViaMailResponse { result = false };
-                }
-                else
-                {
-                    // If resmail.result is false, keep it false; otherwise, set it to true
-                    resmail.result = resmail.result ? true : false;
+                    response.result = resmail.result;
                 }
 
-                string businessName = "";
-                int organizationId = 0;
-                int subCompanyId = 0;
+                // Database operations
+                var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(
+                    x => x.SubCopmanyId == sendEmailRequest.SubCompanyId
+                );
 
-                var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == sendEmailRequest.SubCompanyId);
-                organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
-                subCompanyId = sendEmailRequest.SubCompanyId;
+                int organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
+                int subCompanyId = sendEmailRequest.SubCompanyId;
 
                 BusinessPartnersEmails existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
                     e.VatId == Convert.ToInt32(sendEmailRequest.Vatid) &&
                     e.OrganizationId == organizationId &&
                     e.UserId == Convert.ToInt32(userId) &&
-                    e.SubCompanyId == subCompanyId);
+                    e.SubCompanyId == subCompanyId
+                );
 
                 if (existingEntry != null)
                 {
-                    // Update last sent date and email sent status on the existing entity
+                    // Update existing entry
                     existingEntry.LastDateSent = DateTime.UtcNow;
-                    existingEntry.EmailSent = resmail?.result ?? false;
+                    existingEntry.EmailSent = response.result;
                     await _repository.UpdateAsync(existingEntry);
                 }
                 else
                 {
+                    // Create a new entry
                     BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
                     {
                         VatId = Convert.ToInt32(sendEmailRequest.Vatid),
@@ -145,21 +170,87 @@ namespace Uninet.DATA.Services
                         OrganizationId = organizationId,
                         UserId = Convert.ToInt32(userId),
                         SubCompanyId = subCompanyId,
-                        EmailSent = resmail?.result ?? false,
+                        EmailSent = response.result,
                         LastDateSent = DateTime.UtcNow
                     };
-                    // Create new record if it does not exist
                     await _repository.CreateAsync(emailEntry);
                 }
             }
             catch (Exception ex)
             {
-                // Handle or log the exception
-                resmail = new SendOtpViaMailResponse { result = false };
+                // Log the exception if necessary
+                response.result = false;
             }
 
-            return resmail;
+            return response;
         }
+
+
+        //public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
+        //{
+        //    SendOtpViaMailResponse resmail = null; // Initialize resmail to null
+
+        //    try
+        //    {
+        //        // Attempt to send the email
+        //        resmail = await sendsmtpmail("הזמנה להצטרף ליונינט", "eyalbmma@gmail.com", sendEmailRequest.Email, 3, Lang, null, "", userId.ToString(), "");
+
+        //        // If sendsmtpmail returns null, initialize resmail with a new SendOtpViaMailResponse object
+        //        if (resmail == null)
+        //        {
+        //            resmail = new SendOtpViaMailResponse { result = false };
+        //        }
+        //        else
+        //        {
+        //            // If resmail.result is false, keep it false; otherwise, set it to true
+        //            resmail.result = resmail.result ? true : false;
+        //        }
+
+        //        string businessName = "";
+        //        int organizationId = 0;
+        //        int subCompanyId = 0;
+
+        //        var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == sendEmailRequest.SubCompanyId);
+        //        organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
+        //        subCompanyId = sendEmailRequest.SubCompanyId;
+
+        //        BusinessPartnersEmails existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
+        //            e.VatId == Convert.ToInt32(sendEmailRequest.Vatid) &&
+        //            e.OrganizationId == organizationId &&
+        //            e.UserId == Convert.ToInt32(userId) &&
+        //            e.SubCompanyId == subCompanyId);
+
+        //        if (existingEntry != null)
+        //        {
+        //            // Update last sent date and email sent status on the existing entity
+        //            existingEntry.LastDateSent = DateTime.UtcNow;
+        //            existingEntry.EmailSent = resmail?.result ?? false;
+        //            await _repository.UpdateAsync(existingEntry);
+        //        }
+        //        else
+        //        {
+        //            BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+        //            {
+        //                VatId = Convert.ToInt32(sendEmailRequest.Vatid),
+        //                EntityType = "SomeEntityType",
+        //                OrganizationId = organizationId,
+        //                UserId = Convert.ToInt32(userId),
+        //                SubCompanyId = subCompanyId,
+        //                EmailSent = resmail?.result ?? false,
+        //                LastDateSent = DateTime.UtcNow
+        //            };
+        //            // Create new record if it does not exist
+        //            await _repository.CreateAsync(emailEntry);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // Handle or log the exception
+        //        resmail = new SendOtpViaMailResponse { result = false };
+        //    }
+
+        //    return resmail;
+        //}
 
 
         public async Task<SendOtpViaMailResponse> sendsmtpmail(string subject, string From, string To,int Templateid,int lang, RequestedMailObject InputMailDetails= null,string username=null,string encryptedUserId="",string Name=null)

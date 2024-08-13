@@ -83,11 +83,11 @@ namespace Uninet.APP.Services
         }
         
 
-        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId)
+        public async Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId, int pageNumber, int pageSize)
         {
             try
             {
-                return await _uninetOutPutDataAccess.GetBusinessPartnersByFilter(filterType, userId, subCopmanyId);
+                return await _uninetOutPutDataAccess.GetBusinessPartnersByFilter(filterType, userId, subCopmanyId,  pageNumber,  pageSize);
             }
             catch(Exception ex)
             {

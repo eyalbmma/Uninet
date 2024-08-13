@@ -38,27 +38,24 @@ namespace UninetWebApi2.Controllers
 
         [Authorize]
         [HttpPost("SendEmail")]
-       
-        public async Task<ActionResult> SendEmail([FromBody] SendEmailRequest sendEmailRequest)
+        public async Task<ActionResult> SendEmail([FromBody] List<SendEmailRequest> sendEmailRequests)
         {
-           
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            //var ObjTemplateparam = new { TemplateId = 3, Lang = 2 };
-            //var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
 
+            // Call the modified BusinessPartnerSendEmail with a list
+            var results = await _mailasist.BusinessPartnerSendEmail(sendEmailRequests, userId);
 
-            var res=await _mailasist.BusinessPartnerSendEmail( sendEmailRequest, userId, sendEmailRequest.Lang);
-
-            
-           
-            return Ok(res.result);
+            return Ok(results);
         }
+
+
+
 
         // Endpoint to get business partners by filter type
         [Authorize]
        
         [HttpGet("GetBusinessPartnersByFilter")]
-        public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId)
+        public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId, int pageNumber, int pageSize)
         {
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -75,15 +72,15 @@ namespace UninetWebApi2.Controllers
             {
                 case FilterType.Supplier:
                     // Logic for Supplier filter type
-                    var res = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType,Convert.ToInt32(userId), subCopmanyId);
+                    var res = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType,Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
                     return Ok(res);
 
                 case FilterType.Client:
-                    var res2 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId);
+                    var res2 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
                     return Ok(res2);
 
                 case FilterType.Both:
-                    var res3 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId);
+                    var res3 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
                     return Ok(res3);
 
                 default:

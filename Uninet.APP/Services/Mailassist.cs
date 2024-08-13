@@ -34,14 +34,14 @@ namespace Uninet.APP.Services
         }
 
   
-        public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
+        public async Task<List<SendEmailResponse>> BusinessPartnerSendEmail(List<SendEmailRequest> sendEmailRequest, string userId)
         {
             try
             {
                 //var MainCompanyIdObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == 627);
                 //var ObjTemplateparam = new { TemplateId = 3, Lang = 2 };
                 //var res = await _repository.ExecuteGetSPAsync<OTPHtmlBody>(ConstUninetStoredprocedure.SP_GetHtmlBody, ObjTemplateparam);
-                return await _dataMailassist.BusinessPartnerSendEmail(sendEmailRequest, userId, Lang);
+                return await _dataMailassist.BusinessPartnerSendEmail(sendEmailRequest, userId);
             }
             catch (Exception ex) { return null; }
 

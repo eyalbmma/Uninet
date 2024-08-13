@@ -49,6 +49,7 @@ namespace UninetWebApi2.Controllers
 
         [HttpPost("RefreshToken")]
         [AllowAnonymous]
+        // Add error handling for null
         public async Task<IActionResult> RefreshToken(RefreshTokenRequest _refreshTokenRequest)
         {
             var refreshToken = _refreshTokenRequest.authenticationToken;
@@ -82,7 +83,7 @@ namespace UninetWebApi2.Controllers
 
 
         }
-
+        
         [HttpPost("ForgotPassword")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest)
         {

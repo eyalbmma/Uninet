@@ -114,30 +114,37 @@ namespace UninetWebApi2.Controllers
 
         [Authorize]
         [HttpPost("AproveDoc")]
-        //this method gets a 
-        //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
         public async Task<ActionResult> AproveDoc([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
 
             string message = "";
+
             if (result.status)
             {
-                
-                    message = expensesUserDoRequest.Lang == 1 ? "Document transferred to Uninet successfully" : "המסמכים התקבלו בהצלחה ביונינט";
-               
-
-
+                message = expensesUserDoRequest.Lang == 1 ? "Document transferred to Uninet successfully" : "המסמכים התקבלו בהצלחה ביונינט";
             }
             else
             {
-                message = expensesUserDoRequest.Lang == 1 ? "There was an error, the document failed to transfer the Uninet" : "אירעה שגיאה, המסמכים לא התקבלו";
+                // Extract error messages from the result JSON
+                var errorMessage = result.api?.messages?.FirstOrDefault()?.data ?? string.Empty;
+
+                if (string.IsNullOrEmpty(errorMessage))
+                {
+                    message = expensesUserDoRequest.Lang == 1 ? "There was an error, the document failed to transfer to Uninet" : "אירעה שגיאה, המסמכים לא התקבלו";
+                }
+                else
+                {
+                    message = expensesUserDoRequest.Lang == 1 ? errorMessage : "אירעה שגיאה: " + errorMessage;
+                }
             }
-            result.textResponse= message;
+
+            result.textResponse = message;
 
             return Ok(result);
         }
+
 
 
 

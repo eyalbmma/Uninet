@@ -9,6 +9,7 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IbillingServiceDataaccess
     {
+        public Task<bool> ContinueFreeBilling(ContinueFreeInput continueFreeInput, int userId);
         public Task<UserCreditCardHolderList> ShowUserBillingDetails(UserDetails userDetails);
     }
 }
