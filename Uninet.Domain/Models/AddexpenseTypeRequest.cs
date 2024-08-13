@@ -39,5 +39,16 @@ namespace Uninet.Domain.Models
         public int tax_id { get; set; }
 
 
+        [JsonPropertyName("permanent_property")]
+        public bool permanent_property { get; set; } = false;
+
+        [JsonPropertyName("no_vat")]
+        public bool no_vat { get; set; } = false;
+
+
+
+
+
+
     }
 }

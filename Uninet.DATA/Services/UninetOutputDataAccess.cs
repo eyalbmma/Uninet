@@ -3259,7 +3259,7 @@ namespace Uninet.DATA.Services
                 //string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense + ", \"expense_type_name\": " + addexpenseTypeRequest.expense_type_name + ", \"deductable_vat\": \"" + addexpenseTypeRequest.deductable_vat + "\", \"deductable_expense\": \"" + addexpenseTypeRequest.deductable_expense + "}";
                 //string postData = Newtonsoft.Json.JsonConvert.SerializeObject(addexpenseTypeRequest);
 
-                string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense.ToString().ToLower() + ", \"expense_type_name\": \"" + addexpenseTypeRequest.expense_type_name + "\", \"deductable_vat\": " + addexpenseTypeRequest.deductable_vat + ", \"deductable_expense\": " + addexpenseTypeRequest.deductable_expense + "}";
+                string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense.ToString().ToLower() + ", \"expense_type_name\": \"" + addexpenseTypeRequest.expense_type_name + "\", \"deductable_vat\": " + addexpenseTypeRequest.deductable_vat + ", \"deductable_expense\": " + addexpenseTypeRequest.deductable_expense + ", \"permanent_property\": " + addexpenseTypeRequest.permanent_property + ",\"no_vat\": " + addexpenseTypeRequest.no_vat + "}";
 
                 string result = await SendRequest(EndpointAddexpenseType, method, postData);
                 AddexpenseTypeResponse response = JsonConvert.DeserializeObject<AddexpenseTypeResponse>(result);
