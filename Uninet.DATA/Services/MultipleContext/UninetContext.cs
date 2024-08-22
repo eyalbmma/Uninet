@@ -118,7 +118,7 @@ namespace Uninet.DATA.Services.MultipleContext
 
             
 
-            modelBuilder.Entity<BusinessPartnersEmails>().HasKey(u => new { u.VatId, u.OrganizationId, u.UserId,u.SubCompanyId });
+            modelBuilder.Entity<BusinessPartnersEmails>().HasKey(u => new { u.VatId, u.OrganizationId, u.UserId,u.SubCompanyId,u.Email });
             modelBuilder.Entity<AddBusinessToUserResult>().HasNoKey();
             modelBuilder.Entity<SendOtpViaMailResponse>().HasNoKey();
             modelBuilder.Entity<SaveIndicationOfSentApprovalMailToCustomerResponse>().HasNoKey();

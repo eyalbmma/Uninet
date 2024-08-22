@@ -19,7 +19,7 @@ namespace Uninet.Domain.Interfaces
 
         T GetById<T>(int id) where T : class;
         Task<T> CreateAsyncReturnEntity<T>(T entity) where T : class;
-
+        Task DeleteAsync<T>(T entity) where T : class;
        Task CreateAsync<T>(T entity) where T : class;
 
         int Create<T>(T entity) where T : class;

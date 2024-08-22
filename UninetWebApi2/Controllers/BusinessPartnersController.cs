@@ -50,12 +50,47 @@ namespace UninetWebApi2.Controllers
 
 
 
-
-        // Endpoint to get business partners by filter type
         [Authorize]
+
+        [HttpGet("ShortVersionGetBusinessPartnersByFilter")]
+        public async Task<ActionResult> ShortVersionGetBusinessPartnersByFilter([FromQuery] int filterType, int subCopmanyId, int pageNumber, int pageSize,int Lang)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // Check if the provided filterType is valid
+            if (!Enum.IsDefined(typeof(FilterType), filterType))
+            {
+                return BadRequest("Invalid filter type.");
+            }
+
+            // Convert the integer value to the corresponding FilterType enum value
+            FilterType selectedFilter = (FilterType)filterType;
+
+            switch (selectedFilter)
+            {
+                case FilterType.ShortversionSuplier:
+                    // Logic for Supplier filter type
+                    var res = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize, Lang);
+                    return Ok(res);
+
+                //case FilterType.Client:
+                //    var res2 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
+                //    return Ok(res2);
+
+                //case FilterType.Both:
+                //    var res3 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
+                //    return Ok(res3);
+
+                default:
+                    // Invalid filter type
+                    return BadRequest("Filter type does not match.");
+            }
+        }
+
+            // Endpoint to get business partners by filter type
+            [Authorize]
        
         [HttpGet("GetBusinessPartnersByFilter")]
-        public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId, int pageNumber, int pageSize)
+        public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId, int pageNumber, int pageSize,int Lang)
         {
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -72,15 +107,15 @@ namespace UninetWebApi2.Controllers
             {
                 case FilterType.Supplier:
                     // Logic for Supplier filter type
-                    var res = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType,Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
+                    var res = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType,Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize, Lang);
                     return Ok(res);
 
                 case FilterType.Client:
-                    var res2 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
+                    var res2 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize, Lang);
                     return Ok(res2);
 
                 case FilterType.Both:
-                    var res3 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize);
+                    var res3 = await _uninetOutPutAppService.GetBusinessPartnersByFilter(filterType, Convert.ToInt32(userId), subCopmanyId, pageNumber, pageSize, Lang);
                     return Ok(res3);
 
                 default:

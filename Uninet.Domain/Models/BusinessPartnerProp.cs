@@ -12,7 +12,11 @@ namespace Uninet.Domain.Models
         DateTime = 2,
         String = 3
     }
-
+    public class TotalBusinessPartnerProp
+    {
+        public List<BusinessPartnerProp> BusinessPartnerProp { get; set; }
+        public int TotalResults { get; set; }
+    }
     public class BusinessPartnerProp
     {
         public string BusinesspartnerName { get; set; }

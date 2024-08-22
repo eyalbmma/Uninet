@@ -16,7 +16,7 @@ namespace Uninet.DATA.Interfaces
         Task<ExpensesDigitalDocumentProp> ShowDigitalDocumentDetails(DigitalDocumentDInputRequest expensesUserDoRequest, int userId);
         Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID,string Typelist, int? subCompanyId, int pageNumber , int pageSize );
 
-        Task<List<BusinessPartnerProp>> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId, int pageNumber, int pageSize);
+        Task<TotalBusinessPartnerProp> GetBusinessPartnersByFilter(int filterType, int userId,int subCopmanyId, int pageNumber, int pageSize, int Lang);
 
         
     }

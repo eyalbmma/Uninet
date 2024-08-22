@@ -11,7 +11,8 @@ namespace Uninet.Domain.Models
     {
         Supplier = 1,
         Client = 2,
-        Both = 3
+        Both = 3,
+        ShortversionSuplier=4
     }
     public  class EnumRepository
     {

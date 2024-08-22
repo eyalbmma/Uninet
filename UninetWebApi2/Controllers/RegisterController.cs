@@ -57,60 +57,31 @@ namespace UninetWebApi2.Controllers
 
         [Authorize]
         [HttpPost("InviteBusinessPartners")]
-        public async Task<ActionResult> InviteBusinessPartners(int Lang)
+        public async Task<ActionResult> InviteBusinessPartners(int Lang,int subcompanyid)
         {
             try
             {
+                /*
+                  BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+                    {
+                        VatId = Convert.ToInt32(sendEmailRequest.Vatid),
+                        EntityType = "SomeEntityType",
+                        OrganizationId = organizationId,
+                        UserId = Convert.ToInt32(userId),
+                        SubCompanyId = subCompanyId,
+                        EmailSent = response.result,
+                        LastDateSent = DateTime.UtcNow
+                    };
+                    await _repository.CreateAsync(emailEntry);
+
+                */
                 BusinessPartnerLists BPLResult = new BusinessPartnerLists();
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                 BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang);
-                var res = new InviteBusinessPartnerResult { };
+                 BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
+                
+                
 
-                string iv = Configuration["EncryptedUserId:iv"];
-                byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
-                string encryptedUserId = EncryptUserId(userId.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
-
-                // Send emails to client email list
-                if (BPLResult.ClientEmailList != null && BPLResult.ClientEmailList.Any())
-                {
-                    foreach (var email in BPLResult.ClientEmailList)
-                    {
-                        var sendsmtpmailres = await _mailasist.sendsmtpmail(
-                            "בתור לקוח שלנו רצינו להזמין אותך  להירשם ליונינט", // Email subject
-                            "eyalbmma@gmail.com", // From email (your email)
-                            email.Email, // To email (recipient's email)
-                            3, // Template ID for the email content
-                            Lang, // Language for the email content
-                            encryptedUserId ,// Encrypted user ID to be included in the email
-                            email.Name
-                        );
-                    }
-                }
-
-                // Send emails to supplier email list
-                if (BPLResult.SupplierList != null && BPLResult.SupplierList.Any())
-                {
-                    foreach (var email in BPLResult.SupplierList)
-                    {
-                        // Check if email is not empty or null
-                        if (!string.IsNullOrEmpty(email.Email))
-                        {
-                            var sendsmtpmailres = await _mailasist.sendsmtpmail(
-                                "בתור ספק שלנו רצינו להזמין אותך להירשם ליונינט", // Email subject, adjusted for suppliers
-                                "eyalbmma@gmail.com", // From email (your email)
-                                email.Email, // To email (recipient's email)
-                                3, // Template ID for the email content
-                                Lang, // Language for the email content
-                                encryptedUserId, // Encrypted user ID to be included in the email
-                                email.Name
-                            );
-                        }
-                    }
-                }
-
-
-
-                res = new InviteBusinessPartnerResult
+                var res = new InviteBusinessPartnerResult
                 {
                     Success = true,
                     textResponse = Lang == 1 ? "Email sent to all business partners" : "נשלחו מיילים לשותפים העסקיים שלך"

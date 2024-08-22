@@ -16,6 +16,8 @@ namespace Uninet.Domain.Entities
         public bool? EmailSent { get; set; }  
         public DateTime? LastDateSent { get; set; }  
 
-        
+        public string Email { get; set; }
+
+
     }
 }

@@ -20,5 +20,8 @@ namespace Uninet.Domain.Entities
 
 
         public DateTime LastTimeDataShowed { get; set; }
+
+
+        public bool? ClickedButtonToInviteBusinessPartnersSubCompany { get; set; }
     }
 }

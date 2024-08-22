@@ -453,6 +453,11 @@ namespace Uninet.Domain.Classes
             return this.dbContext.Database.ExecuteSqlRawAsync(spStringCommand, paramsArr.ToArray());
 
         }
+        public async Task DeleteAsync<T>(T entity) where T : class
+        {
+            this.dbContext.Set<T>().Remove(entity);
+            await this.dbContext.SaveChangesAsync();
+        }
 
 
 

@@ -67,11 +67,11 @@ namespace Uninet.APP.Services
                 return res;
             }
         }
-        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang)
+        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang, int subcompanyid)
         {
             try
             {
-                return await _userServiceDataAccess.InviteBusinessPartners(userid, Lang);
+                return await _userServiceDataAccess.InviteBusinessPartners(userid, Lang,  subcompanyid);
             }
             catch
             {

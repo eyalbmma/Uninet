@@ -133,10 +133,13 @@ namespace Uninet.DATA.Services
                     ""
                 );
 
-                if (resmail != null)
+                // If resmail is null, return the response with result = false
+                if (resmail == null)
                 {
-                    response.result = resmail.result;
+                    return response; // Return early without modifying the database
                 }
+
+                response.result = resmail.result;
 
                 // Database operations
                 var ObjMainSubCopmaniesMasters = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(
@@ -146,23 +149,23 @@ namespace Uninet.DATA.Services
                 int organizationId = ObjMainSubCopmaniesMasters.MainCompanyId;
                 int subCompanyId = sendEmailRequest.SubCompanyId;
 
+                // Fetch existing entry
                 BusinessPartnersEmails existingEntry = await _repository.GetFirstObjectAsync<BusinessPartnersEmails>(e =>
                     e.VatId == Convert.ToInt32(sendEmailRequest.Vatid) &&
                     e.OrganizationId == organizationId &&
                     e.UserId == Convert.ToInt32(userId) &&
-                    e.SubCompanyId == subCompanyId
+                    e.SubCompanyId == subCompanyId &&
+                    e.Email == sendEmailRequest.Email
                 );
 
                 if (existingEntry != null)
                 {
-                    // Update existing entry
-                    existingEntry.LastDateSent = DateTime.UtcNow;
-                    existingEntry.EmailSent = response.result;
-                    await _repository.UpdateAsync(existingEntry);
-                }
-                else
-                {
-                    // Create a new entry
+                    // If the entry with the old email exists, delete it
+                    
+                    await _repository.DeleteAsync(existingEntry);
+                    
+
+                    // Create a new entry with the updated email
                     BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
                     {
                         VatId = Convert.ToInt32(sendEmailRequest.Vatid),
@@ -170,6 +173,23 @@ namespace Uninet.DATA.Services
                         OrganizationId = organizationId,
                         UserId = Convert.ToInt32(userId),
                         SubCompanyId = subCompanyId,
+                        Email = sendEmailRequest.Email,
+                        EmailSent = response.result,
+                        LastDateSent = DateTime.UtcNow
+                    };
+                    await _repository.CreateAsync(emailEntry);
+                }
+                else
+                {
+                    // Create a new entry with the updated email
+                    BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
+                    {
+                        VatId = Convert.ToInt32(sendEmailRequest.Vatid),
+                        EntityType = "SomeEntityType",
+                        OrganizationId = organizationId,
+                        UserId = Convert.ToInt32(userId),
+                        SubCompanyId = subCompanyId,
+                        Email = sendEmailRequest.Email,
                         EmailSent = response.result,
                         LastDateSent = DateTime.UtcNow
                     };
@@ -184,6 +204,8 @@ namespace Uninet.DATA.Services
 
             return response;
         }
+
+
 
 
         //public async Task<SendOtpViaMailResponse> BusinessPartnerSendEmail(SendEmailRequest sendEmailRequest, string userId, int Lang)
