@@ -22,5 +22,7 @@ namespace Uninet.Domain.Models
         public bool ShowFirstTimeMessage { get; set; }
         public bool ShowExceedsMessage { get; set; }
 
+
+        public bool? ClickedButtonToInviteBusinessPartnersSubCompany { get; set; }
     }
 }

@@ -44,7 +44,11 @@ namespace UninetWebApi2.Controllers
 
             if (string.IsNullOrEmpty(expensesUserDoRequest.ClientVat_id))
             {
-                var nullResponse = new ExpensesDigitalDocumentProp
+                ShowingDocsResults docsResults = new ShowingDocsResults();
+                docsResults.Success = false;
+
+                docsResults.ErrSec = expensesUserDoRequest.Lang == 1 ? "no documents left in the inbox" : "לא נותרו מסמכים בתיבת הדואר הניכנס";
+                var ZeroDocsResponse = new ExpensesDigitalDocumentProp
                 {
                     Supplier_name_Sender = null,
                     Supplier_ID = 0,
@@ -60,10 +64,9 @@ namespace UninetWebApi2.Controllers
                     TaxId = null,
                     AmountBeforeVat = 0.0,
                     Vat = 0.0,
-                    showingDocsResults = null
+                    showingDocsResults = docsResults
                 };
-
-                return Ok(nullResponse);
+                return Ok(ZeroDocsResponse);
             }
 
             // Check for other fields if necessary

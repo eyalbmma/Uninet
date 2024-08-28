@@ -357,7 +357,19 @@ namespace Uninet.DATA.Services
                             {"user",uservalue }
                         };
 
-                    ExpenseTypeList = await PostExpencetypeList(ExpenseTypeListEndpointinfo, requestBody, expenseInfo.ExpenseTypeId);
+
+                    // First call with permanent_property = true
+                    requestBody["permanent_property"] = "true";
+                    var expenseTypeListTrue = await PostExpencetypeList(ExpenseTypeListEndpointinfo, requestBody, expenseInfo.ExpenseTypeId);
+
+                    // Second call with permanent_property = false
+                    requestBody["permanent_property"] = "false";
+                    var expenseTypeListFalse = await PostExpencetypeList(ExpenseTypeListEndpointinfo, requestBody, expenseInfo.ExpenseTypeId);
+
+                    // Merge both lists
+                    ExpenseTypeList = expenseTypeListTrue.Concat(expenseTypeListFalse).ToList();
+
+                   
                 }
 
                 if (DocumentApprovedtoUninet == true)
@@ -1229,8 +1241,32 @@ namespace Uninet.DATA.Services
                     }
 
                 }
-                //}
-                return null;
+                else
+                {
+                    docsResults.Success = false;
+                    
+                    docsResults.ErrSec = expensesUserDoRequest.Lang == 1 ? "no documents left in the inbox" : "לא נותרו מסמכים בתיבת הדואר הניכנס";
+                    var ZeroDocsResponse = new ExpensesDigitalDocumentProp
+                    {
+                        Supplier_name_Sender = null,
+                        Supplier_ID = 0,
+                        DocNumber = null,
+                        Doctype = null,
+                        DocDate = default(DateTime),
+                        AmountAV = 0.0,
+                        currencyName = null,
+                        CurrenctRateValue = 0,
+                        ExpenseTypeList = null,
+                        internalCompanyId = 0,
+                        Jsondocumentid = null,
+                        TaxId = null,
+                        AmountBeforeVat = 0.0,
+                        Vat = 0.0,
+                        showingDocsResults = docsResults
+                    };
+                    return ZeroDocsResponse;
+                }
+               
 
             }
             catch (Exception ex) {
@@ -1391,6 +1427,8 @@ namespace Uninet.DATA.Services
                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", company.SubCopmanyId)
                         );
 
+
+
                 var companyRow = await _IcountCompaniesInfoCollection.Find(filter).FirstOrDefaultAsync();
                 if (companyRow != null)
                 {
@@ -1402,7 +1440,7 @@ namespace Uninet.DATA.Services
                         // Now you have the InternalCompanyId value in the 'internalCompanyId' variable.
                     }
                 }
-
+                var ClickedButtonToInviteBusinessPartnersObj= await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.MainCompanyId == company.MainCompanyId && x.SubCopmanyId == company.SubCopmanyId);
                 var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(VatidFromIcountCompanisInfo) && x.DocumentApprovedtoUninet == null);
                 totalDocs = totalCountObj.Count();
 
@@ -1495,7 +1533,8 @@ namespace Uninet.DATA.Services
                         TotalDocsRejected= totalDocsRejected,
                         MainCompanyId = company.MainCompanyId,
                         ShowFirstTimeMessage = ( FirstTimeConsoleIndicationObj.UserClicksonContinueFree==null),
-                        ShowExceedsMessage = ( DocsAccepeted >= 15 && UserCreditCardHolderObj == null  )
+                        ShowExceedsMessage = ( DocsAccepeted >= 15 && UserCreditCardHolderObj == null  ),
+                        ClickedButtonToInviteBusinessPartnersSubCompany= ClickedButtonToInviteBusinessPartnersObj.ClickedButtonToInviteBusinessPartnersSubCompany
                     });
                 }
             }
@@ -2663,6 +2702,7 @@ namespace Uninet.DATA.Services
             }
             catch (Exception ex) { return null; }
         }
+       
         public async Task<DigitalDocumentToApproveObj> GetDigitalDocumentToApproveListByUser(int UserID, string Typelist, int? subCompanyId, int pageNumber, int pageSize)
         {
             try
@@ -3551,7 +3591,7 @@ namespace Uninet.DATA.Services
                 return null;
             }
         }
-        private List<ExpenseType> GetExpenseTypeListWithDefault(string json, int expenseTypeId)
+        private List<ExpenseType> GetExpenseTypeListWithDefault(string json, int expenseTypeId, bool Permanent)
         {
             var bsonDoc = BsonDocument.Parse(json);
             var expenseTypes = bsonDoc["expense_types"].AsBsonDocument;
@@ -3561,10 +3601,18 @@ namespace Uninet.DATA.Services
             foreach (var expenseType in expenseTypes.Elements)
             {
                 var expenseTypeDoc = expenseType.Value.AsBsonDocument;
+                var expenseTypeDesc = expenseTypeDoc["expense_type_name"].AsString;
+
+                // If Permanent is true, add "(P)" to the description
+                if (Permanent)
+                {
+                    expenseTypeDesc += " (P)";
+                }
+
                 var newExpenseType = new ExpenseType
                 {
                     ExpenseTypeId = expenseTypeDoc["expense_type_id"].AsInt32,
-                    ExpenseTypeDesc = expenseTypeDoc["expense_type_name"].AsString,
+                    ExpenseTypeDesc = expenseTypeDesc,
                     IsDefault = expenseTypeDoc["expense_type_id"].AsInt32 == expenseTypeId
                 };
 
@@ -3573,13 +3621,16 @@ namespace Uninet.DATA.Services
 
             return expenseTypeList;
         }
+
         private async Task<List<ExpenseType>> PostExpencetypeList(string endpoint, Dictionary<string, string> requestBody, string ExpenseTypeId)
         {
             var requestContent = new FormUrlEncodedContent(requestBody);
             var httpClient = new HttpClient();
             var response = await httpClient.PostAsync(endpoint, requestContent);
             var responseContent = await response.Content.ReadAsStringAsync();
-            List<ExpenseType> list = GetExpenseTypeListWithDefault(responseContent, Convert.ToInt32(ExpenseTypeId));
+
+            bool isPermanent = requestBody.ContainsKey("permanent_property") && requestBody["permanent_property"] == "true";
+            List<ExpenseType> list = GetExpenseTypeListWithDefault(responseContent, Convert.ToInt32(ExpenseTypeId), isPermanent);
             return list;
         }
 
