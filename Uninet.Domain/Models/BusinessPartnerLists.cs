@@ -10,11 +10,13 @@ namespace Uninet.Domain.Models
     {
         public List<ClientObj> ClientEmailList { get; set; }
         public List<SupplierObj> SupplierList { get; set; }
+       public  List<EmailSentResult> EmailSentResults { get; set; }
 
         public BusinessPartnerLists()
         {
             ClientEmailList = new List<ClientObj>();
             SupplierList = new List<SupplierObj>();
+            EmailSentResults = new List<EmailSentResult>();
         }
     }
 

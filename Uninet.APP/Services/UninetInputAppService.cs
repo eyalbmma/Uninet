@@ -29,7 +29,20 @@ namespace Uninet.APP.Services
             catch (Exception ex) { throw new Exception(); }
 
         }
+        
+        public async Task<bool> MorningReceiveWebhook(string json)//
+        {
+            try
+            {
 
+
+                return await _uninetInputDataAccess.MorningReceiveWebhook(json);//
+
+
+
+            }
+            catch (Exception ex) { return false; }
+        }
         public async Task<bool> ReceiveWebhook(string json, string WebHookSourceid)//
         {
             try

@@ -12,5 +12,6 @@ namespace Uninet.Domain.Models
         public string Vatid { get; set; }   
         public int Lang { get; set; }
         public int SubCompanyId { get; set; }
+        public string Businesspartner { get; set; }
     }
 }

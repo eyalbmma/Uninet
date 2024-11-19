@@ -45,6 +45,7 @@ using System.Threading.Tasks;
 using System.Reflection.Metadata;
 using static System.Net.Mime.MediaTypeNames;
 using System.Globalization;
+using Uninet.Domain.Classes;
 
 namespace Uninet.DATA.Services
 {
@@ -56,6 +57,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _UninetGetStaticQuestionsService;
         private readonly IMongoCollection<BsonDocument> _UninetGetLandingPageDataService;
         private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
+        private readonly IMongoCollection<BsonDocument> _MorningWebhookData;
         private readonly IDataMailassist _dataMailassist;
         public UninetInputDataAccess(IRepository<UninetContext> repository, IMongoClient client, IDataMailassist dataMailassist)//, IloginRepository loginRepository
         {
@@ -72,6 +74,10 @@ namespace Uninet.DATA.Services
 
 
             _IcountWebhookData= database.GetCollection<BsonDocument>("IcountWebhookData");
+
+
+            _MorningWebhookData = database.GetCollection<BsonDocument>("MorningWebHookData");
+
             _dataMailassist = dataMailassist;
         }
 
@@ -98,7 +104,29 @@ namespace Uninet.DATA.Services
 
         //    return Ok(question.ToJson());
         //}
-        
+
+
+        public async Task<bool> MorningReceiveWebhook(string json)
+        {
+            try
+            {
+                // Parse the JSON string into a BsonDocument
+                var bsonDocument = MongoDB.Bson.BsonDocument.Parse(json);
+
+                // Insert the BsonDocument into MongoDB
+                await _IcountWebhookData.InsertOneAsync(bsonDocument);
+
+                return true; // Indicate success
+            }
+            catch (Exception ex)
+            {
+                // Log the error
+                Console.WriteLine($"Error in MorningReceiveWebhook: {ex.Message}");
+                return false; // Indicate failure
+            }
+        }
+
+
         public async Task<bool> ReceiveWebhook(string json, string WebHookSourceid)//
         {
             try
@@ -689,7 +717,7 @@ namespace Uninet.DATA.Services
 
 
 
-        public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null)
+        public async Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null, string jsonBody = null)
         {
             string result = "";
             using (HttpClient client = new HttpClient())
@@ -702,17 +730,23 @@ namespace Uninet.DATA.Services
                     request.Headers.Add("Authorization", $"Bearer {jwtToken}");
                 }
 
+                // Add JSON payload if provided (for POST or PUT requests)
+                if (!string.IsNullOrEmpty(jsonBody) && (method == HttpMethod.Post || method == HttpMethod.Put))
+                {
+                    request.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                }
+
                 HttpResponseMessage response = await client.SendAsync(request);
 
                 response.EnsureSuccessStatusCode(); // Throw an exception if the request is not successful
 
                 string responseData = await response.Content.ReadAsStringAsync();
                 result = responseData;
-                
             }
 
             return result;
         }
+
 
 
 

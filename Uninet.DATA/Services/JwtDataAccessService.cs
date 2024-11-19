@@ -288,30 +288,68 @@ namespace Uninet.DATA.Services
 
         //}
 
+
         public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            // Calculate the token expiration time in your local time zone
-            DateTime localExpirationTime = DateTime.Now.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+            // Get Israel's time zone info
+            string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
+            TimeZoneInfo israelTimeZone = TimeZoneInfo.FindSystemTimeZoneById(israelTimeZoneId);
 
+            // Get current time in UTC and convert it to Israel's local time
+            DateTime israelNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, israelTimeZone);
+
+            // Calculate expiration time in Israel time
+            DateTime israelExpirationTime = israelNow.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+            // Create the JWT token
             var jwt = new JwtSecurityToken(
                 issuer: Configuration["jwtTokenConfig:issuer"],
                 audience: Configuration["Tokens:audience"],
                 claims: claims,
-                notBefore: DateTime.UtcNow,
-                expires: localExpirationTime,
+                notBefore: DateTime.UtcNow, // Token is valid from the current UTC time
+                expires: israelExpirationTime, // Expiration time in Israel time
                 signingCredentials: credentials
             );
 
+            // Return the access token along with its expiration time
             var res = new AccesstokenReturnObj
             {
                 Accesstoken = new JwtSecurityTokenHandler().WriteToken(jwt),
-                ExpirationDateAccesstoken = localExpirationTime
+                ExpirationDateAccesstoken = israelExpirationTime // Set expiration time based on Israel time
             };
+
             return res;
         }
+
+
+
+        //public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
+        //{
+        //    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
+        //    var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        //    // Calculate the token expiration time in your local time zone
+        //    DateTime localExpirationTime = DateTime.Now.AddSeconds(Convert.ToDouble(Configuration["jwtTokenConfig:accessTokenExpiration"]));
+
+        //    var jwt = new JwtSecurityToken(
+        //        issuer: Configuration["jwtTokenConfig:issuer"],
+        //        audience: Configuration["Tokens:audience"],
+        //        claims: claims,
+        //        notBefore: DateTime.UtcNow,
+        //        expires: localExpirationTime,
+        //        signingCredentials: credentials
+        //    );
+
+        //    var res = new AccesstokenReturnObj
+        //    {
+        //        Accesstoken = new JwtSecurityTokenHandler().WriteToken(jwt),
+        //        ExpirationDateAccesstoken = localExpirationTime
+        //    };
+        //    return res;
+        //}
 
 
 

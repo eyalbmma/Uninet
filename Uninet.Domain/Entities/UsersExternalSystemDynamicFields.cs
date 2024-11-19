@@ -32,7 +32,12 @@ namespace Uninet.Domain.Entities
 
         [Key]
         public string FieldLabelValue { get; set; }
-        
+
+        public string? TokenExpiration { get; set; }
+        public string? Token { get; set; }
+
+      
+
 
     }
 

@@ -120,6 +120,37 @@ namespace UninetWebApi2.Controllers
 
         }
 
+
+        
+        [HttpPost("ReceiveWebhookMorning")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ReceiveWebhookMorning()
+        {
+            try
+            {
+                
+                string WebHookSourceid = HttpContext.Request.Query["webhooksourceid"].ToString();
+
+                using (StreamReader reader = new StreamReader(Request.Body))
+                {
+                    string json = await reader.ReadToEndAsync();
+
+                    var res = await _uninetInputAppService.MorningReceiveWebhook(json);//
+
+                    return Ok(json);
+                };
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("Failed to process webhook: " + ex.Message);
+            }
+        }
+
+
+
+
+
+
         [HttpPost("ReceiveWebhook")]
         public async Task<IActionResult> ReceiveWebhook()
         {

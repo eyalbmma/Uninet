@@ -1,4 +1,5 @@
-﻿using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
+﻿using Amazon.Runtime;
+using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using ThirdParty.Json.LitJson;
 using Twilio;
+using Twilio.Jwt.AccessToken;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.TwiML.Messaging;
 using Uninet.DATA.Interfaces;
@@ -216,20 +218,232 @@ namespace Uninet.DATA.Services
             return finalUrl;
         }
 
-        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang,int subcompanyid)
+        //public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang,int subcompanyid)
+        //{
+        //    BusinessPartnerLists BPL = new BusinessPartnerLists();
+        //    var emailList = new List<ClientObj>();
+        //    var supplierList = new List<SupplierObj>();
+
+
+
+        //    var UsercompanyObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userid);
+        //    if (UsercompanyObj != null)
+        //    {
+        //        // Retrieve the necessary information to send the request
+        //        var IcountgetClientListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
+        //        var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == UsercompanyObj.BusinessId && x.Userid == userid && x.SubCompayId== subcompanyid) ;
+
+        //        string cidvalue = null;
+        //        string uservalue = null;
+        //        string passvalue = null;
+
+        //        foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+        //        {
+        //            if (dynamicField.FieldLabelName == "cid")
+        //            {
+        //                cidvalue = dynamicField.FieldLabelValue;
+        //            }
+        //            else if (dynamicField.FieldLabelName == "user")
+        //            {
+        //                uservalue = dynamicField.FieldLabelValue;
+        //            }
+        //            else if (dynamicField.FieldLabelName == "pass")
+        //            {
+        //                passvalue = dynamicField.FieldLabelValue;
+        //            }
+        //        }
+
+        //        // Prepare and send request to get client list
+        //        var IcountgetClientListEndpointEdited = IcountgetClientListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+        //        HttpMethod methodIcountgetClientListEndpoint = HttpMethod.Post;
+        //        var ResponseIcountgetClientListEndpoint = await _UninetInputDataAccess.SendRequest(IcountgetClientListEndpointEdited, methodIcountgetClientListEndpoint);
+
+        //        var jsonObject = JObject.Parse(ResponseIcountgetClientListEndpoint);
+        //        var clients = jsonObject["clients"].ToObject<JObject>();
+
+        //        foreach (var client in clients)
+        //        {
+        //            var email = client.Value["email"].ToString();
+        //            var client_name = client.Value["client_name"].ToString();
+        //            emailList.Add(new ClientObj { Email = email, Name = client_name });
+        //        }
+        //        BPL.ClientEmailList = emailList;
+
+        //        // Prepare and send request to get supplier list
+        //        var IcountgetSupplierListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 75);
+        //        var IcountgetSupplierListEndpointEdited = IcountgetSupplierListEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
+        //        HttpMethod methodIcountgetSupplierListEndpoint = HttpMethod.Post;
+        //        var ResponseIcountgetSupplierListEndpoint = await _UninetInputDataAccess.SendRequest(IcountgetSupplierListEndpointEdited, methodIcountgetSupplierListEndpoint);
+
+        //        var jsonObjectSuppliers = JObject.Parse(ResponseIcountgetSupplierListEndpoint);
+        //        var suppliers = jsonObjectSuppliers["suppliers"].ToObject<JObject>();
+
+        //        foreach (var supplier in suppliers)
+        //        {
+        //            var email = supplier.Value["email"].ToString();
+        //            var supplier_name = supplier.Value["supplier_name"].ToString();
+        //            if (!string.IsNullOrWhiteSpace(email))
+        //            {
+        //                supplierList.Add(new SupplierObj { Email = email, Name = supplier_name });
+        //            }
+        //        }
+        //        BPL.SupplierList = supplierList;
+
+        //        // Encrypt user ID for email tracking
+        //        string iv = Configuration["EncryptedUserId:iv"];
+        //        byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
+        //        string encryptedUserId = EncryptUserId(userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
+
+
+
+        //        // Create a filter to match documents based on InternalCompanyId and SubCompanyId
+        //        var filter = Builders<BsonDocument>.Filter.And(
+        //            Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", UserexternalSystemDynamicFieldslist[0].Companyid), // replace with the actual InternalCompanyId
+        //            Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subcompanyid) // replace with the actual SubCompanyId
+        //        );
+
+        //        // Find the first document that matches the filter
+        //        var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+        //        string vatId = null;
+        //        if (existingDocument != null)
+        //        {
+        //            // Extract the "vat_id" value from the "company_info" field
+        //            vatId = existingDocument["company_info"]["vat_id"].AsString;
+
+
+        //        }
+
+
+
+        //        // Send emails to client email list
+        //        if (BPL.ClientEmailList != null && BPL.ClientEmailList.Any())
+        //        {
+        //            foreach (var client in BPL.ClientEmailList)
+        //            {
+        //                var sendsmtpmailres = await _dataMailassist.sendsmtpmail(
+        //                    "בתור לקוח שלנו רצינו להזמין אותך להירשם ליונינט",
+        //                    "eyalbmma@gmail.com",
+        //                    client.Email,
+        //                    3,
+        //                    Lang,
+        //                    null,
+        //                    client.Name
+        //                );
+
+        //                if (sendsmtpmailres != null && sendsmtpmailres.result)
+        //                {
+        //                    var emailEntry = new BusinessPartnersEmails
+        //                    {
+        //                        VatId = int.Parse(vatId), // Adjust as needed
+        //                        EntityType = "Client",
+        //                        OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid, // Adjust accordingly
+        //                        UserId = userid,
+        //                        SubCompanyId = subcompanyid, // Adjust accordingly
+        //                        EmailSent = true,
+        //                        LastDateSent = DateTime.UtcNow,
+        //                        Email= client.Email
+        //                    };
+
+        //                    // Now check if the entity exists in the database (it might not be tracked locally)
+        //                    var existingEntity = await _repository.FindAsync<BusinessPartnersEmails>(
+        //                        e => e.VatId == emailEntry.VatId &&
+        //                             e.OrganizationId == emailEntry.OrganizationId &&
+        //                             e.UserId == emailEntry.UserId &&
+        //                             e.SubCompanyId == emailEntry.SubCompanyId &&
+        //                             e.Email == emailEntry.Email);
+
+        //                    if (existingEntity == null)
+        //                    {
+        //                        try { await _repository.CreateAsync(emailEntry); }
+        //                        catch (Exception ex)
+        //                        {
+
+        //                        }
+        //                    }
+
+
+
+
+
+
+
+        //                }
+        //            }
+        //        }
+
+        //        // Send emails to supplier email list
+        //        if (BPL.SupplierList != null && BPL.SupplierList.Any())
+        //        {
+        //            foreach (var supplier in BPL.SupplierList)
+        //            {
+        //                if (!string.IsNullOrEmpty(supplier.Email))
+        //                {
+        //                    var sendsmtpmailres = await _dataMailassist.sendsmtpmail(
+        //                        "בתור ספק שלנו רצינו להזמין אותך להירשם ליונינט",
+        //                        "eyalbmma@gmail.com",
+        //                        supplier.Email,
+        //                        3,
+        //                        Lang,
+        //                        null,
+        //                        supplier.Name
+        //                    );
+
+        //                    if (sendsmtpmailres != null && sendsmtpmailres.result)
+        //                    {
+        //                        var emailEntry = new BusinessPartnersEmails
+        //                        {
+        //                            VatId = int.Parse(vatId), // Adjust as needed
+        //                            EntityType = "Supplier",
+        //                            OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid, // Adjust accordingly
+        //                            UserId = userid,
+        //                            SubCompanyId = subcompanyid, // Adjust accordingly
+        //                            EmailSent = true,
+        //                            LastDateSent = DateTime.UtcNow,
+        //                            Email = supplier.Email
+        //                        };
+        //                        await _repository.CreateAsync(emailEntry);
+        //                    }
+        //                }
+        //            }
+        //        }
+
+
+
+        //        try 
+        //        { 
+        //            var existsubcompany = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subcompanyid && x.MainCompanyId == UserexternalSystemDynamicFieldslist[0].Companyid);
+        //            if (existsubcompany != null)
+        //            {
+        //                existsubcompany.ClickedButtonToInviteBusinessPartnersSubCompany = true;
+        //                await _repository.UpdateAsync(existsubcompany);
+        //            }
+
+        //        }
+        //        catch (Exception ex)
+        //        {
+
+        //        }
+
+
+        //    }
+
+        //    return BPL;
+        //}
+
+
+        public async Task<BusinessPartnerLists> InviteBusinessPartners(int userid, int Lang, int subcompanyid)
         {
             BusinessPartnerLists BPL = new BusinessPartnerLists();
             var emailList = new List<ClientObj>();
             var supplierList = new List<SupplierObj>();
-
-            
+            var emailSentResults = new List<EmailSentResult>();
 
             var UsercompanyObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userid);
             if (UsercompanyObj != null)
             {
                 // Retrieve the necessary information to send the request
                 var IcountgetClientListEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 84);
-                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == UsercompanyObj.BusinessId && x.Userid == userid && x.SubCompayId== subcompanyid) ;
+                var UserexternalSystemDynamicFieldslist = _repository.GetListOfObjects<UsersExternalSystemDynamicFields>(x => x.Companyid == UsercompanyObj.BusinessId && x.Userid == userid && x.SubCompayId == subcompanyid);
 
                 string cidvalue = null;
                 string uservalue = null;
@@ -292,12 +506,10 @@ namespace Uninet.DATA.Services
                 byte[] ivBytes = Encoding.UTF8.GetBytes(iv);
                 string encryptedUserId = EncryptUserId(userid.ToString(), Configuration["EncryptedUserId:key"], ivBytes);
 
-
-
                 // Create a filter to match documents based on InternalCompanyId and SubCompanyId
                 var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", UserexternalSystemDynamicFieldslist[0].Companyid), // replace with the actual InternalCompanyId
-                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subcompanyid) // replace with the actual SubCompanyId
+                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", UserexternalSystemDynamicFieldslist[0].Companyid),
+                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subcompanyid)
                 );
 
                 // Find the first document that matches the filter
@@ -305,15 +517,10 @@ namespace Uninet.DATA.Services
                 string vatId = null;
                 if (existingDocument != null)
                 {
-                    // Extract the "vat_id" value from the "company_info" field
                     vatId = existingDocument["company_info"]["vat_id"].AsString;
-
-                   
                 }
-               
 
-
-                // Send emails to client email list
+                // Send emails to client email list and collect the results
                 if (BPL.ClientEmailList != null && BPL.ClientEmailList.Any())
                 {
                     foreach (var client in BPL.ClientEmailList)
@@ -328,48 +535,50 @@ namespace Uninet.DATA.Services
                             client.Name
                         );
 
+                        var emailEntry = new EmailSentResult
+                        {
+                            Email = client.Email,
+                            EmailSent = sendsmtpmailres?.result ?? false,
+                            EntityType = "Client",
+                            SubCompanyId = subcompanyid
+                        };
+
+                        emailSentResults.Add(emailEntry);
+
                         if (sendsmtpmailres != null && sendsmtpmailres.result)
                         {
-                            var emailEntry = new BusinessPartnersEmails
+                            var dbEntry = new BusinessPartnersEmails
                             {
-                                VatId = int.Parse(vatId), // Adjust as needed
+                                VatId = string.IsNullOrEmpty(vatId)?0:int.Parse(vatId),
                                 EntityType = "Client",
-                                OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid, // Adjust accordingly
+                                OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid,
                                 UserId = userid,
-                                SubCompanyId = subcompanyid, // Adjust accordingly
+                                SubCompanyId = subcompanyid,
                                 EmailSent = true,
                                 LastDateSent = DateTime.UtcNow,
-                                Email= client.Email
+                                Email = client.Email
                             };
 
-                            // Now check if the entity exists in the database (it might not be tracked locally)
                             var existingEntity = await _repository.FindAsync<BusinessPartnersEmails>(
-                                e => e.VatId == emailEntry.VatId &&
-                                     e.OrganizationId == emailEntry.OrganizationId &&
-                                     e.UserId == emailEntry.UserId &&
-                                     e.SubCompanyId == emailEntry.SubCompanyId &&
-                                     e.Email == emailEntry.Email);
+                                e =>
+                                     e.OrganizationId == dbEntry.OrganizationId &&
+                                     e.UserId == dbEntry.UserId &&
+                                     e.SubCompanyId == dbEntry.SubCompanyId &&
+                                     e.Email == dbEntry.Email);
 
                             if (existingEntity == null)
                             {
-                                try { await _repository.CreateAsync(emailEntry); }
+                                try { await _repository.CreateAsync(dbEntry); }
                                 catch (Exception ex)
                                 {
-
+                                    // Handle the exception (e.g., log it)
                                 }
                             }
-
-                           
-
-
-
-                            
-                           
                         }
                     }
                 }
 
-                // Send emails to supplier email list
+                // Send emails to supplier email list and collect the results
                 if (BPL.SupplierList != null && BPL.SupplierList.Any())
                 {
                     foreach (var supplier in BPL.SupplierList)
@@ -386,47 +595,57 @@ namespace Uninet.DATA.Services
                                 supplier.Name
                             );
 
+                            var emailEntry = new EmailSentResult
+                            {
+                                Email = supplier.Email,
+                                EmailSent = sendsmtpmailres?.result ?? false,
+                                EntityType = "Supplier",
+                                SubCompanyId = subcompanyid
+                            };
+
+                            emailSentResults.Add(emailEntry);
+
                             if (sendsmtpmailres != null && sendsmtpmailres.result)
                             {
-                                var emailEntry = new BusinessPartnersEmails
+                                var dbEntry = new BusinessPartnersEmails
                                 {
-                                    VatId = int.Parse(vatId), // Adjust as needed
+                                    VatId = string.IsNullOrEmpty(vatId) ? 0 : int.Parse(vatId),
                                     EntityType = "Supplier",
-                                    OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid, // Adjust accordingly
+                                    OrganizationId = UserexternalSystemDynamicFieldslist[0].Companyid,
                                     UserId = userid,
-                                    SubCompanyId = subcompanyid, // Adjust accordingly
+                                    SubCompanyId = subcompanyid,
                                     EmailSent = true,
                                     LastDateSent = DateTime.UtcNow,
                                     Email = supplier.Email
                                 };
-                                await _repository.CreateAsync(emailEntry);
+
+                                await _repository.CreateAsync(dbEntry);
                             }
                         }
                     }
                 }
 
-                
-
-                try 
-                { 
+                try
+                {
                     var existsubcompany = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == subcompanyid && x.MainCompanyId == UserexternalSystemDynamicFieldslist[0].Companyid);
                     if (existsubcompany != null)
                     {
                         existsubcompany.ClickedButtonToInviteBusinessPartnersSubCompany = true;
                         await _repository.UpdateAsync(existsubcompany);
                     }
-
                 }
                 catch (Exception ex)
                 {
-
+                    // Handle the exception (e.g., log it)
                 }
-               
-
             }
 
+            // Return the collected email results as part of the response
+            BPL.EmailSentResults = emailSentResults; // Assuming you add this property to BusinessPartnerLists
             return BPL;
         }
+
+
 
 
 
@@ -573,6 +792,134 @@ namespace Uninet.DATA.Services
             }
         }
 
+        public async Task<string> GetNewToken(int companyId, int subcompanyId, int userId, int externalSystemId)
+        {
+            try
+            {
+                string newToken = "";
+                // Step 1: Retrieve the token information from the database
+
+                var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
+                );
+
+                if (usersExternalSystemDynamicFieldsResult == null)
+                {
+
+                    var tokenCompanyInfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 88);
+                    if (tokenCompanyInfoEndpoint == null)
+                    {
+                        throw new Exception("Token endpoint information not found.");
+                    }
+
+                    string apiTokenValue = "";
+                    string secretKeyValue = "";
+
+                    // Retrieve ApiToken and SecretKey values from the database
+                    var credentials = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
+                     );
+
+                    foreach (var item in credentials)
+                    {
+                        if (item.FieldLabelName == "ApiToken")
+                        {
+                            apiTokenValue = item.FieldLabelValue;
+                        }
+                        else if (item.FieldLabelName == "SecretKey")
+                        {
+                            secretKeyValue = item.FieldLabelValue;
+                        }
+                    }
+
+                    // Step 4: Request a new token
+                    var payload = new
+                    {
+                        id = apiTokenValue,
+                        secret = secretKeyValue
+                    };
+                    string jsonPayload = JsonConvert.SerializeObject(payload);
+
+                    // Send the request
+                    var responseCompanyInfo = await _UninetInputDataAccess.SendRequest(tokenCompanyInfoEndpoint.Endpoint, HttpMethod.Post, null, jsonPayload);
+
+                    // Parse the response to extract the token and expiration time
+                    var jsonResponse = JObject.Parse(responseCompanyInfo);
+                    newToken = jsonResponse["token"].ToString();
+                    long expires = (long)jsonResponse["expires"];
+
+                    // Convert the Unix timestamp to DateTime
+                    DateTime newExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
+
+                    // Step 5: Update the token and expiration date in the database
+                    usersExternalSystemDynamicFieldsResult.Token = newToken;
+                    usersExternalSystemDynamicFieldsResult.TokenExpiration = newExpirationDate.ToString("o"); // ISO 8601 format
+
+                    await _repository.UpdateAsync(usersExternalSystemDynamicFieldsResult);
+                }
+                else
+                {
+                    // Step 2: Check if the token is expired
+                    DateTime expirationDate;
+                    bool isExpired = !DateTime.TryParse(usersExternalSystemDynamicFieldsResult.TokenExpiration, out expirationDate) || DateTime.UtcNow >= expirationDate;
+
+                    if (!isExpired)
+                    {
+                        // If the token is not expired, return it
+                        return usersExternalSystemDynamicFieldsResult.Token;
+                    }
+                }
+                // Step 3: Retrieve API token and secret key for renewal
+
+
+                // Return the new token
+                return newToken;
+            }
+            catch (Exception ex)
+            {
+                return "";
+            }
+        }
+
+
+        private async Task<JsonDocument> CallAddWebhookToGreenInvoice(
+         LUTIcountSourceWebhookCompanyMapping webhookMapping,
+         string endpointUrl,
+         string secretKeyValue,
+         string bearerToken)
+        {
+            var payload = new
+            {
+                name = "test", // Set the appropriate name
+                endpoint = endpointUrl,
+                topics = new string[]
+                {
+            "document/created",
+            "client/created",
+            "supplier/created",
+            "payment/received",
+            "sale-pages/page-contacted"
+                }
+                
+            };
+
+            // Serialize payload using JsonConvert.SerializeObject
+            var jsonPayload = JsonConvert.SerializeObject(payload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            using var httpClient = new HttpClient();
+
+            // Add the bearer token to the request headers
+            httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var response = await httpClient.PostAsync("https://api.sandbox.d.greeninvoice.co.il/notifications/v1/webhooks/subscriptions", content);
+
+            response.EnsureSuccessStatusCode();
+            var responseBody = await response.Content.ReadAsStringAsync();
+            return JsonDocument.Parse(responseBody);
+        }
+
+
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try
@@ -584,17 +931,20 @@ namespace Uninet.DATA.Services
                 string cidvalue = null;
                 string uservalue = null;
                 string passvalue = null;
+                string ApiTokenValue = null;
+                string SecretKeyValue = null;
                 var jsonObject = new
                 {
                     listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
                     userid = UserId,
                     ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
-                    CompanyId = spInputExternalSystemCompanyDetails.Companyid
+                    CompanyId = spInputExternalSystemCompanyDetails.Companyid,
+                    SubCompanyId = spInputExternalSystemCompanyDetails.SubCompanyId ?? null
                 };
 
                 // Convert the JSON object to string
                 var jsonString = JsonConvert.SerializeObject(jsonObject);
-                var UserParam = new
+                var baseUserParam = new
                 {
                     jsonInput = jsonString
                 };
@@ -632,7 +982,7 @@ namespace Uninet.DATA.Services
 
                     if (statusValue)
                     {
-                        var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParam);
+                        var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, baseUserParam);
 
                         var MainSubCopmaniesMastersObj = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == spresult.NewSubCompanyId && x.MainCompanyId== spInputExternalSystemCompanyDetails.Companyid);
 
@@ -784,8 +1134,232 @@ namespace Uninet.DATA.Services
                         return res;
                     }
                 }
-                else
+                else if (spInputExternalSystemCompanyDetails.ExternalSystemId == 6)//morning indication
                 {
+                    var TokencomopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 88);//https://sandbox.d.greeninvoice.co.il/api/v1/account/token
+                    foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
+                    {
+                        if (item.FieldLabelName == "ApiToken")
+                        {
+                            ApiTokenValue = item.FieldLabelValue;
+                        }
+                        else if (item.FieldLabelName == "SecretKey")
+                        {
+                            SecretKeyValue = item.FieldLabelValue;
+                        }
+                       
+                    }
+
+                    var endpointTokeninfo = TokencomopanyinfoEndpoint.Endpoint;
+                    HttpMethod methodtokeninfo = HttpMethod.Post;
+                    // Prepare the JSON payload
+                    var payload = new
+                    {
+                        id = ApiTokenValue,
+                        secret = SecretKeyValue
+                    };
+                    string jsonPayload = JsonConvert.SerializeObject(payload);
+
+                    string ReponsneTokenInfo = "";
+                    try
+                    { 
+                       ReponsneTokenInfo = await _UninetInputDataAccess.SendRequest(endpointTokeninfo, methodtokeninfo,null, jsonPayload);
+                    }
+                    catch(Exception ex)
+                    {
+                        var res2 = new ResSaveExternalCustomized
+                        {
+                            Success = false,
+                            textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "We couldn't authenticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
+                            SystemRegisteredInuninet = false,
+                            ValidExternalsystemCredenatials = false,
+                            FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                            ClickedButtonToInviteBusinessPartners = false,
+                            SubCompanyId = null // New SubCompanyId property added here
+                        };
+                        return res2;
+                    }
+                    var jsonResponse = JObject.Parse(ReponsneTokenInfo);
+                    string newToken = jsonResponse["token"].ToString();
+                    long expires = (long)jsonResponse["expires"];
+
+                    // Convert the Unix timestamp to DateTime
+                    DateTime newExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
+
+                    // Update jsonObject with token and expiration fields
+                    var jsonObjectWithToken = new
+                    {
+                        listInputLabelDetails = spInputExternalSystemCompanyDetails.ListInputLabelDetails,
+                        userid = UserId,
+                        ExternalSystemId = spInputExternalSystemCompanyDetails.ExternalSystemId.ToString(),
+                        CompanyId = spInputExternalSystemCompanyDetails.Companyid,
+                        SubCompanyId = spInputExternalSystemCompanyDetails.SubCompanyId, // Include only if not null
+                        token = newToken,
+                        tokenExpiration = newExpirationDate
+                    };
+                    // Serialize jsonObjectWithToken with token and expiration included
+                    jsonString = JsonConvert.SerializeObject(jsonObjectWithToken);
+
+                    // Update UserParam with the new jsonString
+                    var UserParamModified = new
+                    {
+                        jsonInput = jsonString
+                    };
+
+
+                    //remark eyal 
+                    //if there is no error from  calling to https://sandbox.d.greeninvoice.co.il/api/v1/account/token than i can set the data to table UsersExternalSystemDynamicFields
+                    var spresult2 = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData(ConstUninetStoredprocedure.SP_SaveUsersExternalSystemDynamicFieldsData, UserParamModified);
+                    if (spresult2!=null)
+                    {
+                        var comopanyinfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 14);///api/v1/businesses/me
+                        var endpointcomopanyinfo = comopanyinfoEndpoint.Endpoint;
+                        HttpMethod methodcomopanyinfo = HttpMethod.Get;
+                        var ReponsneCompanyInfo = await _UninetInputDataAccess.SendRequest(endpointcomopanyinfo, methodcomopanyinfo, newToken, null);
+                        var ReponsneCompanyInfojsonDocument = JsonDocument.Parse(ReponsneCompanyInfo);
+                        var root = ReponsneCompanyInfojsonDocument.RootElement;
+                        // Get the active status
+                        bool statusValue = root.GetProperty("active").GetBoolean(); //Whether the business is active or not
+                        if (statusValue)
+                        {
+                            var MainSubCopmaniesMastersObj = await _repository.GetFirstObjectAsync<MainSubCopmaniesMasters>(x => x.SubCopmanyId == spresult2.NewSubCompanyId && x.MainCompanyId == spInputExternalSystemCompanyDetails.Companyid);
+                            if (spresult2.OperationType == "insert" || spresult2.OperationType == "update")
+                            {
+                                if (spresult2.OperationType == "insert")
+                                {
+                                    // Retrieve the LUTIcountSourceWebhookCompanyMappingRow if it exists
+                                    var LUTIcountSourceWebhookCompanyMappingRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(
+                                        x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult2.NewSubCompanyId
+                                    );
+
+                                    string baseUrl = "https://api.sandbox.d.greeninvoice.co.il/notifications/v1/webhooks/subscriptions"; // New webhook URL
+                                    JsonElement rootWebhookEndpointjsonDocument;
+
+                                    if (LUTIcountSourceWebhookCompanyMappingRow != null)
+                                    {
+                                        // Construct the endpoint URL with existing WebHookSourceId
+                                        string endpointUrl = "https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid=" +
+                                                             LUTIcountSourceWebhookCompanyMappingRow.WebHookSourceid + "_" + spresult2.NewSubCompanyId;
+
+                                        // Call to create the webhook with GreenInvoice API
+                                        var responseIcountWebhookEndpointjsonDocument = await CallAddWebhookToGreenInvoice(LUTIcountSourceWebhookCompanyMappingRow, endpointUrl, "", newToken);
+                                        rootWebhookEndpointjsonDocument = responseIcountWebhookEndpointjsonDocument.RootElement;
+                                    }
+                                    else
+                                    {
+                                        // Create a new LUTIcountSourceWebhookCompanyMapping entry
+                                        var newRowLUTIcountSourceWebhookCompanyMapping = new LUTIcountSourceWebhookCompanyMapping
+                                        {
+                                            Internalcompanyid = spInputExternalSystemCompanyDetails.Companyid,
+                                            SubCompanyId = spresult2.NewSubCompanyId
+                                        };
+
+                                        // Save new entry to the database and retrieve the inserted row with WebHookSourceId
+                                        var insertedRow = await _repository.CreateAsyncReturnEntity(newRowLUTIcountSourceWebhookCompanyMapping);
+
+                                        // Construct the endpoint URL with the new WebHookSourceId
+                                        string endpointUrl = "https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhookMorning?webhooksourceid=" +
+                                                             insertedRow.WebHookSourceid + "_" + spresult2.NewSubCompanyId;
+
+                                        // Call to create the webhook with GreenInvoice API
+                                        var responseIcountWebhookEndpointjsonDocument = await CallAddWebhookToGreenInvoice(insertedRow, endpointUrl, "", newToken);
+                                        rootWebhookEndpointjsonDocument = responseIcountWebhookEndpointjsonDocument.RootElement;
+                                    }
+
+                                    
+                                }
+
+                                var res0 = new ResSaveExternalCustomized
+                                {
+                                    Success = true,
+                                    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "Your credentials were saved successfully" : "נתוני מערכת הכספים נשמרו בהצלחה! ",
+                                    SystemRegisteredInuninet = true,
+                                    ValidExternalsystemCredenatials = true,
+                                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                    ClickedButtonToInviteBusinessPartners = MainSubCopmaniesMastersObj.ClickedButtonToInviteBusinessPartnersSubCompany == true,
+                                    SubCompanyId = spresult2.NewSubCompanyId // New SubCompanyId property added here
+                                };
+                               
+                                return res0;
+                            }
+                            else if (spresult2.OperationType == "master_user")
+                            {
+                                var res3 = new ResSaveExternalCustomized
+                                {
+                                    Success = false,
+                                    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "user " + spresult2.FirstName + " " + spresult2.LastName + " from this organization " + spresult2.OrganizationName + " is the master user on your organization please contact him via his email " + spresult2.Email + " so he can add you to our system" :
+                                    "משתמש " + spresult2.FirstName + " " + spresult2.LastName + " מהארגון שלך " + spresult2.OrganizationName + " הוא משתמש על בחברה שלך אנא צור איתו קשר במייל הבא " + spresult2.Email + " על מנת שיוסיף אותך למערכת שלנו",
+                                    SystemRegisteredInuninet = false,
+                                    ValidExternalsystemCredenatials = true,
+                                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                    ClickedButtonToInviteBusinessPartners = MainSubCopmaniesMastersObj.ClickedButtonToInviteBusinessPartnersSubCompany == true,
+                                    SubCompanyId = spresult2.NewSubCompanyId // New SubCompanyId property added here
+                                };
+                                return res3;
+                            }
+                            else if (spresult2.OperationType == "no_change")
+                            {
+                                var res4 = new ResSaveExternalCustomized
+                                {
+                                    Success = false,
+                                    textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "No changes were made to your credentials." : "לא נעשו שינויים בפרטי ההתחברות שלך.",
+                                    SystemRegisteredInuninet = false,
+                                    ValidExternalsystemCredenatials = true,
+                                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                    ClickedButtonToInviteBusinessPartners = MainSubCopmaniesMastersObj.ClickedButtonToInviteBusinessPartnersSubCompany == true,
+                                    SubCompanyId = spresult2.NewSubCompanyId // New SubCompanyId property added here
+                                };
+                                return res4;
+                            }
+                            else
+                            {
+                                var res5 = new ResSaveExternalCustomized
+                                {
+                                    Success = false,
+                                    textResponse = "Unexpected OperationType",
+                                    SystemRegisteredInuninet = false,
+                                    ValidExternalsystemCredenatials = false,
+                                    FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                    ClickedButtonToInviteBusinessPartners = MainSubCopmaniesMastersObj.ClickedButtonToInviteBusinessPartnersSubCompany == true,
+                                    SubCompanyId = spresult2.NewSubCompanyId // New SubCompanyId property added here
+                                };
+                                return res5;
+                            }
+                            
+                        }
+                        else
+                        {
+                            var res = new ResSaveExternalCustomized
+                            {
+                                Success = false,
+                                textResponse = spInputExternalSystemCompanyDetails.Lang == 1 ? "We couldn't authenticate your external system credentials please try again" : "לא הצלחנו לאמת את הנתונים שסיפקת מול מערכת הכספים, יש לנסות שנית",
+                                SystemRegisteredInuninet = false,
+                                ValidExternalsystemCredenatials = false,
+                                FullName = BusinessesObj.FirstName + " " + BusinessesObj.LastName,
+                                ClickedButtonToInviteBusinessPartners = false,
+                                SubCompanyId = null // New SubCompanyId property added here
+                            };
+                            return res;
+                        }
+                    }
+                    else
+                    {
+                        var res = new ResSaveExternalCustomized
+                        {
+                            Success = false,
+                            textResponse = "",
+                            SystemRegisteredInuninet = false,
+                            ValidExternalsystemCredenatials = null,
+                            FullName = "",
+                            ClickedButtonToInviteBusinessPartners = false,
+                            SubCompanyId = null // Set to null as there may be no SubCompanyId in case of an error
+                        };
+                        return res;
+                    }
+                    
+                 }
+                 else
+                 {
                     var newUsersExternalSystemDynamicFields = new UsersExternalSystemDynamicFields
                     {
                         Companyid = spInputExternalSystemCompanyDetails.Companyid,
@@ -1347,7 +1921,15 @@ namespace Uninet.DATA.Services
             if (resultList.Count > 0)
             {
                 // Return the first item in the list, which is already of type AddUserCredentialsSystemResult
-                return resultList[0];
+                if (resultList.Count > 0)
+                {
+                    var result = resultList[0];
+                    result.Email = result.Email ?? string.Empty;
+                    result.FirstName = result.FirstName ?? string.Empty;
+                    result.LastName = result.LastName ?? string.Empty;
+                    result.OrganizationName = result.OrganizationName ?? string.Empty;
+                    return result;
+                }
             }
 
             // Return a default instance or null if no data is returned from the stored procedure

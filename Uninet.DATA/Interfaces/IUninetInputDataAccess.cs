@@ -17,9 +17,13 @@ namespace Uninet.DATA.Interfaces
 
         public Task<List<BsonDocument>> GetLandingPageContent(string language);
 
-        public Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null);
+        public Task<string> SendRequest(string endpointUrl, HttpMethod method, string jwtToken = null, string jsonBody = null);
+     
         //public Task<string> PullUserDatafromExternalSystem(int Userid);
 
         Task<bool> ReceiveWebhook(string json, string WebHookSourceid);//
+
+
+        Task<bool> MorningReceiveWebhook(string json);
     }
 }

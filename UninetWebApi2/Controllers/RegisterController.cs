@@ -52,50 +52,58 @@ namespace UninetWebApi2.Controllers
             catch (Exception ex) { return null; }
         }
 
-      
+
+
+
+        //[Authorize]
+        //[HttpPost("InviteBusinessPartners")]
+        //public async Task<ActionResult> InviteBusinessPartners(int Lang,int subcompanyid)
+        //{
+        //    try
+        //    {
+
+        //        BusinessPartnerLists BPLResult = new BusinessPartnerLists();
+        //        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //         BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
+
+
+
+        //        var res = new InviteBusinessPartnerResult
+        //        {
+        //            Success = true,
+        //            textResponse = Lang == 1 ? "Email sent to all business partners" : "נשלחו מיילים לשותפים העסקיים שלך"
+        //        };
+
+
+        //        return Ok(res);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        var res = new InviteBusinessPartnerResult
+        //        {
+        //            Success = false,
+        //            textResponse = Lang == 1 ? "Failed to send Emails" : "כשלון בשליחת המיילים"
+        //        };
+        //        return Ok(res);
+        //    }
+        //}
 
 
         [Authorize]
         [HttpPost("InviteBusinessPartners")]
-        public async Task<ActionResult> InviteBusinessPartners(int Lang,int subcompanyid)
+        public async Task<ActionResult> InviteBusinessPartners(int Lang, int subcompanyid)
         {
             try
             {
-                /*
-                  BusinessPartnersEmails emailEntry = new BusinessPartnersEmails
-                    {
-                        VatId = Convert.ToInt32(sendEmailRequest.Vatid),
-                        EntityType = "SomeEntityType",
-                        OrganizationId = organizationId,
-                        UserId = Convert.ToInt32(userId),
-                        SubCompanyId = subCompanyId,
-                        EmailSent = response.result,
-                        LastDateSent = DateTime.UtcNow
-                    };
-                    await _repository.CreateAsync(emailEntry);
-
-                */
-                BusinessPartnerLists BPLResult = new BusinessPartnerLists();
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                 BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
-                
-                
+                var BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
 
                 var res = new InviteBusinessPartnerResult
                 {
                     Success = true,
-                    textResponse = Lang == 1 ? "Email sent to all business partners" : "נשלחו מיילים לשותפים העסקיים שלך"
+                    textResponse = Lang == 1 ? "Email sent to all business partners" : "נשלחו מיילים לשותפים העסקיים שלך",
+                    EmailsSent = BPLResult.EmailSentResults // Assuming you added this property to BusinessPartnerLists
                 };
-                //}
-                //else
-                //{
-
-                //     res = new InviteBusinessPartnerResult
-                //    {
-                //        Success = false,
-                //        textResponse = Lang == 1 ? "Failed to send Emails" : "נכשל בשליחת המיילים "
-                //    };
-                //}
 
                 return Ok(res);
             }
@@ -104,13 +112,12 @@ namespace UninetWebApi2.Controllers
                 var res = new InviteBusinessPartnerResult
                 {
                     Success = false,
-                    textResponse = Lang == 1 ? "Failed to send Emails" : "כשלון בשליחת המיילים"
+                    textResponse = Lang == 1 ? "Failed to send Emails" : "כשלון בשליחת המיילים",
+                    EmailsSent = null
                 };
                 return Ok(res);
             }
         }
-
-
 
 
 

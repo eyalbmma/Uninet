@@ -38,12 +38,12 @@ namespace UninetWebApi2.Controllers
 
         [Authorize]
         [HttpPost("SendEmail")]
-        public async Task<ActionResult> SendEmail([FromBody] List<SendEmailRequest> sendEmailRequests)
+        public async Task<ActionResult> SendEmail([FromBody] List<SendEmailRequest> sendEmailRequests, int Lang,int MainCompanyid)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             // Call the modified BusinessPartnerSendEmail with a list
-            var results = await _mailasist.BusinessPartnerSendEmail(sendEmailRequests, userId);
+            var results = await _mailasist.BusinessPartnerSendEmail(sendEmailRequests, userId, Lang, MainCompanyid);
 
             return Ok(results);
         }

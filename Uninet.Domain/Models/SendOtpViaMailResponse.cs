@@ -12,6 +12,11 @@ namespace Uninet.Domain.Models
         public string OTP { get; set; }
     }
 
+    public class SendEmailResult
+    {
+        public List<SendEmailResponse> EmailResponses { get; set; } = new List<SendEmailResponse>();
+        public string TextResponse { get; set; } // Summary of the entire result
+    }
 
 
     public class SendEmailResponse
