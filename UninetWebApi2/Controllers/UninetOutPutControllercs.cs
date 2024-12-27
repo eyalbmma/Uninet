@@ -34,6 +34,7 @@ namespace UninetWebApi2.Controllers
 
 
 
+       
 
 
         [HttpPost]
@@ -51,7 +52,7 @@ namespace UninetWebApi2.Controllers
                 var ZeroDocsResponse = new ExpensesDigitalDocumentProp
                 {
                     Supplier_name_Sender = null,
-                    Supplier_ID = 0,
+                    Supplier_ID = "0",
                     DocNumber = null,
                     Doctype = null,
                     DocDate = default(DateTime),

@@ -8,8 +8,19 @@ namespace Uninet.Domain.Models
 {
     public class SupplierItem
     {
-        public int supplier_id { get; set; }
+        public string supplier_id { get; set; }
         public int vat_id { get; set; } 
+        public string supplier_name { get; set; }
+        public string company_name { get; set; }
+
+    }
+
+
+
+    public class SupplierItemMorning
+    {
+        public string supplier_id { get; set; }
+        public int vat_id { get; set; }
         public string supplier_name { get; set; }
         public string company_name { get; set; }
 

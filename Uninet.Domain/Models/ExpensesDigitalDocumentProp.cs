@@ -16,7 +16,7 @@ namespace Uninet.Domain.Models
     {
         public string Supplier_name_Sender { get; set; }
 
-        public int Supplier_ID { get; set; }
+        public string Supplier_ID { get; set; }
         public string DocNumber { get; set; }
         public string Doctype { get; set; }
 

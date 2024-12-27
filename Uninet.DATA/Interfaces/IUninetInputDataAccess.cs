@@ -24,6 +24,6 @@ namespace Uninet.DATA.Interfaces
         Task<bool> ReceiveWebhook(string json, string WebHookSourceid);//
 
 
-        Task<bool> MorningReceiveWebhook(string json);
+        Task<bool> MorningReceiveWebhook(string json, string WebHookSourceid);
     }
 }

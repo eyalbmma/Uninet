@@ -11,7 +11,7 @@ namespace Uninet.Domain.Models
     {
         public string JsonDocumentid { get; set; }
 
-        public int ClientVat_id { get; set; }
+        public int? ClientVat_id { get; set; }
 
         public int SendingDigitalDocumentBusinessID { get; set; }
 

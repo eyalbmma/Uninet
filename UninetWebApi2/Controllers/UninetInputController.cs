@@ -135,9 +135,9 @@ namespace UninetWebApi2.Controllers
                 {
                     string json = await reader.ReadToEndAsync();
 
-                    var res = await _uninetInputAppService.MorningReceiveWebhook(json);//
+                    var res = await _uninetInputAppService.MorningReceiveWebhook(json, WebHookSourceid);//
 
-                    return Ok(json);
+                    return Ok(res);
                 };
             }
             catch (Exception ex)

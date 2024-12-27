@@ -15,6 +15,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Data;
 using System.Diagnostics;
 using System.Globalization;
@@ -59,9 +60,13 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _ICountDocInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientInfoCollection;
         private readonly IMongoCollection<BsonDocument> _ICountCompanyInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _MorningCompanisInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _MorningCompanyInfoCollection;
         private readonly IMongoCollection<BsonDocument> _IcountClientSuppliersCollection;
-
+        private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
+        private readonly IMongoCollection<BsonDocument> _MorningWebHookData;
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
+        private readonly Dictionary<int, ExternalSystemConfig> _externalSystemConfig;
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
         {
@@ -69,13 +74,47 @@ namespace Uninet.DATA.Services
             var database = client.GetDatabase("Uninet");
             _ICountCollection = database.GetCollection<BsonDocument>("Icount");
             _ICountCompanyInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
+            _MorningCompanisInfoCollection = database.GetCollection<BsonDocument>("MorningCompanisInfo");
+            _MorningCompanyInfoCollection = database.GetCollection<BsonDocument>("MorningCompanisInfo");
             _ICountDocInfoCollection = database.GetCollection<BsonDocument>("IcountDocInfo");
             _IcountClientInfoCollection = database.GetCollection<BsonDocument>("icountClientInfo");
             _IcountClientSuppliersCollection = database.GetCollection<BsonDocument>("icountClientSuppliers");
+            _IcountWebhookData = database.GetCollection<BsonDocument>("IcountWebhookData");
+            _MorningWebHookData = database.GetCollection<BsonDocument>("MorningWebHookData");
             _repository = repository;
             Configuration = configuration;
             _dataMailassist = dataMailassist;
             _UninetInputDataAccess = uninetInputDataAccess;
+            _externalSystemConfig = new Dictionary<int, ExternalSystemConfig>
+    {
+        {
+            2, // iCount System
+            new ExternalSystemConfig
+            {
+                CompaniesInfoCollection = _ICountCompanyInfoCollection,
+                WebhookCollection = _IcountWebhookData,
+                CompanyFieldPath = "company_info.InternalCompanyId",
+                SubCompanyFieldPath = "company_info.SubCompanyId",
+                VatFieldPath = "company_info.vat_id",
+                SupplierFieldPath = "company_info.businessName",
+                UrlFieldPath = "doc_info.doc_url_copy" // Path for document URL
+            }
+        },
+        {
+            6, // Morning System
+            new ExternalSystemConfig
+            {
+                CompaniesInfoCollection = _MorningCompanisInfoCollection,
+                WebhookCollection = _MorningWebHookData,
+                CompanyFieldPath = "InternalCompanyId",
+                SubCompanyFieldPath = "SubCompanyId",
+                VatFieldPath = "taxId",
+                SupplierFieldPath = "name",
+                UrlFieldPath = "files.downloadLinks.processedUrl" // Path for document URL
+            }
+        }
+        // Add more systems as needed
+    };
 
         }
 
@@ -951,7 +990,7 @@ namespace Uninet.DATA.Services
 
                 var BusinessesObj = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == Convert.ToInt32(UserId) && x.BusinessId == spInputExternalSystemCompanyDetails.Companyid);
 
-                if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)
+                if (spInputExternalSystemCompanyDetails.ExternalSystemId == 2)//icount
                 {
                     // Before saving data into tables we need to verify the credentials are valid
                     foreach (CustomizedDataLIst item in spInputExternalSystemCompanyDetails.ListInputLabelDetails)
@@ -1232,7 +1271,7 @@ namespace Uninet.DATA.Services
                                         x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult2.NewSubCompanyId
                                     );
 
-                                    string baseUrl = "https://api.sandbox.d.greeninvoice.co.il/notifications/v1/webhooks/subscriptions"; // New webhook URL
+                                   
                                     JsonElement rootWebhookEndpointjsonDocument;
 
                                     if (LUTIcountSourceWebhookCompanyMappingRow != null)
@@ -1266,7 +1305,57 @@ namespace Uninet.DATA.Services
                                         rootWebhookEndpointjsonDocument = responseIcountWebhookEndpointjsonDocument.RootElement;
                                     }
 
-                                    
+
+                                    ///bool status = rootWebhookEndpointjsonDocument.GetProperty("status").GetBoolean();
+                                    //int webhookId = rootWebhookEndpointjsonDocument.GetProperty("webhook_id").GetInt32();
+                                    int webhookId = 0;
+                                    //if (status)
+                                    //{
+                                        var LUTIcountSourceWebhookCompanyMappingnewRow = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == spInputExternalSystemCompanyDetails.Companyid && x.SubCompanyId == spresult2.NewSubCompanyId);
+                                        if (LUTIcountSourceWebhookCompanyMappingnewRow != null)
+                                        {
+                                            LUTIcountSourceWebhookCompanyMappingnewRow.WebhookID = webhookId;
+
+                                            await _repository.UpdateAsync(LUTIcountSourceWebhookCompanyMappingnewRow);
+                                        }
+                                    //}
+                                    //dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(ReponsneCompanyInfo);
+                                    // Parse the response JSON into a JObject for manipulation
+                                    var dynamicCompanyInfo = JObject.Parse(ReponsneCompanyInfo);
+
+                                    // Add or update the required properties
+                                    dynamicCompanyInfo["InternalCompanyId"] = spInputExternalSystemCompanyDetails.Companyid;
+                                    dynamicCompanyInfo["SubCompanyId"] = spresult2.NewSubCompanyId;
+
+                                    // Serialize the updated JSON back to a string
+                                    string modifiedJson = dynamicCompanyInfo.ToString();
+
+                                    // Retrieve the VAT ID for filtering
+                                    string vatId = dynamicCompanyInfo["taxId"]?.ToString();
+                                    if (string.IsNullOrEmpty(vatId))
+                                    {
+                                        Console.WriteLine("VAT ID is missing from the response JSON.");
+                                        
+                                    }
+
+                                    // Prepare MongoDB filter and check for existing documents
+                                    var filter = Builders<BsonDocument>.Filter.Eq("taxId", vatId);
+                                    var existingDocument = await _MorningCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+                                    if (existingDocument == null)
+                                    {
+                                        // Convert the modified JSON to a BSON document
+                                        var modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+                                        // Insert the document into the MongoDB collection
+                                        await _MorningCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+                                        Console.WriteLine("Document inserted successfully.");
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Document with the same VAT ID already exists.");
+                                    }
+
                                 }
 
                                 var res0 = new ResSaveExternalCustomized
@@ -1737,78 +1826,114 @@ namespace Uninet.DATA.Services
         {
             try
             {
+                // Step 1: Retrieve the business information
                 var resBusinesses = _repository.GetFirstObject<Businesses>(x => x.AdminUserid == int.Parse(userId));
+                if (resBusinesses == null)
+                {
+                    throw new Exception("Business information not found.");
+                }
 
-                // Query to retrieve the list of MainSubCopmaniesMasters objects
-                var mainSubCompaniesMastersList = await _repository.GetListOfObjectsAsync<MainSubCopmaniesMasters>(
-                    x => x.MainCompanyId == resBusinesses.BusinessId && x.LastTimeDataShowed != null
-                );
                 string Firstname = resBusinesses.FirstName;
 
-                // Once you have the list, you can apply LINQ methods to it
+                // Step 2: Retrieve the most recent SubCompanyId
+                var mainSubCompaniesMastersList = await _repository.GetListOfObjectsAsync<MainSubCopmaniesMasters>(
+                    x => x.MainCompanyId == resBusinesses.BusinessId && x.LastTimeDataShowed != null);
+
                 var subCompanyId = mainSubCompaniesMastersList
                     .OrderByDescending(x => x.LastTimeDataShowed)
                     .Select(x => x.SubCopmanyId)
                     .FirstOrDefault();
 
-                // Define the filter to match the desired InternalCompanyId and SubCompanyId
+                // Step 3: Retrieve the ExternalSystemId for the business
+                var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == resBusinesses.BusinessId && x.SubCompayId == subCompanyId);
+
+                if (UsersExternalSystemDynamicFieldsObj == null)
+                {
+                    throw new Exception("External system information not found.");
+                }
+
+                int externalSystemId = UsersExternalSystemDynamicFieldsObj.ExternalSystemId;
+
+                // Step 4: Get the dynamic configuration based on the ExternalSystemId
+                var config = _externalSystemConfig[externalSystemId];
+
+                // Step 5: Define the filter dynamically using the config
                 var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", resBusinesses.BusinessId),
-                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subCompanyId)
+                    Builders<BsonDocument>.Filter.Eq(config.CompanyFieldPath, resBusinesses.BusinessId),
+                    Builders<BsonDocument>.Filter.Eq(config.SubCompanyFieldPath, subCompanyId)
                 );
 
-                // Define the projection to include only the required fields
+                // Step 6: Define the projection dynamically based on the config
                 var projection = Builders<BsonDocument>.Projection
-                    .Include("company_info.vat_id")
-                    .Include("company_info.businessName_en")
-                    .Include("company_info.businessName_he");
+                    .Include(config.VatFieldPath)
+                    .Include(config.SupplierFieldPath); // SupplierFieldPath is for business name
 
-                // Apply the filter and projection to retrieve the desired fields
-                var existingDocuments = await _ICountCompanyInfoCollection
+                // Step 7: Query the correct collection dynamically
+                var existingDocuments = await config.CompaniesInfoCollection
                     .Find(filter)
                     .Project(projection)
                     .ToListAsync();
 
-                // Extract businessName, vat_id, and financial software from the existingDocument
+                // Step 8: Extract business name, VAT ID, and financial software
                 string businessName = null;
                 string vatId = null;
-                string financialSoftware = null;
                 foreach (var existingDocument in existingDocuments)
                 {
-                    // Extract the desired fields from each document
-                    vatId = existingDocument["company_info"]["vat_id"].AsString;
-                    var businessNameEn = existingDocument["company_info"]["businessName_en"].AsString;
-                    var businessNameHe = existingDocument["company_info"]["businessName_he"].AsString;
-
-                    businessName = Lang == 1 ? (businessNameEn == "" ? businessNameHe : businessNameEn) : businessNameHe;
+                    vatId = ExtractNestedField(existingDocument, config.VatFieldPath);
+                    businessName = ExtractNestedField(existingDocument, config.SupplierFieldPath);
                 }
 
-                var UsersExternalSystemDynamicFieldsObj = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
-                    x => x.Companyid == resBusinesses.BusinessId && x.SubCompayId == subCompanyId
-                );
-
+                // Step 9: Retrieve financial software name
                 var ExternalSystemobj = await _repository.GetFirstObjectAsync<ExternalSystem>(
-                    x => x.ExternalSystemID == UsersExternalSystemDynamicFieldsObj.ExternalSystemId
-                );
-                financialSoftware = ExternalSystemobj.ExternalSystemName;
+                    x => x.ExternalSystemID == externalSystemId);
 
-                // Create the response object
+                string financialSoftware = ExternalSystemobj?.ExternalSystemName;
+
+                // Step 10: Build response
                 var response = new WelcomeResponse
                 {
                     Name = $"Welcome, {Firstname}",
-                    Subtitle = Lang == 1 ? "The new entity has been successfully connected to Uninet network" : "הישות החדשה התחברה בהצלחה לרשת Uninet",
-                    EntityDetail = Lang == 1 ? $"Entity: {businessName}, VAT id: {vatId}, financial software: {financialSoftware}"
-                                             : $"ישות: {businessName}, מספר עוסק: {vatId}, תוכנת כספים: {financialSoftware}",
+                    Subtitle = Lang == 1 ? "The new entity has been successfully connected to Uninet network"
+                                         : "הישות החדשה התחברה בהצלחה לרשת Uninet",
+                    EntityDetail = Lang == 1
+                        ? $"Entity: {businessName}, VAT id: {vatId}, financial software: {financialSoftware}"
+                        : $"ישות: {businessName}, מספר עוסק: {vatId}, תוכנת כספים: {financialSoftware}",
                     Entity = businessName
                 };
 
-                // Serialize the response object to JSON
                 return JsonConvert.SerializeObject(response);
             }
             catch (Exception ex)
             {
-                // Log the exception if needed
                 Console.WriteLine($"An error occurred: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Utility function to extract nested field values from BsonDocument
+        private string ExtractNestedField(BsonDocument document, string fieldPath)
+        {
+            try
+            {
+                var segments = fieldPath.Split('.');
+                BsonValue field = document;
+
+                foreach (var segment in segments)
+                {
+                    if (field != null && field.AsBsonDocument.Contains(segment))
+                    {
+                        field = field[segment];
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                return field?.AsString;
+            }
+            catch
+            {
                 return null;
             }
         }

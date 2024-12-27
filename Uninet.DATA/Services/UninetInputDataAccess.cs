@@ -54,6 +54,7 @@ namespace Uninet.DATA.Services
         private readonly IRepository<UninetContext> _repository;
         private readonly IMongoCollection<BsonDocument> _Uninetgreenvoicedocument;
         private readonly IMongoCollection<BsonDocument> _IcountCompaniesInfoCollection;
+        private readonly IMongoCollection<BsonDocument> _MorningCompanisInfoCollection;
         private readonly IMongoCollection<BsonDocument> _UninetGetStaticQuestionsService;
         private readonly IMongoCollection<BsonDocument> _UninetGetLandingPageDataService;
         private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
@@ -68,7 +69,7 @@ namespace Uninet.DATA.Services
             var uninetGetStaticQuestionsService = database.GetCollection<BsonDocument>("UninetStaticData");
             _UninetGetStaticQuestionsService = uninetGetStaticQuestionsService;
             _IcountCompaniesInfoCollection = database.GetCollection<BsonDocument>("IcountCompanisInfo");
-
+            _MorningCompanisInfoCollection= database.GetCollection<BsonDocument>("MorningCompanisInfo");
             var UninetGetLandingPageDataService = database.GetCollection<BsonDocument>("UninetHomepageBlocks");
             _UninetGetLandingPageDataService = UninetGetLandingPageDataService;
 
@@ -104,27 +105,463 @@ namespace Uninet.DATA.Services
 
         //    return Ok(question.ToJson());
         //}
-
-
-        public async Task<bool> MorningReceiveWebhook(string json)
+        private async Task<string> FetchAndUpdateNewToken(int companyId, int subcompanyId, int userId, int externalSystemId, UsersExternalSystemDynamicFields usersExternalSystemDynamicFieldsResult)
         {
             try
             {
-                // Parse the JSON string into a BsonDocument
-                var bsonDocument = MongoDB.Bson.BsonDocument.Parse(json);
+                var tokenCompanyInfoEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 88);
+                if (tokenCompanyInfoEndpoint == null)
+                {
+                    throw new Exception("Token endpoint information not found.");
+                }
 
-                // Insert the BsonDocument into MongoDB
-                await _IcountWebhookData.InsertOneAsync(bsonDocument);
+                string apiTokenValue = "";
+                string secretKeyValue = "";
 
-                return true; // Indicate success
+                // Retrieve ApiToken and SecretKey values from the database
+                var credentials = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
+                );
+
+                foreach (var item in credentials)
+                {
+                    if (item.FieldLabelName == "ApiToken")
+                    {
+                        apiTokenValue = item.FieldLabelValue;
+                    }
+                    else if (item.FieldLabelName == "SecretKey")
+                    {
+                        secretKeyValue = item.FieldLabelValue;
+                    }
+                }
+
+                // Step 4: Request a new token
+                var payload = new
+                {
+                    id = apiTokenValue,
+                    secret = secretKeyValue
+                };
+                string jsonPayload = JsonConvert.SerializeObject(payload);
+
+                // Send the request
+                Console.WriteLine($"Sending token request to: {tokenCompanyInfoEndpoint.Endpoint}");
+                var responseCompanyInfo = await SendRequest(tokenCompanyInfoEndpoint.Endpoint, HttpMethod.Post,null, jsonPayload);
+
+                // Parse the response to extract the token and expiration time
+                var jsonResponse = JObject.Parse(responseCompanyInfo);
+                string newToken = jsonResponse["token"].ToString();
+                long expires = (long)jsonResponse["expires"];
+                DateTime newExpirationDate = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
+
+                // Step 5: Update the token and expiration date in the database
+                if (usersExternalSystemDynamicFieldsResult != null)
+                {
+                    usersExternalSystemDynamicFieldsResult.Token = newToken;
+                    usersExternalSystemDynamicFieldsResult.TokenExpiration = newExpirationDate.ToString("o"); // ISO 8601 format
+                    await _repository.UpdateAsync(usersExternalSystemDynamicFieldsResult);
+                }
+
+                return newToken;
             }
             catch (Exception ex)
             {
-                // Log the error
-                Console.WriteLine($"Error in MorningReceiveWebhook: {ex.Message}");
-                return false; // Indicate failure
+                Console.WriteLine($"Error in FetchAndUpdateNewToken: {ex.Message}");
+                return "";
             }
         }
+        private bool IsTokenExpired(string tokenExpiration)
+        {
+            try
+            {
+                // Parse the ISO 8601 date format directly
+                DateTime expirationDate = DateTime.Parse(tokenExpiration, null, DateTimeStyles.RoundtripKind);
+                return DateTime.UtcNow >= expirationDate;
+            }
+            catch (FormatException ex)
+            {
+                Console.WriteLine($"Failed to parse TokenExpiration: {ex.Message}");
+                return true; // Treat as expired if parsing fails
+            }
+        }
+
+        public async Task<string> GetNewToken(int companyId, int subcompanyId, int userId, int externalSystemId)
+        {
+            try
+            {
+                string newToken = "";
+
+                // Step 1: Retrieve the token information from the database
+                var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
+                );
+
+                if (usersExternalSystemDynamicFieldsResult == null || IsTokenExpired(usersExternalSystemDynamicFieldsResult.TokenExpiration))
+                {
+                    // Call the helper function to fetch and update the token
+                    newToken = await FetchAndUpdateNewToken(companyId, subcompanyId, userId, externalSystemId, usersExternalSystemDynamicFieldsResult);
+                }
+                else
+                {
+                    // If the token is valid, return it
+                    newToken = usersExternalSystemDynamicFieldsResult.Token;
+                }
+
+                return newToken;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetNewToken: {ex.Message}");
+                return "";
+            }
+        }
+        public async Task<string> GetNameById(string jsonString, long idToFind)
+        {
+            // Parse the JSON string into a list of dictionaries
+            List<Dictionary<string, object>> data = JsonConvert.DeserializeObject<List<Dictionary<string, object>>>(jsonString);
+
+            // Find the object with the matching id
+            var matchingObject = data.FirstOrDefault(obj => (long)obj["id"] == idToFind);
+
+            // Return the name if found, otherwise return an empty string
+            return matchingObject != null ? matchingObject["name"].ToString() : string.Empty;
+        }
+        public async Task<bool> MorningReceiveWebhook(string json, string WebHookSourceid)
+        {
+            try
+            {
+                // Parse WebHookSourceId to extract SubCompanyId and SourceId
+                string SubCompanyid = WebHookSourceid.Split("_")[1];
+                string Str_WebHookSourceid = WebHookSourceid.Split("_")[0];
+                int intWebHookSourceid = Convert.ToInt32(Str_WebHookSourceid);
+                var internalCompanySenderIdObj = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(
+                    x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid)
+                );
+                var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
+                    x => x.BusinessId == internalCompanySenderIdObj.Internalcompanyid
+                );
+                // Parse the incoming JSON
+                var bsonDocument = BsonDocument.Parse(json);
+
+                // Extract required fields
+                string type = bsonDocument.GetValue("type", "").ToString();
+
+                // Fetch typename from the Morning API based on `type`
+                string newToken = await GetNewToken(internalCompanySenderIdObj.Internalcompanyid, Convert.ToInt32(SubCompanyid) ,UserIdAttachedToCompanySenderIdObj.AdminUserid ,6);//internalCompanyId, Client_SubCompanyid, userId, 6
+                var EndpointDocInfoObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 92); // Endpoint for typename
+                string DocInfoEndpoint = $"{EndpointDocInfoObj.Endpoint}";
+                string typenameResponse = await SendRequest(DocInfoEndpoint, HttpMethod.Get, newToken);
+                string typename = await GetNameById(typenameResponse,Convert.ToInt64(type));
+
+                // Add typename to the BSON document
+                bsonDocument.Add("typename", typename);
+
+                // Parse remaining fields from the BSON document
+                string businessId = bsonDocument.GetValue("businessId", "").ToString();
+                string date = bsonDocument.GetValue("date", "").ToString();
+                string total = bsonDocument.GetValue("total", "").ToString();
+
+                var recipient = bsonDocument.GetValue("recipient", new BsonDocument()).AsBsonDocument;
+                string recipientName = recipient.GetValue("name", "").ToString();
+                string recipientTaxId = recipient.GetValue("taxId", "").ToString();
+                string recipientEmail = recipient.GetValue("emails", new BsonArray())
+                    .AsBsonArray.FirstOrDefault()?.ToString();
+
+                var files = bsonDocument.GetValue("files", new BsonDocument()).AsBsonDocument;
+                var downloadLinks = files.GetValue("downloadLinks", new BsonDocument()).AsBsonDocument;
+                string docUrl = downloadLinks.Contains("origin") ? downloadLinks["origin"].ToString() : string.Empty;
+
+                string finalUrl = await ConvertMorningUrl(docUrl);
+
+                // Update or add the "processedUrl" field in downloadLinks
+                if (!downloadLinks.Contains("processedUrl"))
+                {
+                    downloadLinks.Add("processedUrl", finalUrl);
+                }
+                else
+                {
+                    downloadLinks["processedUrl"] = finalUrl;
+                }
+
+                // Insert the updated BSON document into the webhook collection
+                await _MorningWebhookData.InsertOneAsync(bsonDocument);
+
+                // Parse WebHookSourceId to retrieve mappings
+                
+
+                
+                int internalCompanySenderId = internalCompanySenderIdObj.Internalcompanyid;
+
+                
+                int UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
+
+                var OrganiztionNameObj = await _repository.GetFirstObjectAsync<Businesses>(
+                    x => x.BusinessId == internalCompanySenderId
+                );
+                string OrganiztionName = OrganiztionNameObj.OrganizationName;
+
+                // Check if the business is registered in MorningCompanisInfo
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("InternalCompanyId", internalCompanySenderId),
+                    Builders<BsonDocument>.Filter.Eq("SubCompanyId", Convert.ToInt32(SubCompanyid))
+                );
+
+                var projection = Builders<BsonDocument>.Projection.Include("taxId").Exclude("_id");
+                var resultMorningCompanyinfo = _MorningCompanisInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+
+                string businessVatId = resultMorningCompanyinfo?["taxId"].AsString ?? string.Empty;
+                bool isRegisteredOnUninet = _MorningCompanisInfoCollection.CountDocuments(filter) > 0;
+
+                // Prepare BusinessData object
+                var newBusinessData = new BusinessData
+                {
+                    UserId = UserIdAttachedToCompanySenderId,
+                    BusinessId = internalCompanySenderId,
+                    SubCompanyId = Convert.ToInt32(SubCompanyid),
+                    JsonDocumentid = bsonDocument["_id"].AsObjectId.ToString(),
+                    BusinessVatId = businessVatId,
+                    ClientVat_id = Convert.ToInt32(recipientTaxId),
+                    client_name = recipientName,
+                    DataSourceEnum = 6, // 6 for Morning
+                    ClientEmail = recipientEmail,
+                    EmailSent = false,
+                    DateEmailSent = null,
+                    DocumentApprovedtoUninet = null,
+                    supplier_name_Sender = OrganiztionName,
+                    docDate = Convert.ToDateTime(date),
+                    amountAV = Convert.ToDouble(total),
+                    currency_code = bsonDocument.GetValue("currency", "").ToString(),
+                    ClientvatidRegisteredtOnUninet = isRegisteredOnUninet,
+                    DataSourceType = 2 // for webhook data collection
+                };
+
+                // Check for existing BusinessData object
+                Expression<Func<BusinessData, bool>> predicate = bd =>
+                    bd.UserId == UserIdAttachedToCompanySenderId &&
+                    bd.BusinessId == internalCompanySenderId &&
+                    bd.SubCompanyId == Convert.ToInt32(SubCompanyid) &&
+                    bd.JsonDocumentid == ObjectId.Parse(newBusinessData.JsonDocumentid).ToString();
+
+                var existingBusinessData = await _repository.GetFirstObjectAsync(predicate);
+                if (existingBusinessData == null)
+                {
+                    _repository.Create<BusinessData>(newBusinessData);
+
+                    var _RequestMailObject = new RequestedMailObject
+                    {
+                        Sendername = OrganiztionName,
+                        DocType = "Document",
+                        RecipientName = recipientName,
+                        DocLink = finalUrl
+                    };
+
+                    await _dataMailassist.sendsmtpmail(
+                        "UNINET מסמך הגיע אליך מ ",
+                        "eyalbmma@gmail.com",
+                        recipientEmail,
+                        isRegisteredOnUninet ? 7 : 5,
+                        1,
+                        _RequestMailObject,
+                        UserIdAttachedToCompanySenderId.ToString(),
+                        newBusinessData.JsonDocumentid
+                    );
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in MorningReceiveWebhook: {ex.Message}");
+                return false;
+            }
+        }
+        private string ExtractTypenameFromResponse(string response)
+        {
+            try
+            {
+                var jsonDocument = JsonDocument.Parse(response);
+                var paymentPluginArray = jsonDocument.RootElement.GetProperty("paymentPlugins");
+
+                // Extract the `friendlyName` of the first plugin
+                if (paymentPluginArray.GetArrayLength() > 0)
+                {
+                    var firstPlugin = paymentPluginArray[0];
+                    return firstPlugin.GetProperty("friendlyName").GetString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error extracting typename: {ex.Message}");
+            }
+
+            return "Unknown";
+        }
+
+        //public async Task<bool> MorningReceiveWebhook(string json, string WebHookSourceid)
+        //{
+        //    try
+        //    {
+        //        string SubCompanyid = WebHookSourceid.Split("_")[1];
+        //        string Str_WebHookSourceid = WebHookSourceid.Split("_")[0];
+
+        //        var bsonDocument = BsonDocument.Parse(json);
+
+        //        string businessId = bsonDocument.GetValue("businessId", "").ToString();
+        //        string businessType = bsonDocument.GetValue("businessType", "").ToString();
+        //        string currency = bsonDocument.GetValue("currency", "").ToString();
+        //        string country = bsonDocument.GetValue("country", "").ToString();
+        //        string date = bsonDocument.GetValue("date", "").ToString();
+        //        string total = bsonDocument.GetValue("total", "").ToString();
+        //        string description = bsonDocument.GetValue("description", "").ToString();
+        //        string remarks = bsonDocument.GetValue("remarks", "").ToString();
+
+        //        var recipient = bsonDocument.GetValue("recipient", new BsonDocument()).AsBsonDocument;
+        //        string recipientName = recipient.GetValue("name", "").ToString();
+        //        string recipientTaxId = recipient.GetValue("taxId", "").ToString(); // Extract the taxId
+
+        //        string recipientEmail = recipient.GetValue("emails", new BsonArray())
+        //                        .AsBsonArray.FirstOrDefault()?.ToString();
+
+        //        var files = bsonDocument.GetValue("files", new BsonDocument()).AsBsonDocument;
+        //        var downloadLinks = files.GetValue("downloadLinks", new BsonDocument()).AsBsonDocument;
+        //        string docUrl = downloadLinks.Contains("origin") ? downloadLinks["origin"].ToString() : string.Empty;
+
+        //        string finalUrl = await ConvertMorningUrl(docUrl);
+
+        //        if (!downloadLinks.Contains("processedUrl"))
+        //        {
+        //            // Add "processedUrl" if it doesn't exist
+        //            downloadLinks.Add("processedUrl", finalUrl);
+        //        }
+        //        else
+        //        {
+        //            // Update the value of "processedUrl" if it exists
+        //            downloadLinks["processedUrl"] = finalUrl;
+        //        }
+
+        //        try
+        //        {
+        //            await _MorningWebhookData.InsertOneAsync(bsonDocument);
+        //        }
+        //        catch (Exception)
+        //        {
+        //            // Handle insert exceptions if needed
+        //        }
+
+        //        // Parse the WebHookSourceId and retrieve related mappings
+        //        int intWebHookSourceid = Convert.ToInt32(Str_WebHookSourceid);
+
+        //        var internalCompanySenderIdObj = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(
+        //            x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid)
+        //        );
+        //        int internalCompanySenderId = internalCompanySenderIdObj.Internalcompanyid;
+
+        //        var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
+        //            x => x.BusinessId == internalCompanySenderId
+        //        );
+        //        int UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
+
+        //        var OrganiztionNameObj = await _repository.GetFirstObjectAsync<Businesses>(
+        //            x => x.BusinessId == internalCompanySenderId
+        //        );
+        //        string OrganiztionName = OrganiztionNameObj.OrganizationName;
+
+        //        // Check if the business is registered
+        //        var filter = Builders<BsonDocument>.Filter.And(
+        //            Builders<BsonDocument>.Filter.Eq("InternalCompanyId", internalCompanySenderId),
+        //            Builders<BsonDocument>.Filter.Eq("SubCompanyId", Convert.ToInt32(SubCompanyid))
+        //        );
+
+        //        var projection = Builders<BsonDocument>.Projection.Include("taxId").Exclude("_id");
+
+        //        var resultMorningCompanyinfo = _MorningCompanisInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+
+
+
+
+        //        string businessVatId = "";
+        //        if (resultMorningCompanyinfo != null)
+        //        {
+        //            businessVatId = resultMorningCompanyinfo["taxId"].AsString;
+        //        }
+
+
+
+        //        bool isRegisteredOnUninet = _MorningCompanisInfoCollection.CountDocuments(filter) > 0;
+
+        //        // Prepare BusinessData object
+        //        var newBusinessData = new BusinessData
+        //        {
+        //            UserId = UserIdAttachedToCompanySenderId,
+        //            BusinessId = internalCompanySenderId,
+        //            SubCompanyId = Convert.ToInt32(SubCompanyid),
+        //            JsonDocumentid = bsonDocument["_id"].AsObjectId.ToString(),
+        //            BusinessVatId = businessVatId,
+        //            ClientVat_id = Convert.ToInt32(recipientTaxId),
+        //            client_name = recipientName,
+        //            DataSourceEnum = 6,//6 for morning 2 for icount
+        //            ClientEmail = recipientEmail,
+        //            EmailSent = false,
+        //            DateEmailSent = null,
+        //            DocumentApprovedtoUninet = null,
+        //            supplier_name_Sender = OrganiztionName,
+        //            docDate = Convert.ToDateTime(date),
+        //            amountAV = Convert.ToDouble(total),
+        //            currency_code = currency,
+        //            ClientvatidRegisteredtOnUninet = isRegisteredOnUninet,
+        //            DataSourceType = 2 //for webhook data collection
+        //        };
+
+        //        // Check if the BusinessData object already exists
+        //        //Expression<Func<BusinessData, bool>> predicate = bd =>
+        //        //    bd.UserId == UserIdAttachedToCompanySenderId &&
+        //        //    bd.BusinessId == internalCompanySenderId &&
+        //        //    bd.SubCompanyId == Convert.ToInt32(SubCompanyid) &&
+        //        //    bd.JsonDocumentid == newBusinessData.JsonDocumentid;
+
+
+        //        Expression<Func<BusinessData, bool>> predicate = bd =>
+        //        bd.UserId == UserIdAttachedToCompanySenderId &&
+        //        bd.BusinessId == internalCompanySenderId &&
+        //        bd.SubCompanyId == Convert.ToInt32(SubCompanyid) &&
+        //        bd.JsonDocumentid == ObjectId.Parse(newBusinessData.JsonDocumentid).ToString();
+
+
+
+        //        var existingBusinessData = await _repository.GetFirstObjectAsync(predicate);
+        //        if (existingBusinessData == null)
+        //        {
+        //            _repository.Create<BusinessData>(newBusinessData);
+
+        //            var _RequestMailObject = new RequestedMailObject
+        //            {
+        //                Sendername = OrganiztionName,
+        //                DocType = "Document",
+        //                RecipientName = recipientName,
+        //                DocLink = finalUrl
+        //            };
+
+        //            await _dataMailassist.sendsmtpmail(
+        //                " UNINET מסמך הגיע אליך מ  ",
+        //                "eyalbmma@gmail.com",
+        //                recipientEmail,
+        //                isRegisteredOnUninet ? 7 : 5,
+        //                1,
+        //                _RequestMailObject,
+        //                UserIdAttachedToCompanySenderId.ToString(),
+        //                newBusinessData.JsonDocumentid
+        //            );
+        //        }
+
+        //        return true;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // Log the exception
+        //        Console.WriteLine($"Error in MorningReceiveWebhook: {ex.Message}");
+        //        return false;
+        //    }
+        //}
+
 
 
         public async Task<bool> ReceiveWebhook(string json, string WebHookSourceid)//
@@ -133,8 +570,7 @@ namespace Uninet.DATA.Services
             {
                 string SubCompanyid= WebHookSourceid.Split("_")[1];
                 string Str_WebHookSourceid = WebHookSourceid.Split("_")[0];
-                //WriteToTableAsync(111, "111", "111");
-                // 
+               
                 var bsonDocument = BsonDocument.Parse(json.ToString());
                 ////add eyal logic need to get only json document with this doctype format 
                 ///reciept,invoice,deal,invrec,order,refund,delcert
@@ -594,6 +1030,30 @@ namespace Uninet.DATA.Services
                 return false;
             }
 
+        }
+
+
+        
+        public async Task<string> ConvertMorningUrl(string Inputurl)
+        {
+            string JsonDocUrl = "";
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync(Inputurl);
+
+            if (response.IsSuccessStatusCode)
+            {
+                // Read the file content as a byte array
+                var fileBytes = await response.Content.ReadAsByteArrayAsync();
+
+                // Convert the file content to Base64 and create a data URL
+                var base64String = Convert.ToBase64String(fileBytes);
+                JsonDocUrl = $"data:application/pdf;base64,{base64String}";
+            }
+            else
+            {
+                JsonDocUrl = string.Empty; // Set to empty if the fetch fails
+            }
+            return JsonDocUrl;
         }
 
         public async Task<string> ConvertUrl(string Inputurl)
