@@ -35,11 +35,107 @@ using Uninet.Domain.StoredProcedures.Responses;
 using Amazon.Runtime.Internal.Endpoints.StandardLibrary;
 using Task = System.Threading.Tasks.Task;
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
+using static System.Net.WebRequestMethods;
 //Refactor the following method to improve performance
 
 
 namespace Uninet.DATA.Services
 {
+
+    public class GreenInvoiceClassification
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public int Code { get; set; }
+        public int ParentIrsCode { get; set; }
+    }
+    public class Item
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("key")]
+        public string Key { get; set; }
+
+        [JsonPropertyName("code")]
+        public string Code { get; set; }
+
+        [JsonPropertyName("title")]
+        public string Title { get; set; }
+
+        [JsonPropertyName("irsCode")]
+        public int IrsCode { get; set; }
+
+        [JsonPropertyName("income")]
+        public decimal Income { get; set; }
+
+        [JsonPropertyName("type")]
+        public int Type { get; set; }
+
+        [JsonPropertyName("vat")]
+        public decimal Vat { get; set; }
+    }
+
+
+
+
+
+    public class GreenInvoiceSearchResponse
+    {
+        public int Total { get; set; }
+        public int Page { get; set; }
+        public int PageSize { get; set; }
+        public int Pages { get; set; }
+        public List<ExpenseItem> Items { get; set; }
+        
+    }
+
+    public class ExpenseItem
+    {
+        public string Id { get; set; }
+        public int BusinessType { get; set; }
+        public int DocumentType { get; set; }
+        public int Status { get; set; }
+        public int PaymentType { get; set; }
+        public string Currency { get; set; }
+        public double CurrencyRate { get; set; }
+        public double AmountExcludeVat { get; set; }
+        public double Vat { get; set; }
+        public double Amount { get; set; }
+        public string Date { get; set; }
+        public string DueDate { get; set; }
+        public string Number { get; set; }
+        public bool Active { get; set; }
+        public string Description { get; set; }
+        public string Remarks { get; set; }
+        public Supplier Supplier { get; set; }
+        public AccountingClassification AccountingClassification { get; set; }
+        public long LastUpdateDate { get; set; } // Add this property if it's missing
+    }
+    public class AccountingClassification
+    {
+        public string Id { get; set; }
+        public string Key { get; set; }
+        public string Code { get; set; }
+        public string Title { get; set; }
+        public int IrsCode { get; set; }
+        public int Income { get; set; }
+        public int Type { get; set; }
+        public int Vat { get; set; }
+    }
+
+
+    public class Supplier
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string TaxId { get; set; }
+    }
+
+ 
+
     public class ApiResponse
     {
         [JsonProperty("api")]
@@ -141,12 +237,13 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _MorningCompanisInfoCollection;
         private readonly IMongoCollection<BsonDocument> _MorningClientSuppliers;
         private readonly IMongoCollection<BsonDocument> _MorningExpenses;
+        private readonly IMongoCollection<BsonDocument> _MorningException;
         
         private readonly IMongoCollection<BsonDocument> _IcountClientSuppliers;
         private readonly IMongoCollection<BsonDocument> _IcountExpenses;
         private readonly IMongoCollection<BsonDocument> _IcountExpensesTypes;
         private readonly IMongoCollection<BsonDocument> _MorningExpensesTypes;
-        
+        private readonly IMongoCollection<BsonDocument> _MorningexpenseTypesManual;
         private readonly IMongoCollection<BsonDocument> _IcountWebhookData;
         private readonly IMongoCollection<BsonDocument> _MorningWebHookData;
         private readonly IMongoCollection<BsonDocument> _Icount_BussinesPartner_Clients_Suplliers;
@@ -170,8 +267,10 @@ namespace Uninet.DATA.Services
             _MorningWebHookData= database.GetCollection<BsonDocument>("MorningWebHookData");
             _MorningClientSuppliers= database.GetCollection<BsonDocument>("MorningClientSuppliers");
             _MorningExpensesTypes = database.GetCollection<BsonDocument>("MorningExpensesTypes");
-            _MorningExpenses= database.GetCollection<BsonDocument>("MorningExpenses");
+            _MorningexpenseTypesManual = database.GetCollection<BsonDocument>("MorningexpenseTypesManual");
+            _MorningExpenses = database.GetCollection<BsonDocument>("MorningExpenses");
             _Icount_BussinesPartner_Clients_Suplliers = database.GetCollection<BsonDocument>("Icount_BussinesPartner_Clients_Suplliers");
+            _MorningException= database.GetCollection<BsonDocument>("MorningException");
             _repository = repository;
             _dataMailassist = dataMailassist;
             // Initialize External System Config
@@ -351,6 +450,27 @@ namespace Uninet.DATA.Services
 
             return (null, null); // Or appropriate default values
         }
+        private async Task<List<ExpenseType>>GetExpenseTypeListMorning(string endpoint)
+        {
+            try
+            {
+                
+                string response = await SendRequestWithToken(endpoint, HttpMethod.Get);
+
+                // Parse response into a list of ExpenseType
+                var expenseTypeList = JsonConvert.DeserializeObject<List<ExpenseType>>(response);
+
+                
+
+                return expenseTypeList;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in PostExpenseTypeListMorning: {ex.Message}");
+                return new List<ExpenseType>();
+            }
+        }
+
         private async Task<List<ExpenseType>> PostExpenseTypeListMorning(string endpoint, Dictionary<string, string> requestBody, int? expenseTypeId)
         {
             try
@@ -365,7 +485,7 @@ namespace Uninet.DATA.Services
                 {
                     foreach (var expenseType in expenseTypeList)
                     {
-                        expenseType.IsDefault = expenseType.ExpenseTypeId == expenseTypeId;
+                        expenseType.IsDefault = expenseType.ExpenseTypeId == expenseTypeId.ToString();
                     }
                 }
 
@@ -378,98 +498,361 @@ namespace Uninet.DATA.Services
             }
         }
 
+        private async Task<T> CallGreenInvoiceSearchAPI<T>(string endpoint, object requestPayload, string token)
+        {
+            using var client = new HttpClient();
+
+            // Add Authorization header
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Send the request
+            var response = await client.PostAsJsonAsync(endpoint, requestPayload);
+
+            // Ensure the request was successful
+            response.EnsureSuccessStatusCode();
+
+            // Deserialize the response
+            return await response.Content.ReadFromJsonAsync<T>();
+        }
+
+
+        private async Task<T> CallGreenInvoiceClassificationsAPI<T>(string endpoint, string token)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                // Add Authorization header
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                // Send the request
+                var response = await client.GetAsync(endpoint);
+
+                // Ensure the request was successful
+                response.EnsureSuccessStatusCode();
+
+                // Deserialize the response
+                return await response.Content.ReadFromJsonAsync<T>();
+            }
+            catch(Exception ex)
+            {
+                return default(T); 
+            }
+        }
         private async Task<List<ExpenseType>> CreateExpenseCategorylistMorning(
-            int userId,
-            string supplierId = null,
-            string businessVatId = null,
-            
-            bool? documentApprovedToUninet = false,
-            int? expenseTypeId = 0
-        )
+    int userId,
+    int SubCompanyIdSuplier,
+    int SubCompanyid_clientRelated,
+    string latestSupplierId,
+    string latestSupplierName,
+    string supplierId = null,
+    string businessVatId = null,
+    bool? documentApprovedToUninet = false,
+    string? expenseTypeId = "0"
+)
         {
             List<ExpenseType> expenseTypeList = new List<ExpenseType>();
-            string supplierIdFromApi = "";
 
             // Retrieve the business object and get the InternalCompanyId
             var business = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
-            if (business != null)
-            {
-                int internalCompanyId = business.BusinessId;
+            if (business == null)
+                throw new Exception("Business not found for the given userId.");
 
-                // Get a new token for Morning API
-                string token = await GetNewToken(internalCompanyId, Convert.ToInt32(supplierId), userId, 6); // ExternalSystemId for Morning is 6
+            int internalCompanyId = business.BusinessId;
 
-                if (documentApprovedToUninet == false || documentApprovedToUninet == null)
+            // Get a new token
+            string newToken = await GetNewToken(internalCompanyId, SubCompanyid_clientRelated, userId, 6);
+
+            // Call the expenses search API
+            var expenseEndpointObjSearch = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 46);
+            var expenseApiResponse = await CallGreenInvoiceSearchAPI<GreenInvoiceSearchResponse>(
+                expenseEndpointObjSearch.Endpoint,
+                new
                 {
-                    // Find supplier ID based on VAT ID
-                    var filter = Builders<BsonDocument>.Filter.And(
-                        Builders<BsonDocument>.Filter.Eq("UserID", userId),
-                        Builders<BsonDocument>.Filter.Eq("internalcompanid", internalCompanyId)
+                    supplierId = latestSupplierId,
+                    supplierName = latestSupplierName,
+                    page = 1,
+                    pageSize = 20
+                },
+                newToken
+            );
+
+            string defaultClassificationId = null;
+
+            if (expenseApiResponse?.Items != null && expenseApiResponse.Items.Any())
+            {
+                var latestExpense = expenseApiResponse.Items
+                    .OrderByDescending(e => e.LastUpdateDate)
+                    .First();
+
+                // Extract accountingClassification for default
+                var accountingClassification = latestExpense.AccountingClassification;
+                if (accountingClassification != null)
+                {
+                    defaultClassificationId = accountingClassification.Id;
+
+                    // Check if an item already exists in MongoDB
+                    var existingFilter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("internalCompanyId", internalCompanyId),
+                        Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", SubCompanyid_clientRelated),
+                        Builders<BsonDocument>.Filter.Eq("userId", userId)
                     );
 
-                    var clientSuppliersItem = await _MorningClientSuppliers.Find(filter).ToListAsync();
-                    foreach (var item in clientSuppliersItem)
+                    var existingDocument = await _MorningExpenses.Find(existingFilter).FirstOrDefaultAsync();
+
+                    if (existingDocument != null)
                     {
-                        var suppliers = item["suppliers"].AsBsonDocument;
-                        foreach (var supplierKey in suppliers.Names)
+                        var existingResultsList = existingDocument["results_list"].AsBsonArray;
+
+                        // Check if the AccountingClassification Id already exists in the results_list
+                        var isDuplicate = existingResultsList.Any(x =>
+                            x["AccountingClassification"]?["id"].AsString == accountingClassification.Id);
+
+                        if (!isDuplicate)
                         {
-                            var supplierDetails = suppliers[supplierKey].AsBsonDocument;
-                            if (supplierDetails["vat_id"].AsString == businessVatId)
+                            // Convert latestExpense to BsonDocument and adjust AccountingClassification
+                            var latestExpenseDocument = latestExpense.ToBsonDocument();
+                            if (latestExpenseDocument.Contains("AccountingClassification"))
                             {
-                                supplierIdFromApi = supplierDetails["supplier_id"].AsString;
-                                break;
+                                var classification = latestExpenseDocument["AccountingClassification"].AsBsonDocument;
+                                if (classification.Contains("_id"))
+                                {
+                                    classification["id"] = classification["_id"]; // Copy `_id` to `id`
+                                    classification.Remove("_id"); // Remove `_id` field
+                                }
+                            }
+
+                            // Add the new expense to the results_list
+                            var update = Builders<BsonDocument>.Update
+                                .Push("results_list", latestExpenseDocument);
+
+                            await _MorningExpenses.UpdateOneAsync(existingFilter, update);
+                        }
+
+                    }
+                    else
+                    {
+                        // If the document does not exist, create a new one with the results_list
+                        var bsonDocument = latestExpense.ToBsonDocument();
+                        if (bsonDocument.Contains("AccountingClassification"))
+                        {
+                            var classification = bsonDocument["AccountingClassification"].AsBsonDocument;
+                            if (classification.Contains("_id"))
+                            {
+                                classification["id"] = classification["_id"]; // Copy `_id` back to `id`
+                                classification.Remove("_id"); // Remove `_id` if needed
                             }
                         }
+
+                        var newDocument = new BsonDocument
+                {
+                    { "internalCompanyId", internalCompanyId },
+                    { "Client_SubCompanyid", SubCompanyid_clientRelated },
+                    { "userId", userId },
+                    { "results_list", new BsonArray { bsonDocument } }
+                };
+
+                        await _MorningExpenses.InsertOneAsync(newDocument);
                     }
 
-                    // Fetch expense type information using Morning API
-                    var expenseEndpointObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 83); // Replace with correct endpoint ID for Morning
-                    var expenseEndpoint = expenseEndpointObj.Endpoint;
-
-                    // Prepare request for Morning API
-                    var requestBody = new Dictionary<string, string>
+                    // Add to expenseTypeList
+                    expenseTypeList.Add(new ExpenseType
                     {
-                        { "supplier_id", supplierIdFromApi },
-                        { "token", token }
-                    };
-
-                    // Fetch permanent properties set to true
-                    requestBody["permanent_property"] = "true";
-                    var expenseTypeListTrue = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
-
-                    // Fetch permanent properties set to false
-                    requestBody["permanent_property"] = "false";
-                    var expenseTypeListFalse = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
-
-                    // Sort both lists
-                    expenseTypeListFalse = expenseTypeListFalse.OrderBy(et => et.ExpenseTypeDesc).ToList();
-                    expenseTypeListTrue = expenseTypeListTrue.OrderBy(et => et.ExpenseTypeDesc).ToList();
-
-                    // Merge lists: expenseTypeListFalse first, then expenseTypeListTrue
-                    expenseTypeList = expenseTypeListFalse.Concat(expenseTypeListTrue).ToList();
+                        ExpenseTypeId = accountingClassification.Id,
+                        ExpenseTypeDesc = accountingClassification.Title,
+                        IsDefault = true
+                    });
                 }
+            }
 
-                if (documentApprovedToUninet == true)
+            // Call the fallback API to get classifications
+            var expenseTypeListEndpointObjSearch = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 94);
+            var classificationApiResponse = await CallGreenInvoiceClassificationsAPI<List<GreenInvoiceClassification>>(
+                expenseTypeListEndpointObjSearch.Endpoint,
+                newToken
+            );
+
+            if (classificationApiResponse != null && classificationApiResponse.Any())
+            {
+                // Determine which classification is the default based on the ID
+                // List of names to exclude
+                var excludedNames = new HashSet<string>
                 {
-                    // Handle case where document is approved to Uninet
-                    var expenseEndpointObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 83); // Replace with correct endpoint ID for Morning
-                    var expenseEndpoint = expenseEndpointObj.Endpoint;
+                    "עלות מכירות ושירותים",
+                    "הוצאות מכירה",
+                    "הוצאות הנהלה וכלליות",
+                    "הוצאות מימון",
+                    "רכוש"
+                };
 
-                    var requestBody = new Dictionary<string, string>
+                foreach (var classification in classificationApiResponse)
+                {
+                    // Skip adding if the classification.Name exists in the excluded list
+                    if (excludedNames.Contains(classification.Name))
                     {
-                        { "supplier_id", supplierIdFromApi },
-                        { "token", token }
-                    };
+                        continue;
+                    }
 
-                    expenseTypeList = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
+                    if (!expenseTypeList.Any(et => et.ExpenseTypeId == classification.Id))
+                    {
+                        expenseTypeList.Add(new ExpenseType
+                        {
+                            ExpenseTypeId = classification.Id,
+                            ExpenseTypeDesc = classification.Name,
+                            IsDefault = classification.Id == defaultClassificationId
+                        });
+                    }
                 }
+
+
+                // Insert expenseTypeList into _MorningExpensesTypes
+                var classificationDocument = new BsonDocument
+        {
+            { "internalCompanyId", internalCompanyId },
+            { "Client_SubCompanyid", SubCompanyid_clientRelated },
+            { "userId", userId },
+            { "expense_types", new BsonArray(expenseTypeList.Select(et => new BsonDocument
+                {
+                    { "ExpenseTypeId", et.ExpenseTypeId },
+                    { "ExpenseTypeDesc", et.ExpenseTypeDesc },
+                    { "IsDefault", et.IsDefault }
+                })) }
+        };
+
+                var classificationFilter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("internalCompanyId", internalCompanyId),
+                    Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", SubCompanyid_clientRelated),
+                    Builders<BsonDocument>.Filter.Eq("userId", userId)
+                );
+
+                await _MorningExpensesTypes.UpdateOneAsync(classificationFilter,
+                    Builders<BsonDocument>.Update.Set("expense_types", classificationDocument["expense_types"]),
+                    new UpdateOptions { IsUpsert = true });
             }
 
             return expenseTypeList;
         }
 
 
-        private async Task<List<ExpenseType>> CreateExpenseCategorylistIcount(int userId, string supplierId = null, string BusinessVatId = null, string cidvalue = null, string uservalue = null, string passvalue = null, bool? DocumentApprovedtoUninet = false, int? ExpenseTypeId = 0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        //private async Task<List<ExpenseType>> CreateExpenseCategorylistMorning(
+        //    int userId,
+        //    int SubCompanyIdSuplier,
+        //    int SubCompanyid_clientRelated,
+        //    string supplierId = null,
+        //    string businessVatId = null,
+        //    bool? documentApprovedToUninet = false,
+        //    int? expenseTypeId = 0
+
+        //)
+        //{
+        //    List<ExpenseType> expenseTypeList = new List<ExpenseType>();
+        //    string supplierIdFromApi = "";
+
+        //    // Retrieve the business object and get the InternalCompanyId
+        //    var business = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
+        //    if (business != null)
+        //    {
+        //        int internalCompanyId = business.BusinessId;
+
+        //        // Get a new token for Morning API
+        //        //string token = await GetNewToken(internalCompanyId, Convert.ToInt32(supplierId), userId, 6); // ExternalSystemId for Morning is 6
+
+        //        //var expenseEndpointObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 94); // Replace with correct endpoint ID for Morning
+        //        //var expenseEndpoint = expenseEndpointObj.Endpoint;
+        //        //var expenseTypeListRes = await GetExpenseTypeListMorning(expenseEndpoint);
+        //        //if (documentApprovedToUninet == false || documentApprovedToUninet == null)
+        //        //{
+        //        //    // Find supplier ID based on VAT ID
+        //        //    var filter = Builders<BsonDocument>.Filter.And(
+        //        //        Builders<BsonDocument>.Filter.Eq("UserID", userId),
+        //        //        Builders<BsonDocument>.Filter.Eq("internalcompanid", internalCompanyId)
+        //        //    );
+
+        //        //    var clientSuppliersItem = await _MorningClientSuppliers.Find(filter).ToListAsync();
+        //        //    foreach (var item in clientSuppliersItem)
+        //        //    {
+        //        //        var suppliers = item["suppliers"].AsBsonDocument;
+        //        //        foreach (var supplierKey in suppliers.Names)
+        //        //        {
+        //        //            var supplierDetails = suppliers[supplierKey].AsBsonDocument;
+        //        //            if (supplierDetails["vat_id"].AsString == businessVatId)
+        //        //            {
+        //        //                supplierIdFromApi = supplierDetails["supplier_id"].AsString;
+        //        //                break;
+        //        //            }
+        //        //        }
+        //        //    }
+
+        //        //    // Fetch expense type information using Morning API
+        //        //    var expenseEndpointObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 94); // Replace with correct endpoint ID for Morning
+        //        //    var expenseEndpoint = expenseEndpointObj.Endpoint;
+
+        //        //    // Prepare request for Morning API
+        //        //    var requestBody = new Dictionary<string, string>
+        //        //    {
+        //        //        { "supplier_id", supplierIdFromApi },
+        //        //        { "token", token }
+        //        //    };
+
+        //        //    // Fetch permanent properties set to true
+        //        //    requestBody["permanent_property"] = "true";
+        //        //    var expenseTypeListTrue = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
+
+        //        //    // Fetch permanent properties set to false
+        //        //    requestBody["permanent_property"] = "false";
+        //        //    var expenseTypeListFalse = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
+
+        //        //    // Sort both lists
+        //        //    expenseTypeListFalse = expenseTypeListFalse.OrderBy(et => et.ExpenseTypeDesc).ToList();
+        //        //    expenseTypeListTrue = expenseTypeListTrue.OrderBy(et => et.ExpenseTypeDesc).ToList();
+
+        //        //    // Merge lists: expenseTypeListFalse first, then expenseTypeListTrue
+        //        //    expenseTypeList = expenseTypeListFalse.Concat(expenseTypeListTrue).ToList();
+        //        //}
+
+        //        //if (documentApprovedToUninet == true)
+        //        //{
+        //        //    // Handle case where document is approved to Uninet
+        //        //    var expenseEndpointObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 83); // Replace with correct endpoint ID for Morning
+        //        //    var expenseEndpoint = expenseEndpointObj.Endpoint;
+
+        //        //    var requestBody = new Dictionary<string, string>
+        //        //    {
+        //        //        { "supplier_id", supplierIdFromApi },
+        //        //        { "token", token }
+        //        //    };
+
+        //        //    expenseTypeList = await PostExpenseTypeListMorning(expenseEndpoint, requestBody, expenseTypeId);
+        //        //}
+        //    }
+
+        //    return expenseTypeList;
+        //}
+
+
+        private async Task<List<ExpenseType>> CreateExpenseCategorylistIcount(int userId, string supplierId = null, string BusinessVatId = null, string cidvalue = null, string uservalue = null, string passvalue = null, bool? DocumentApprovedtoUninet = false, string? ExpenseTypeId = "0")
         {
             List<ExpenseType> ExpenseTypeList = new List<ExpenseType>();
             string SuplierId = "";
@@ -690,13 +1073,16 @@ namespace Uninet.DATA.Services
             int internalCompanyId,
             string currencyCode,
             decimal currencyRate,
-            int Client_SubCompanyid)
+            int Client_SubCompanyid
+            
+            )
         {
             var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(request.JsonDocumentid));
             var doc = await _MorningWebHookData.Find(filter).FirstOrDefaultAsync();
 
             if (doc != null)
             {
+                
                 return await MapDocumentToResponseMorning(
                     doc,
                     docsResults,
@@ -707,6 +1093,7 @@ namespace Uninet.DATA.Services
                     currencyCode,
                     currencyRate,
                     Client_SubCompanyid
+                   
                 );
             }
 
@@ -753,7 +1140,7 @@ namespace Uninet.DATA.Services
 
 
 
-        private async Task<SupplierItemMorning> AddSupplierMorning(string token, string supplierVatId)
+        private async Task<SupplierItemMorning> AddSupplierMorning(string token, string supplierVatId,string companyName)
         {
             try
             {
@@ -767,26 +1154,26 @@ namespace Uninet.DATA.Services
                 // Prepare the request payload with supplier data
                 var supplierData = new
                 {
-                    name = "New Supplier",           // Replace with actual supplier name
+                    name = companyName,           // Replace with actual supplier name
                     active = true,                   // Set to true for an active supplier
-                    department = "Sales",            // Optional: Department
+                          // Optional: Department
                     taxId = supplierVatId,           // VAT ID
-                    accountingKey = "10202",         // Optional: Accounting key
-                    paymentTerms = 0,                // Optional: Payment terms
-                    bankName = "לאומי",             // Replace with actual bank name
-                    bankBranch = "44",               // Replace with actual bank branch
-                    bankAccount = "565656565656",    // Replace with actual bank account
-                    address = "רחוב סוקולוב 15",    // Replace with actual address
-                    city = "תל אביב-יפו",           // Replace with actual city
-                    zip = "6291790",                 // Replace with actual zip code
-                    country = "IL",                  // Country code
-                    phone = "565656565656",          // Replace with actual phone
-                    fax = "565656565656",            // Replace with actual fax
-                    mobile = "565656565656",         // Replace with actual mobile
-                    remarks = "Customer approved 2016 sales", // Optional remarks
-                    contactPerson = "Ido",           // Replace with actual contact person
-                    emails = new string[] { },       // Replace with actual email list
-                    labels = new string[] { }        // Replace with actual label list
+                    //accountingKey = "10202",         // Optional: Accounting key
+                    //paymentTerms = 0,                // Optional: Payment terms
+                    //bankName = "לאומי",             // Replace with actual bank name
+                    //bankBranch = "44",               // Replace with actual bank branch
+                    //bankAccount = "565656565656",    // Replace with actual bank account
+                    //address = "רחוב סוקולוב 15",    // Replace with actual address
+                    //city = "תל אביב-יפו",           // Replace with actual city
+                    //zip = "6291790",                 // Replace with actual zip code
+                    //country = "IL",                  // Country code
+                    //phone = "565656565656",          // Replace with actual phone
+                    //fax = "565656565656",            // Replace with actual fax
+                    //mobile = "565656565656",         // Replace with actual mobile
+                    //remarks = "Customer approved 2016 sales", // Optional remarks
+                    //contactPerson = "Ido",           // Replace with actual contact person
+                    //emails = new string[] { },       // Replace with actual email list
+                    //labels = new string[] { }        // Replace with actual label list
                 };
 
                 // Serialize the supplier data to JSON and create StringContent
@@ -825,7 +1212,8 @@ namespace Uninet.DATA.Services
 
 
 
-        private async Task<List<SupplierItemMorning>> GetSupplierListMorning(string token)
+
+        private async Task<List<SupplierItemMorning>> GetSupplierListMorning(string token,int internalCompanyId,int Client_SubCompanyid,int userId)
         {
             try
             {
@@ -857,7 +1245,14 @@ namespace Uninet.DATA.Services
 
                 // Send the request to fetch the supplier list
                 string response = await SendRequestWithHeaders(suppliersEndpoint, method, requestHeaders, requestBody);
+                var originalMorningJson = BsonDocument.Parse(response);
 
+                
+
+                // Call the function to insert into MongoDB
+                //await InsertSupplierListToMongo(originalMorningJson, internalCompanyId, Client_SubCompanyid, userId);
+                //remarked by eyal becuase the user didnt choose to approve the doc yet so we can add this suplier to mongo we will do so 
+                //only when he approved his doc
                 // Parse the JSON response
                 var jsonDocument = JsonDocument.Parse(response);
                 var items = jsonDocument.RootElement.GetProperty("items");
@@ -890,7 +1285,47 @@ namespace Uninet.DATA.Services
 
 
 
+        private async Task InsertSupplierListToMongo(
+         BsonDocument originalMorningJson,
+         int internalCompanyId,
+         int Client_SubCompanyid,
+         int userId)
+        {
+            try
+            {
+                // Add additional properties to the top level of the JSON
+                originalMorningJson["internalCompanyId"] = internalCompanyId;
+                originalMorningJson["Client_SubCompanyid"] = Client_SubCompanyid;
+                originalMorningJson["userId"] = userId;
 
+                // Define the filter to check if the document already exists
+                var existingFilter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("internalCompanyId", internalCompanyId),
+                    Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", Client_SubCompanyid),
+                    Builders<BsonDocument>.Filter.Eq("userId", userId)
+                );
+
+                // Check if a document with the same keys already exists
+                var existingDocument = await _MorningClientSuppliers.Find(existingFilter).FirstOrDefaultAsync();
+
+                if (existingDocument == null)
+                {
+                    // Insert the new JSON into the collection
+                    await _MorningClientSuppliers.InsertOneAsync(originalMorningJson);
+                }
+                else
+                {
+                    // Update the existing document with the new JSON
+                    await _MorningClientSuppliers.ReplaceOneAsync(existingFilter, originalMorningJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log any exceptions for debugging
+                await LogException("InsertSupplierListToMongo", ex);
+                throw;
+            }
+        }
 
 
         private async Task<ExpensesDigitalDocumentProp> MapDocumentToResponseMorning(
@@ -902,7 +1337,8 @@ namespace Uninet.DATA.Services
     int internalCompanyId,
     string currencyCode,
     decimal currencyRate,
-    int Client_SubCompanyid)
+    int Client_SubCompanyid
+)
         {
             try
             {
@@ -911,13 +1347,32 @@ namespace Uninet.DATA.Services
 
                 // Fetch supplier details using Morning API
                 string supplierVatId = request.BusinessVatId;
-                var supplierList = await GetSupplierListMorning(newToken);
+                var supplierList = await GetSupplierListMorning(newToken , internalCompanyId,  Client_SubCompanyid,  userId); // First call
                 var supplierItem = supplierList.FirstOrDefault(s => s.vat_id == Convert.ToInt32(supplierVatId));
 
-                if (supplierItem == null)
+                // Define the filter and projection to retrieve company info
+                var filter = Builders<BsonDocument>.Filter.Eq("taxId", supplierVatId);
+                var projection = Builders<BsonDocument>.Projection.Include("name").Include("SubCompanyId").Exclude("_id");
+                var resultMorningCompanyInfo = _MorningCompanisInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+
+                string companyName = string.Empty;
+                int SubCompanyIdSuplier = 0;
+
+                if (resultMorningCompanyInfo != null)
+                {
+                    if (resultMorningCompanyInfo.TryGetValue("name", out var nameElement))
+                        companyName = nameElement.AsString;
+
+                    if (resultMorningCompanyInfo.TryGetValue("SubCompanyId", out var subCompanyIdElement) && subCompanyIdElement.IsInt32)
+                        SubCompanyIdSuplier = subCompanyIdElement.AsInt32;
+                }
+                /*
+                 * i remark this code section becuase in the processes of showdocument we dont need to register a new suplier to the 
+                 * morning system because the user didnt approve the doc yet
+                if (supplierItem == null)//it means with iddnt find the suplier in the externak system of the client
                 {
                     // Add supplier if not found
-                    var addedSupplier = await AddSupplierMorning(newToken, supplierVatId);
+                    var addedSupplier = await AddSupplierMorning(newToken, supplierVatId, companyName);//so we add the sunpler to the client supliers at his system 
                     if (addedSupplier != null)
                     {
                         supplierItem = new SupplierItemMorning
@@ -928,23 +1383,28 @@ namespace Uninet.DATA.Services
                             company_name = addedSupplier.company_name
                         };
                     }
-                }
 
-                // Parse fields from the Morning document JSON
+                    // Refresh the supplier list after adding the new supplier
+                   // supplierList = await GetSupplierListMorning(newToken, internalCompanyId, Client_SubCompanyid, userId); // Second call
+                   //eyal removed because in the phase of showdocument we dont need to save this suplier to mongodb supliers list collection
+                }
+                */
+               
+                
+
+                // Parse document fields
                 int docNumber = doc.GetValue("number", 0).ToInt32();
-                string doctypename = doc.GetValue("typename", 0).AsString;
-                
-                
-                string docDate = doc.GetValue("date", "").AsString;
+                string docTypeName = doc.GetValue("typename", string.Empty).AsString;
+                string docDate = doc.GetValue("date", string.Empty).AsString;
                 double amountAV = doc.GetValue("total", 0.0).ToDouble();
                 double amountBeforeVat = doc.GetValue("subtotal", 0.0).ToDouble();
                 double vat = 0.0;
 
-                // Extract VAT value from the tax array
+                // Extract VAT from the tax array
                 if (doc.TryGetValue("tax", out var taxElement) && taxElement.IsBsonArray)
                 {
                     var taxArray = taxElement.AsBsonArray;
-                    var vatTax = taxArray.FirstOrDefault(t => t.AsBsonDocument.GetValue("name", "").AsString == "VAT");
+                    var vatTax = taxArray.FirstOrDefault(t => t.AsBsonDocument.GetValue("name", string.Empty).AsString == "VAT");
                     if (vatTax != null)
                     {
                         vat = vatTax.AsBsonDocument.GetValue("total", 0.0).ToDouble();
@@ -956,7 +1416,7 @@ namespace Uninet.DATA.Services
                     Supplier_name_Sender = supplierItem?.supplier_name ?? "Unknown",
                     Supplier_ID = supplierItem?.supplier_id ?? "0",
                     DocNumber = docNumber.ToString(),
-                    Doctype = doctypename.ToString(),
+                    Doctype = docTypeName,
                     DocDate = DateTime.Parse(docDate),
                     AmountAV = amountAV,
                     Vat = vat,
@@ -966,7 +1426,8 @@ namespace Uninet.DATA.Services
                     CurrenctRateValue = currencyRate,
                     showingDocsResults = docsResults,
                     internalCompanyId = internalCompanyId,
-                    TaxId = request.BusinessVatId
+                    TaxId = supplierVatId,
+                    SubCompanyIdSuplier = SubCompanyIdSuplier
                 };
             }
             catch (Exception ex)
@@ -975,6 +1436,7 @@ namespace Uninet.DATA.Services
                 return null;
             }
         }
+
 
 
 
@@ -1230,7 +1692,7 @@ namespace Uninet.DATA.Services
                     {
                         string currencyName = "ILS";
                         decimal currencyRate = 1;
-
+                        int SubCompanyIdSuplier = 0;
                         // Process Morning Document
                         var resultDocument = await ProcessMorningDocument(
                             RowBusinessData,
@@ -1242,17 +1704,25 @@ namespace Uninet.DATA.Services
                             currencyName,
                             currencyRate,
                             SubCompanyid_clientRelated
+                            
                         );
 
+                        
                         if (resultDocument != null && resultDocument.ExpenseTypeList == null)
                         {
                             // Fetch ExpenseTypeList for Morning
                             var expenseList = await CreateExpenseCategorylistMorning(
-                            userId,                                 // int
+                            userId,
+                            resultDocument.SubCompanyIdSuplier,// int
+                            SubCompanyid_clientRelated,
+                             resultDocument.Supplier_ID,
+                            resultDocument.Supplier_name_Sender,
                             supplierVatId,                          // string
                             supplierVatId,                          // string
                             RowBusinessData.DocumentApprovedtoUninet, // bool?
-                            RowBusinessData.ExpenseTypeId                  // int?
+                            RowBusinessData.ExpenseTypeId
+                            
+                            // int?
                         );
 
            
@@ -2183,24 +2653,55 @@ namespace Uninet.DATA.Services
             //}
         }
 
-        public async Task<string> GetCompanyName(int subCompanyId, int MainCompanyId)
+        public async Task<string> GetCompanyName(int subCompanyId, int mainCompanyId, int externalSystemId)
         {
+            IMongoCollection<BsonDocument> collection;
+
+            // Determine which collection to use based on ExternalSystemId
+            if (externalSystemId == 2)
+            {
+                collection = _IcountCompaniesInfoCollection;
+            }
+            else if (externalSystemId == 6)
+            {
+                collection = _MorningCompanisInfoCollection;
+            }
+            else
+            {
+                throw new ArgumentException("Unsupported ExternalSystemId");
+            }
+
+            // Build the filter based on MainCompanyId and SubCompanyId
             var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", MainCompanyId),
-                    Builders<BsonDocument>.Filter.Eq("company_info.SubCompanyId", subCompanyId)
-                );
+                Builders<BsonDocument>.Filter.Eq("InternalCompanyId", mainCompanyId),
+                Builders<BsonDocument>.Filter.Eq("SubCompanyId", subCompanyId)
+            );
 
-            var projection = Builders<BsonDocument>.Projection.Include("company_info.businessName").Exclude("_id");
+            // Adjust the projection based on the collection
+            var projection = externalSystemId == 2
+                ? Builders<BsonDocument>.Projection.Include("company_info.businessName").Exclude("_id")
+                : Builders<BsonDocument>.Projection.Include("name").Exclude("_id");
 
-            var result = _IcountCompaniesInfoCollection.Find(filter).Project(projection).FirstOrDefault();
+            // Query the collection
+            var result = collection.Find(filter).Project(projection).FirstOrDefault();
+
             if (result != null)
             {
-                var businessName = result["company_info"]["businessName"].AsString;
-
-                return businessName;
+                // Extract and return the business name
+                if (externalSystemId == 2)
+                {
+                    return result["company_info"]["businessName"].AsString;
+                }
+                else if (externalSystemId == 6)
+                {
+                    return result["name"].AsString;
+                }
             }
-            else return "";
+
+            // Return an empty string if no result is found
+            return string.Empty;
         }
+
 
 
         // Method to populate ListOfSubCompaniesandNames
@@ -2271,7 +2772,7 @@ namespace Uninet.DATA.Services
                         x => x.ClientVat_id == Convert.ToUInt32(vatIdValue) && x.DocumentApprovedtoUninet == false);
                     totalDocsRejected = DocsRejectedObj.Count();
                 }
-                string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId);
+                string companyName = await GetCompanyName(company.SubCopmanyId, company.MainCompanyId, ExternalSystemId);
 
                 // Check First-Time Console Logic
                 var FirstTimeConsoleIndicationObj = await _repository.GetFirstObjectAsync<FirstTimeConsoleIndication>(
@@ -2306,7 +2807,7 @@ namespace Uninet.DATA.Services
                         TotalDocsRejected = totalDocsRejected,
                         MainCompanyId = company.MainCompanyId,
                         ShowFirstTimeMessage = (FirstTimeConsoleIndicationObj?.UserClicksonContinueFree == null),
-                        ShowExceedsMessage = (DocsAccepted >= 15 && UserCreditCardHolderObj == null),
+                        ShowExceedsMessage = (DocsAccepted >= 100 && UserCreditCardHolderObj == null),
                         ClickedButtonToInviteBusinessPartnersSubCompany = company.ClickedButtonToInviteBusinessPartnersSubCompany
                     });
                 }
@@ -4397,14 +4898,14 @@ namespace Uninet.DATA.Services
                 // Get necessary credentials or token
                 string apiToken = null, secretKey = null, cidvalue = null, uservalue = null, passvalue = null;
 
-                if (externalSystemId == 6) // Morning API
-                {
-                    apiToken = await GetNewToken(MainCompanyId, subCompanyId.Value, UserID, externalSystemId);
+                //if (externalSystemId == 6) // Morning API
+                //{
+                //    apiToken = await GetNewToken(MainCompanyId, subCompanyId.Value, UserID, externalSystemId);
                    
                     
 
-                }
-                else if (externalSystemId == 2) // iCount API
+                //}
+                if (externalSystemId == 2) // iCount API
                 {
                     var UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
                         x => x.Companyid == MainCompanyId && x.Userid == UserID && x.SubCompayId == subCompanyId);
@@ -4429,10 +4930,37 @@ namespace Uninet.DATA.Services
                 // Resolve VAT ID
                 string vatId = await GetVatId(MainCompanyId, subCompanyId.Value, config);
 
-                // Fetch paginated documents
-                List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
-                    UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null
-                );
+                List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = new List<BusinessData>();
+                switch (Typelist)
+                {
+                    case "notApproveOrRejected":
+                        //var totalCountObj = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == null);
+                        //totalCount= totalCountObj.Count();
+                        ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                            UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null);
+                        break;
+                    case "Rejected":
+                        //var totalCountObj1 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == false);
+                        //totalCount = totalCountObj1.Count();
+                        ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                            UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, false);
+                        break;
+                    case "Approved":
+                        //var totalCountObj2 = await _repository.GetListOfObjectsAsync<BusinessData>(x => x.ClientVat_id == Convert.ToUInt32(vatId) && x.DocumentApprovedtoUninet == true);
+                        //totalCount = totalCountObj2.Count();
+                        ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                            UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, true);
+                        break;
+                    default:
+                        // Handle invalid Typelist value
+                        break;
+                }
+
+
+                //// Fetch paginated documents
+                //List<BusinessData> ResListOfClientCompaniesThatWasSentDigitalDocument = await FetchPaginatedDigitalDocuments(
+                //    UserID, Typelist, subCompanyId, vatId, pageNumber, pageSize, null
+                //);
 
                 // Process each document
                 foreach (var doc in ResListOfClientCompaniesThatWasSentDigitalDocument)
@@ -4478,10 +5006,10 @@ namespace Uninet.DATA.Services
 
                 if (externalSystemId == 6) // Morning API
                 {
-                    string token = await GetNewToken(MainCompanyId, subCompanyId.Value, UserID, externalSystemId);
-                    await ProcessMorningSupplierInfo(MainCompanyId, UserID, token);//הערה אייל זה רק ספקים 
-                    await ProcessMorningExpensesTypes(MainCompanyId, UserID, token);
-                    await ProcessMorningExpenses(MainCompanyId, UserID, token);
+                    //string token = await GetNewToken(MainCompanyId, subCompanyId.Value, UserID, externalSystemId);
+                    //await ProcessMorningSupplierInfo(MainCompanyId, UserID, token, subCompanyId.Value);//הערה אייל זה רק ספקים 
+                    //await ProcessMorningExpensesTypes(MainCompanyId, UserID, token, subCompanyId.Value);
+                    //await ProcessMorningExpenses(MainCompanyId, UserID, token, subCompanyId.Value);
                     
 
                     
@@ -4498,7 +5026,7 @@ namespace Uninet.DATA.Services
                 return null;
             }
         }
-        private async Task ProcessMorningSupplierInfo(int MainCompanyId, int UserID, string token)
+        private async Task ProcessMorningSupplierInfo(int MainCompanyId, int UserID, string token,int subCompanyId)
         {
             try
             {
@@ -4541,7 +5069,7 @@ namespace Uninet.DATA.Services
             }
         }
 
-        private async Task ProcessMorningExpenses(int MainCompanyId, int UserID, string token)
+        private async Task ProcessMorningExpenses(int MainCompanyId, int UserID, string token, int subCompanyId)
         {
             try
             {
@@ -4565,10 +5093,11 @@ namespace Uninet.DATA.Services
                 var jsonDocument = JsonDocument.Parse(response);
                 if (jsonDocument.RootElement.TryGetProperty("items", out var itemsArray) && itemsArray.ValueKind == JsonValueKind.Array)
                 {
-                    // Define filter to check if the document for `internalCompanyId` and `UserID` exists
+                    // Define filter to check if the document exists for `internalCompanyId`, `UserID`, and `subCompanyId`
                     var filter = Builders<BsonDocument>.Filter.And(
                         Builders<BsonDocument>.Filter.Eq("internalCompanyId", MainCompanyId),
-                        Builders<BsonDocument>.Filter.Eq("UserID", UserID)
+                        Builders<BsonDocument>.Filter.Eq("UserID", UserID),
+                        Builders<BsonDocument>.Filter.Eq("subCompanyId", subCompanyId)
                     );
 
                     var existingDocument = await _MorningExpenses.Find(filter).FirstOrDefaultAsync();
@@ -4577,12 +5106,13 @@ namespace Uninet.DATA.Services
                     {
                         // Create a new document with all items under `results_list`
                         var newDocument = new BsonDocument
-                {
-                    { "internalCompanyId", MainCompanyId },
-                    { "UserID", UserID },
-                    { "status", true },
-                    { "results_list", new BsonArray(itemsArray.EnumerateArray().Select(item => BsonDocument.Parse(item.ToString()))) }
-                };
+                        {
+                            { "internalCompanyId", MainCompanyId },
+                            { "UserID", UserID },
+                            { "subCompanyId", subCompanyId }, // Add subCompanyId
+                            { "status", true },
+                            { "results_list", new BsonArray(itemsArray.EnumerateArray().Select(item => BsonDocument.Parse(item.ToString()))) }
+                        };
 
                         await _MorningExpenses.InsertOneAsync(newDocument);
                     }
@@ -4611,6 +5141,7 @@ namespace Uninet.DATA.Services
 
                             // Update the existing document
                             existingDocument["results_list"] = updatedResultsList;
+                            existingDocument["subCompanyId"] = subCompanyId; // Ensure subCompanyId is added or updated
                             await _MorningExpenses.ReplaceOneAsync(filter, existingDocument);
                         }
                     }
@@ -4623,13 +5154,13 @@ namespace Uninet.DATA.Services
         }
 
 
-        private async Task ProcessMorningExpensesTypes(int MainCompanyId, int UserID, string token)
+        private async Task ProcessMorningExpensesTypes(int MainCompanyId, int UserID, string token,int subCompanyId)
         {
             try
             {
                 // Fetch the endpoint configuration for Morning Expenses Types
-                var allExpensesTypeObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 47); // Update with correct ID
-                var allExpensesEndpoint = allExpensesTypeObj.Endpoint; // Example: https://sandbox.d.greeninvoice.co.il/api/v1/expenses/statuses
+                var allExpensesTypeObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id ==47 ); // Update with correct ID
+                var allExpensesEndpoint = allExpensesTypeObj.Endpoint; // 
                 HttpMethod method = HttpMethod.Get;
 
                 // Send a GET request with the token
@@ -4657,10 +5188,10 @@ namespace Uninet.DATA.Services
                     foreach (var missing in missingExpenseTypes)
                     {
                         existingDocument["expense_types"].AsBsonArray.Add(new BsonDocument
-                {
-                    { "id", missing.Id },
-                    { "name", missing.Name }
-                });
+                        {
+                            { "id", missing.Id },
+                            { "name", missing.Name }
+                        });
                     }
 
                     // Update the document if changes were made
@@ -4694,7 +5225,7 @@ namespace Uninet.DATA.Services
         }
 
 
-        private async Task<string> SendRequestWithToken(string endpoint, HttpMethod method, string token, string payload = null)
+        private async Task<string> SendRequestWithToken(string endpoint, HttpMethod method, string token=null, string payload = null)
         {
             using (var client = new HttpClient())
             {
@@ -5437,301 +5968,863 @@ namespace Uninet.DATA.Services
         {
             try
             {
+                // Extract SubCompanyId from MorningCompanisInfo collection
+                var filterMorningCompany = Builders<BsonDocument>.Filter.Eq("taxId", addexpenseTypeRequest.tax_id.ToString());
+                var morningCompanyRow = await _MorningCompanisInfoCollection.Find(filterMorningCompany).FirstOrDefaultAsync();
 
-                //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
-                // var ClientVat_id = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid).ClientVat_id;
+                int morningSubCompanyId = morningCompanyRow?["SubCompanyId"].AsInt32 ?? 0;
 
+                // Extract SubCompanyId from _IcountCompaniesInfoCollection
+                var filterIcountCompany = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", addexpenseTypeRequest.tax_id);
+                var icountCompanyRow = await _IcountCompaniesInfoCollection.Find(filterIcountCompany).FirstOrDefaultAsync();
 
-                //now get SubCompanyId from  _IcountCompaniesInfoCollection
-                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", addexpenseTypeRequest.tax_id.ToString());
+                int icountSubCompanyId = icountCompanyRow?["company_info"]["SubCompanyId"].AsInt32 ?? 0;
+                int internalCompanyId = icountCompanyRow?["company_info"]["InternalCompanyId"].AsInt32 ?? 0;
 
-                var companyClientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
-                int SubCompanyId = 0;
-                int InternalCompanyId = 0;
+                // Query BusinessData table
+                var rowBusinessData = await _repository.GetFirstObjectAsync<BusinessData>(x =>
+                    x.ClientVat_id == addexpenseTypeRequest.tax_id &&
+                    x.UserId == userId &&
+                    x.BusinessId == addexpenseTypeRequest.internalCompanyId &&
+                    x.SubCompanyId == (morningSubCompanyId != 0 ? morningSubCompanyId : icountSubCompanyId));
 
-                if (companyClientRow != null)
+                if (rowBusinessData == null)
                 {
-                    var companyInfo = companyClientRow["company_info"].AsBsonDocument;
-                    if (companyInfo.Contains("SubCompanyId"))
-                    {
-                        var subCompanyId = companyInfo["SubCompanyId"].AsInt32;
-                        SubCompanyId = subCompanyId;
-
-                    }
-                    if (companyInfo.Contains("InternalCompanyId"))
-                    {
-                        var internalCompanyId = companyInfo["InternalCompanyId"].AsInt32;
-                        InternalCompanyId = internalCompanyId;
-
-                    }
-
-
-
+                    throw new Exception("Business data not found.");
                 }
 
-
-
-                List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
-                var CheckUsermasterExist = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
-                if (CheckUsermasterExist != null)
+                if (rowBusinessData.DataSourceEnum == 6) // Morning logic
                 {
-                    UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
-                }
-                else
-                {
-                    var GetRelatedMasterId = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
-                    if (GetRelatedMasterId!=null)
+                    // Check if entry exists in _MorningexpenseTypesManual
+                    var existingDocumentFilter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("internalCompanyId", addexpenseTypeRequest.internalCompanyId),
+                        Builders<BsonDocument>.Filter.Eq("UserID", userId),
+                        Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", morningSubCompanyId)
+                    );
+
+                    var existingDocument = await _MorningexpenseTypesManual.Find(existingDocumentFilter).FirstOrDefaultAsync();
+                    string NewexpenseTypeId = Guid.NewGuid().ToString() + "_temp";
+                    var newExpense = new BsonDocument
+            {
+                { "vat_to_expense", addexpenseTypeRequest.vat_to_expense },
+                { "expense_type_name", addexpenseTypeRequest.expense_type_name },
+                { "deductable_vat", addexpenseTypeRequest.deductable_vat },
+                { "deductable_expense", addexpenseTypeRequest.deductable_expense },
+                { "permanent_property", addexpenseTypeRequest.permanent_property },
+                { "no_vat", addexpenseTypeRequest.no_vat },
+                { "supplier_ID", addexpenseTypeRequest.supplier_ID },
+                { "Lang", addexpenseTypeRequest.Lang },
+                { "tax_id", addexpenseTypeRequest.tax_id },
+                        {"ExpenseTypeid", NewexpenseTypeId}
+            };
+
+                    if (existingDocument != null)
                     {
-                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == GetRelatedMasterId.CompanyId && x.Userid == GetRelatedMasterId.Userid && x.SubCompayId == SubCompanyId);
-                        userId = GetRelatedMasterId.Userid;
+                        // Check if the expense already exists
+                        var expensesArray = existingDocument["expenses"].AsBsonArray;
+                        bool expenseExists = expensesArray.Any(expense =>
+                            expense["expense_type_name"].AsString == addexpenseTypeRequest.expense_type_name &&
+                            expense["supplier_ID"].AsString == addexpenseTypeRequest.supplier_ID &&
+                            expense["tax_id"].AsInt32 == addexpenseTypeRequest.tax_id);
+
+                        if (!expenseExists)
+                        {
+                            // Add new expense to the "expenses" array
+                            var updateDefinition = Builders<BsonDocument>.Update.Push("expenses", newExpense);
+                            await _MorningexpenseTypesManual.UpdateOneAsync(existingDocumentFilter, updateDefinition);
+                        }
                     }
                     else
                     {
-                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == InternalCompanyId && x.Userid == userId && x.SubCompayId == SubCompanyId);
-                    }
-                    
-                }
-
-                //var InternalCompanyId = await _repository.GetFirstObjectAsync<Businesses>(x => x.AdminUserid == userId);
-
-
-                string cidvalue = null;
-                string uservalue = null;
-                string passvalue = null;
-
-                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                        // Create a new document
+                        var newDocument = new BsonDocument
                 {
-                    string fieldLabelName = dynamicField.FieldLabelName;
-                    string fieldLabelValue = dynamicField.FieldLabelValue;
+                    { "internalCompanyId", addexpenseTypeRequest.internalCompanyId },
+                    { "UserID", userId },
+                    { "Client_SubCompanyid", morningSubCompanyId },
+                    { "expenses", new BsonArray { newExpense } }
+                };
 
-                    if (fieldLabelName == "cid")
-                    {
-                        cidvalue = fieldLabelValue;
-                        // Use the cid value as needed
+                        await _MorningexpenseTypesManual.InsertOneAsync(newDocument);
                     }
-                    else if (fieldLabelName == "user")
+
+                    // Build the ExpenseTypeList
+                    List<ExpenseType> ExpenseTypeList = new List<ExpenseType>();
+
+                    // Fetch existing expenses from _MorningExpensesTypes collection
+                    var existingExpensesFilter = Builders<BsonDocument>.Filter.And(
+                        Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", morningSubCompanyId),
+                        Builders<BsonDocument>.Filter.Eq("userId", userId),
+                        Builders<BsonDocument>.Filter.Eq("internalCompanyId", addexpenseTypeRequest.internalCompanyId)
+                    );
+
+                    var existingExpensesDocument = await _MorningExpensesTypes.Find(existingExpensesFilter).FirstOrDefaultAsync();
+                    if (existingExpensesDocument != null)
                     {
-                        uservalue = fieldLabelValue;
-                        // Use the user value as needed
+                        var expenseTypes = existingExpensesDocument["expense_types"].AsBsonArray;
+                        foreach (var expenseType in expenseTypes)
+                        {
+                            ExpenseTypeList.Add(new ExpenseType
+                            {
+                                ExpenseTypeId = expenseType["ExpenseTypeId"].AsString,
+                                ExpenseTypeDesc = expenseType["ExpenseTypeDesc"].AsString,
+                                IsDefault = false
+                            });
+                        }
                     }
-                    else if (fieldLabelName == "pass")
+
+                    // Add the new expense to the list
+                    ExpenseTypeList.Add(new ExpenseType
                     {
-                        passvalue = fieldLabelValue;
-                        // Use the pass value as needed
-                    }
-                }
-                var AddexpenseTypeEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 80);
-                string EndpointAddexpenseType = AddexpenseTypeEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-                HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
+                        ExpenseTypeId = NewexpenseTypeId,
+                        ExpenseTypeDesc = addexpenseTypeRequest.expense_type_name,
+                        IsDefault = true
+                    });
 
-
-
-
-
-
-                // Set your POST data if needed
-                //string postData = "{\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense + ", \"expense_type_name\": " + addexpenseTypeRequest.expense_type_name + ", \"deductable_vat\": \"" + addexpenseTypeRequest.deductable_vat + "\", \"deductable_expense\": \"" + addexpenseTypeRequest.deductable_expense + "}";
-                //string postData = Newtonsoft.Json.JsonConvert.SerializeObject(addexpenseTypeRequest);
-
-                string postData = "{"
-                 + "\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense.ToString().ToLower() + ", "
-                 + "\"expense_type_name\": \"" + addexpenseTypeRequest.expense_type_name.Replace("\"", "\\\"") + "\", "
-                 + "\"deductable_vat\": " + addexpenseTypeRequest.deductable_vat + ", "
-                 + "\"deductable_expense\": " + addexpenseTypeRequest.deductable_expense + ", "
-                 + "\"permanent_property\": " + addexpenseTypeRequest.permanent_property.ToString().ToLower() + ", "
-                 + "\"no_vat\": " + addexpenseTypeRequest.no_vat.ToString().ToLower()
-                 + "}";
-
-
-                string result = await SendRequest(EndpointAddexpenseType, method, postData);
-                AddexpenseTypeResponse response = JsonConvert.DeserializeObject<AddexpenseTypeResponse>(result);
-
-                // Handle the result as needed
-                List<ExpenseType> res = new List<ExpenseType>();
-
-                if (response.status)
-                {
-                    // When returning from creating the new expense type, we need to call icount again to retrieve the new list of expense types
-                    res = await CreateExpenseCategorylistIcount(userId, addexpenseTypeRequest.supplier_ID, addexpenseTypeRequest.tax_id.ToString(), cidvalue, uservalue, passvalue);
-
-                    var res2 = new AddGenericexpenseTypeResponse
+                    return new AddGenericexpenseTypeResponse
                     {
                         textResponse = addexpenseTypeRequest.Lang == 1 ? "The expense type was added successfully" : "סוג הוצאה התווסף בהצלחה",
-                        ExpenseTypeList = res
+                        ExpenseTypeList = ExpenseTypeList
                     };
-                    return res2;
                 }
-                else
+                else if (rowBusinessData.DataSourceEnum == 2) // iCount logic
                 {
-                    // Extract the error detail for Hebrew response
-                    string errorDetail = response.error_details != null && response.error_details.Length > 0
-                        ? response.error_details[0]
-                        : "נכשל ביצירת הוצאה"; // Fallback message if error_details is empty or null
+                    // iCount-specific logic (existing logic remains unchanged)
+                    // Set up credentials
+                    List<UsersExternalSystemDynamicFields> userExternalFields = null;
+                    var userMaster = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);
 
-                    var res2 = new AddGenericexpenseTypeResponse
+                    if (userMaster != null)
                     {
-                        textResponse = addexpenseTypeRequest.Lang == 1 ? errorDetail : errorDetail,
-                        ExpenseTypeList = res
+                        userExternalFields = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == internalCompanyId && x.Userid == userId && x.SubCompayId == icountSubCompanyId);
+                    }
+                    else
+                    {
+                        var relatedMaster = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
+                        if (relatedMaster != null)
+                        {
+                            userExternalFields = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == relatedMaster.CompanyId && x.Userid == relatedMaster.Userid && x.SubCompayId == icountSubCompanyId);
+                            userId = relatedMaster.Userid;
+                        }
+                        else
+                        {
+                            userExternalFields = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(x => x.Companyid == internalCompanyId && x.Userid == userId && x.SubCompayId == icountSubCompanyId);
+                        }
+                    }
+
+                    string cid = userExternalFields?.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
+                    string user = userExternalFields?.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
+                    string pass = userExternalFields?.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
+
+                    var addExpenseEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 80);
+                    string endpointUrl = addExpenseEndpoint.Endpoint + "?cid=" + cid + "&user=" + user + "&pass=" + pass;
+
+                    string postData = "{" +
+                        "\"vat_to_expense\": " + addexpenseTypeRequest.vat_to_expense.ToString().ToLower() + "," +
+                        "\"expense_type_name\": \"" + addexpenseTypeRequest.expense_type_name.Replace("\"", "\\\"") + "\"," +
+                        "\"deductable_vat\": " + addexpenseTypeRequest.deductable_vat + "," +
+                        "\"deductable_expense\": " + addexpenseTypeRequest.deductable_expense + "," +
+                        "\"permanent_property\": " + addexpenseTypeRequest.permanent_property.ToString().ToLower() + "," +
+                        "\"no_vat\": " + addexpenseTypeRequest.no_vat.ToString().ToLower() + "}";
+
+                    string response = await SendRequest(endpointUrl, HttpMethod.Post, postData);
+                    var icountResult = JsonConvert.DeserializeObject<AddexpenseTypeResponse>(response);
+
+                    if (!icountResult.status)
+                    {
+                        return new AddGenericexpenseTypeResponse
+                        {
+                            textResponse = addexpenseTypeRequest.Lang == 1 ? icountResult.error_details?[0] ?? "Error adding expense" : "שגיאה בהוספת הוצאה",
+                            ExpenseTypeList = new List<ExpenseType>()
+                        };
+                    }
+
+                    var expenseList = await CreateExpenseCategorylistIcount(userId, addexpenseTypeRequest.supplier_ID, addexpenseTypeRequest.tax_id.ToString(), cid, user, pass);
+                    return new AddGenericexpenseTypeResponse
+                    {
+                        textResponse = addexpenseTypeRequest.Lang == 1 ? "The expense type was added successfully" : "סוג הוצאה התווסף בהצלחה",
+                        ExpenseTypeList = expenseList
                     };
-                    return res2;
                 }
 
-
+                return null;
             }
             catch (Exception ex)
             {
+                // Log the exception
                 return null;
             }
         }
+
+
+
+
+        private async Task<string> SendToGreenInvoice(string endpoint, object payload, string token)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                // Add Authorization header
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                // Serialize payload to JSON
+                var jsonPayload = JsonConvert.SerializeObject(payload);
+
+                // Create the request content
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+                // Send the POST request
+                var response = await client.PostAsync(endpoint, content);
+
+                // Capture the response content even if the request fails
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                // Ensure the request was successful
+                if (!response.IsSuccessStatusCode)
+                {
+                    // Parse the error content and throw a custom exception
+                    throw new HttpRequestException($"Request failed with status code {response.StatusCode}")
+                    {
+                        Data =
+                {
+                    { "ResponseContent", responseContent }
+                }
+                    };
+                }
+
+                return responseContent;
+            }
+            catch (HttpRequestException ex)
+            {
+                // Handle the captured response content
+                if (ex.Data.Contains("ResponseContent"))
+                {
+                    string responseContent = ex.Data["ResponseContent"] as string;
+
+                    try
+                    {
+                        // Attempt to parse the response content
+                        var errorResponse = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent);
+                        if (errorResponse != null && errorResponse.ContainsKey("errorCode"))
+                        {
+                            ex.Data["errorCode"] = Convert.ToInt32(errorResponse["errorCode"]);
+                            ex.Data["errorMessage"] = errorResponse["errorMessage"];
+                        }
+                    }
+                    catch (Exception parseEx)
+                    {
+                        Console.WriteLine($"Error parsing response content: {parseEx.Message}");
+                    }
+                }
+
+                // Log the exception and rethrow
+                Console.WriteLine($"Request error: {ex.Message}");
+                throw;
+            }
+        }
+
+
+
+
+        //private string GetThumbnailFromDocument(BsonDocument doc)
+        //{
+        //    if (doc.Contains("files") && doc["files"].AsBsonDocument.Contains("downloadLinks"))
+        //    {
+        //        var downloadLinks = doc["files"]["downloadLinks"].AsBsonDocument;
+
+        //        // Check for processedUrl or other valid links
+        //        if (downloadLinks.Contains("processedUrl"))
+        //        {
+        //            var base64Content = downloadLinks["processedUrl"].AsString;
+
+        //            // Ensure the Base64 string is formatted correctly as a data URI
+        //            if (!base64Content.StartsWith("data:image/"))
+        //            {
+        //                base64Content = "data:image/png;base64," + base64Content; // Default to PNG
+        //            }
+        //            return base64Content;
+        //        }
+        //        else if (downloadLinks.Contains("he"))
+        //        {
+        //            return downloadLinks["he"].AsString; // Fallback to a URL
+        //        }
+        //        else if (downloadLinks.Contains("origin"))
+        //        {
+        //            return downloadLinks["origin"].AsString; // Fallback to another URL
+        //        }
+        //    }
+
+        //    // Default to a placeholder image if no valid link is found
+        //    return "https://your-default-thumbnail-url.com/placeholder.png";
+        //}
+        private async Task<byte[]> FetchDocumentData(string documentId)
+        {
+            try
+            {
+                // Fetch document record from MongoDB
+                var filter = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(documentId));
+                var document = await _MorningWebHookData.Find(filter).FirstOrDefaultAsync();
+
+                if (document == null)
+                {
+                    throw new Exception("Document not found in MongoDB.");
+                }
+
+                // Check if 'processedUrl' exists
+                if (document.Contains("files") && document["files"].AsBsonDocument.Contains("processedUrl"))
+                {
+                    string processedUrl = document["files"]["processedUrl"].AsString;
+
+                    // Extract the base64 content (removing the "data:application/pdf;base64," prefix)
+                    string base64Data = processedUrl.Split(',')[1];
+                    return Convert.FromBase64String(base64Data);
+                }
+
+                // Fallback to 'he' URL if 'processedUrl' is not available
+                if (document.Contains("files") && document["files"]["downloadLinks"].AsBsonDocument.Contains("he"))
+                {
+                    string heUrl = document["files"]["downloadLinks"]["he"].AsString;
+
+                    // Download the file from the 'he' URL
+                    using var client = new HttpClient();
+                    var response = await client.GetAsync(heUrl);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw new HttpRequestException($"Failed to download file from 'he' URL with status code {response.StatusCode}");
+                    }
+
+                    return await response.Content.ReadAsByteArrayAsync();
+                }
+
+                throw new Exception("No valid file URL found in MongoDB document.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching document data: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task<(string uploadUrl, Dictionary<string, string> fields)> GetUploadUrl(string token)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                // Add Authorization header
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                // Morning API endpoint to retrieve the upload URL
+                string url = "https://sandbox.d.greeninvoice.co.il/file-upload/v1/url";
+            
+                // Send the GET request
+                var response = await client.GetAsync(url);
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseContent);
+                // Ensure the request was successful
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"Failed to retrieve upload URL with status code {response.StatusCode}");
+                }
+
+                // Parse the response
+                
+                var responseJson = JsonConvert.DeserializeObject<Dictionary<string, object>>(responseContent);
+
+                if (responseJson == null || !responseJson.ContainsKey("url") || !responseJson.ContainsKey("fields"))
+                {
+                    throw new Exception("Invalid response: Missing 'url' or 'fields'.");
+                }
+
+                string uploadUrl = responseJson["url"].ToString();
+                var fields = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseJson["fields"].ToString());
+
+                return (uploadUrl, fields);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error retrieving upload URL: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task<string> UploadFileToUrl(string uploadUrl, byte[] fileData, string fileName, Dictionary<string, string> fields, string token)
+        {
+            try
+            {
+                using var client = new HttpClient();
+
+                // Add Authorization header with Bearer token
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                // Create multipart form-data content
+                using var content = new MultipartFormDataContent();
+
+                // Add the fields to the form-data
+                foreach (var field in fields)
+                {
+                    content.Add(new StringContent(field.Value), field.Key);
+                }
+
+                // Add the file to the form-data
+                var fileContent = new ByteArrayContent(fileData);
+                fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
+                content.Add(fileContent, "file", fileName);
+
+                // Send the POST request
+                var response = await client.PostAsync(uploadUrl, content);
+
+                // Ensure the request was successful
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new HttpRequestException($"Failed to upload file with status code {response.StatusCode}");
+                }
+
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error uploading file: {ex.Message}");
+                throw;
+            }
+        }
+
+
         public async Task<createExpenseApiResponse> InsertUserDigitalDocToUninetSystem(InsertUserDigitalDocRequest insertUserDigitalDocRequest, int userId)
         {
             try
             {
+                createExpenseApiResponse response = null;
                 List<UsersExternalSystemDynamicFields> UserexternalSystemDynamicFieldslist = null;
 
-                //get ClientVat_id 540270165 from table BusinessData by sending JsonDocumentid 660184ea1e021dddd7445485
+                // Get ClientVat_id from BusinessData using JsonDocumentid
                 var businessData = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
-                var ClientVat_id = businessData?.ClientVat_id;
+                if (businessData == null)
+                    throw new Exception("Business data not found.");
 
-                //now get SubCompanyId from  _IcountCompaniesInfoCollection
-                var FilterClientvatidCompanyInfo = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", ClientVat_id.ToString());
+                var ClientVat_id = businessData.ClientVat_id;
 
-                var companyClientRow = await _IcountCompaniesInfoCollection.Find(FilterClientvatidCompanyInfo).FirstOrDefaultAsync();
-                int SubCompanyId = 0;
+                var filterClientVat_id = Builders<BsonDocument>.Filter.Eq("taxId", ClientVat_id.ToString());
+                var projection = Builders<BsonDocument>.Projection.Include("name").Include("SubCompanyId").Exclude("_id");
+                var resultMorningCompanyInfo = _MorningCompanisInfoCollection.Find(filterClientVat_id).Project(projection).FirstOrDefault();
 
-
-                if (companyClientRow != null)
+                string companyName = "";
+                int SubCompanyIdClient = 0;
+                if (resultMorningCompanyInfo != null)
                 {
-                    var companyInfo = companyClientRow["company_info"].AsBsonDocument;
-                    if (companyInfo.Contains("SubCompanyId"))
-                    {
-                        var subCompanyId = companyInfo["SubCompanyId"].AsInt32;
-                        SubCompanyId = subCompanyId;
+                    if (resultMorningCompanyInfo.TryGetValue("name", out var nameElement))
+                        companyName = nameElement.AsString;
 
-                    }
+                    if (resultMorningCompanyInfo.TryGetValue("SubCompanyId", out var subCompanyIdElement) && subCompanyIdElement.IsInt32)
+                        SubCompanyIdClient = subCompanyIdElement.AsInt32;
                 }
 
+                int? dataSourceEnum = businessData.DataSourceEnum;
 
-                var CheckUsermasterExist = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);///if user id exist in column userid in table MainSubCopmaniesMasters than he is a master
-
-
-
-
-
-
-                if (CheckUsermasterExist != null) // user is a master
+                // Handle Morning System (dataSourceEnum == 6)
+                if (dataSourceEnum == 6)
                 {
-                    UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
-                        x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId &&
-                             x.Userid == userId &&
-                             x.SubCompayId == SubCompanyId
-                    );
-                }
-                else
-                {
-                    var GetRelatedMasterId = await _repository.GetFirstObjectAsync<SubUserCredentials>(
-                        x => x.SubUserId == userId
-                    );
-
-                    if (GetRelatedMasterId != null)
+                    int? Pymanttype = null; //מזומן
+                    object greenInvoicePayload = null;
+                    string greenInvoiceToken = await GetNewToken(insertUserDigitalDocRequest.internalCompanyId, SubCompanyIdClient, userId, 6);
+                    //accordnig to the eliav doc check if suplier exist 
+                    string supplierVatId = businessData.BusinessVatId;
+                    var supplierList = await GetSupplierListMorning(greenInvoiceToken, insertUserDigitalDocRequest.internalCompanyId, SubCompanyIdClient, userId); // First call
+                    var supplierItem = supplierList.FirstOrDefault(s => s.vat_id == Convert.ToInt32(supplierVatId));
+                    var filtermorningwebhookdata = Builders<BsonDocument>.Filter.Eq("_id", new ObjectId(insertUserDigitalDocRequest.Jsondocumentid));
+                    var doc = await _MorningWebHookData.Find(filtermorningwebhookdata).FirstOrDefaultAsync();
+                    int type = doc.GetValue("type").ToInt32();
+                    if (supplierItem != null)
                     {
-                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
-                            x => x.Companyid == GetRelatedMasterId.CompanyId &&
-                                 x.Userid == GetRelatedMasterId.Userid &&
-                                 x.SubCompayId == SubCompanyId
+
+                        
+                        if (type == 400)
+                        {
+                            if (doc.Contains("transactions"))
+                            {
+                                var transactions = doc["transactions"].AsBsonArray;
+                                string StrpaymentType = "";
+                                // Iterate through the transactions array
+                                foreach (var transaction in transactions)
+                                {
+                                    var paymentMethod = transaction["paymentMethod"].AsBsonDocument;
+                                    if (paymentMethod.Contains("type"))
+                                    {
+                                        StrpaymentType = paymentMethod["type"].AsString;
+                                        
+                                    }
+                                }
+                                switch(StrpaymentType)
+                                {
+                                    case "cash":
+                                        Pymanttype = 1;
+                                        break;
+                                    case "default":
+                                        Pymanttype = 11;
+                                        break;
+                                    case "wire-transfer":
+                                        Pymanttype = 4;
+                                        break;
+                                    case "credit-card":
+                                        Pymanttype = 3;
+                                        break;
+                                    case "cheque":
+                                        Pymanttype = 2;
+                                        break;
+                                    default:
+                                        Pymanttype = 11;
+                                        break;
+
+
+                                }
+                                
+                            }
+                        }
+                        else { Pymanttype = -1; }
+
+                        // Check if supplier_ID exists in _MorningExpenses //if we found suplierid in morning expenses it means this suplier is already
+                        //registered in his client as suplier that has an expense or as an expense hat related to a suplier
+                        var supplierFilter = Builders<BsonDocument>.Filter.And(
+                            Builders<BsonDocument>.Filter.Eq("internalCompanyId", insertUserDigitalDocRequest.internalCompanyId),
+                            Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", SubCompanyIdClient),
+                            Builders<BsonDocument>.Filter.Eq("userId", userId),
+                            Builders<BsonDocument>.Filter.ElemMatch<BsonDocument>("results_list", Builders<BsonDocument>.Filter.Eq("Supplier._id", insertUserDigitalDocRequest.supplier_id))
                         );
-                        userId = GetRelatedMasterId.Userid;
+
+                        var matchingExpense = await _MorningExpenses.Find(supplierFilter).FirstOrDefaultAsync();
+
+                        if (matchingExpense != null)
+                        {
+                            // Check if expense_type_id matches AccountingClassification._id
+                            var matchingClassification = matchingExpense["results_list"].AsBsonArray
+                                .FirstOrDefault(x => x["AccountingClassification"]?["id"].AsString == insertUserDigitalDocRequest.expense_type_id.ToString());
+
+                            if (matchingClassification != null)
+                            {
+                                // Add supplier to _MorningClientSuppliers
+                                var supplierDocument = new BsonDocument
+                                {
+                                    { "internalCompanyId", insertUserDigitalDocRequest.internalCompanyId },
+                                    { "Client_SubCompanyid", SubCompanyIdClient },
+                                    { "userId", userId },
+                                    { "Suppliers", new BsonArray { new BsonDocument
+                                        {
+                                            { "id", insertUserDigitalDocRequest.supplier_id },
+                                            { "Name", matchingClassification["Supplier"]["Name"].AsString }
+                                        }}
+                                    }
+                                };
+
+                                var supplierFilterDoc = Builders<BsonDocument>.Filter.And(
+                                    Builders<BsonDocument>.Filter.Eq("internalCompanyId", insertUserDigitalDocRequest.internalCompanyId),
+                                    Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", SubCompanyIdClient),
+                                    Builders<BsonDocument>.Filter.Eq("userId", userId)
+                                );
+
+                                await _MorningClientSuppliers.UpdateOneAsync(supplierFilterDoc,
+                                    Builders<BsonDocument>.Update.Set("Suppliers", supplierDocument["Suppliers"]),
+                                    new UpdateOptions { IsUpsert = true });
+
+
+                                // Prepare the GreenInvoice payload
+                                 greenInvoicePayload = new
+                                {
+                                    paymentType = Pymanttype,
+                                    currency = "ILS",
+                                    currencyRate = 1,
+                                    vat = insertUserDigitalDocRequest.expense_vat_sum,
+                                    amount = insertUserDigitalDocRequest.expense_sum,
+                                    date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                                    dueDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                                    reportingDate = DateTime.UtcNow.ToString("yyyy-MM-01"),
+                                    documentType = type,
+                                    number = insertUserDigitalDocRequest.expense_docnum,
+                                     description = "הוצאה נירשמה דרך יונינט",
+                                     remarks = "הוצאה נירשמה דרך יונינט",
+                                     supplier = new
+                                    {
+                                        id = insertUserDigitalDocRequest.supplier_id,
+                                        name = matchingClassification["Supplier"]["Name"].AsString,
+                                        active = true,
+                                        taxId = businessData.BusinessVatId.ToString(),
+                                    },
+                                     //thumbnail = "https://www.w3schools.com/w3images/lights.jpg",//GetThumbnailFromDocument(doc),
+                                     accountingClassification = matchingClassification["AccountingClassification"].AsBsonDocument.ToDictionary(),
+                                    addRecipient = false,//becuse this is not a new suplier we need to use false
+                                    addAccountingClassification = false
+                                };
+
+                            }
+                            else
+                            {
+
+                                var expenseTypeFilter = Builders<BsonDocument>.Filter.And(
+                                    Builders<BsonDocument>.Filter.Eq("internalCompanyId", insertUserDigitalDocRequest.internalCompanyId),
+                                    Builders<BsonDocument>.Filter.Eq("userId", userId),
+                                    Builders<BsonDocument>.Filter.Eq("Client_SubCompanyid", SubCompanyIdClient),
+                                    Builders<BsonDocument>.Filter.ElemMatch("expense_types", Builders<BsonDocument>.Filter.Eq("ExpenseTypeId", insertUserDigitalDocRequest.expense_type_id))
+                                );
+
+                                var expenseTypeDocument = await _MorningExpensesTypes.Find(expenseTypeFilter).FirstOrDefaultAsync();
+
+                                if (expenseTypeDocument != null)
+                                {
+                                    // **Added**: Extract `ExpenseTypeDesc` from `expense_types`
+                                    var expenseType = expenseTypeDocument["expense_types"].AsBsonArray
+                                        .FirstOrDefault(x => x["ExpenseTypeId"].AsString == insertUserDigitalDocRequest.expense_type_id);
+
+                                    if (expenseType != null)
+                                    {
+                                        string expenseTypeDesc = expenseType["ExpenseTypeDesc"].AsString; // **Added**: Get ExpenseTypeDesc
+
+                                        // **Added**: Create the new payload
+                                        greenInvoicePayload = new
+                                        {
+                                            paymentType = Pymanttype,
+                                            currency = "ILS",
+                                            currencyRate = 1,
+                                            vat = insertUserDigitalDocRequest.expense_vat_sum,
+                                            amount = insertUserDigitalDocRequest.expense_sum,
+                                            date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                                            dueDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                                            reportingDate = DateTime.UtcNow.ToString("yyyy-MM-01"),
+                                            documentType = type,
+                                            number = insertUserDigitalDocRequest.expense_docnum,
+                                            description = "הוצאה נירשמה דרך יונינט",
+                                            remarks = "הוצאה נירשמה דרך יונינט",
+                                            supplier = new
+                                            {
+                                                id = insertUserDigitalDocRequest.supplier_id,
+                                                name = supplierItem.supplier_name, // **Edited**: Use `supplier_name` from the supplier item
+                                                active = true,
+                                                taxId = businessData.BusinessVatId.ToString(),
+                                            },
+                                           // thumbnail = "https://www.w3schools.com/w3images/lights.jpg",//GetThumbnailFromDocument(doc),
+                                            accountingClassification = new
+                                            {
+                                                id = insertUserDigitalDocRequest.expense_type_id, // **Edited**: Use the provided ID
+                                                title = expenseTypeDesc, // **Added**: Use `ExpenseTypeDesc` from `_MorningExpensesTypes`
+                                                irsCode = 3055, // Example value, replace if dynamic mapping exists
+                                                vat = insertUserDigitalDocRequest.expense_vat_sum, // Use VAT from the request
+                                                active = true
+                                            },
+                                            addRecipient = false, // **Edited**: Not a new supplier
+                                            addAccountingClassification = false // **Edited**: Add new accounting classification
+                                        };
+                                    }
+                                    else
+                                    {
+                                        throw new Exception("Expense type not found in `_MorningExpensesTypes` collection.");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new Exception("Matching document not found in `_MorningExpensesTypes`.");
+                                }
+
+
+
+                                if (insertUserDigitalDocRequest.expense_type_id.ToString().Contains("_temp")) // User added expense manually
+                                {
+                            
+                                }
+
+                            }
+
+
+
+                            try
+                            {
+                                var greenInvoiceEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 41);
+                                var result = await SendToGreenInvoice(greenInvoiceEndpoint.Endpoint, greenInvoicePayload, greenInvoiceToken);
+
+                                response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result);
+
+                                if (response?.status == true)
+                                {
+                                    businessData.DocumentApprovedtoUninet = true;
+                                    businessData.ExpenseTypeId = insertUserDigitalDocRequest.expense_type_id.ToString();
+                                    await _repository.UpdateAsync(businessData);
+
+                                    try
+                                    {
+                                        // Step 1: Retrieve the Upload URL
+                                        var (uploadUrl, fields) = await GetUploadUrl(greenInvoiceToken);
+
+                                        // Step 2: Fetch the Document Data from MongoDB
+                                        byte[] documentData = await FetchDocumentData(insertUserDigitalDocRequest.Jsondocumentid);
+
+                                        // Step 3: Upload the Document to the Morning System
+                                        string fileName = "uploaded_file.pdf"; // Replace with the actual file name if available
+                                        var uploadResult = await UploadFileToUrl(uploadUrl, documentData, fileName, fields, greenInvoiceToken);
+
+                                        Console.WriteLine($"Document uploaded successfully: {uploadResult}");
+                                    }
+                                    catch (Exception uploadEx)
+                                    {
+                                        Console.WriteLine($"Failed to upload document: {uploadEx.Message}");
+                                        throw;
+                                    }
+                                }
+                                else
+                                {
+                                    // Fetch error message from MongoDB if available
+                                    string errorMessage = response?.reason;
+                                    if (int.TryParse(response?.reason, out int errorCode))
+                                    {
+                                        errorMessage = await GetErrorMessageFromMongo(errorCode);
+                                    }
+
+                                    return new createExpenseApiResponse
+                                    {
+                                        status = false,
+                                        reason = errorMessage ?? "Failed to send data to GreenInvoice."
+                                    };
+                                }
+                            }
+                            catch (HttpRequestException ex)
+                            {
+                                string errorMessage = ex.Data.Contains("errorCode") && ex.Data.Contains("errorMessage")
+                                    ? await GetErrorMessageFromMongo((int)ex.Data["errorCode"])
+                                    : "An error occurred while sending data to GreenInvoice.";
+
+                                return new createExpenseApiResponse
+                                {
+                                    status = false,
+                                    reason = errorMessage
+                                };
+                            }
+                        }
                     }
-                    else
+                    else //we didnt find in the supliers  list (of the current client) that came back from mongo any suplier that matches the current suplier of this document
                     {
-                        UserexternalSystemDynamicFieldslist = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
-                            x => x.Companyid == insertUserDigitalDocRequest.internalCompanyId &&
-                                 x.Userid == userId &&
-                                 x.SubCompayId == SubCompanyId
-                        );
+                         greenInvoicePayload = new
+                        {
+                            paymentType = 2,
+                            currency = "ILS",
+                            currencyRate = 1,
+                            vat = insertUserDigitalDocRequest.expense_vat_sum,
+                            amount = insertUserDigitalDocRequest.expense_sum,
+                            date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                            dueDate = DateTime.UtcNow.ToString("yyyy-MM-dd"),
+                            reportingDate = DateTime.UtcNow.ToString("yyyy-MM-01"),
+                            documentType = 20,
+                            number = insertUserDigitalDocRequest.expense_docnum,
+                             description = "הוצאה נירשמה דרך יונינט",
+                             remarks = "הוצאה נירשמה דרך יונינט",
+                             //thumbnail = "https://www.w3schools.com/w3images/lights.jpg",// GetThumbnailFromDocument(doc),
+                             accountingClassification = new
+                            {
+                                id = insertUserDigitalDocRequest.expense_type_id,
+                                title = "Expense Classification Title", // Update with dynamic classification title if needed
+                                irsCode = 3055,
+                                vat = insertUserDigitalDocRequest.expense_vat_sum
+                            },
+                            addRecipient = true, // the morning system will add their own suplierid guid
+                            addAccountingClassification = false
+                        };
+
+                        try
+                        {
+                            var greenInvoiceEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 41);
+                            var result = await SendToGreenInvoice(greenInvoiceEndpoint.Endpoint, greenInvoicePayload, greenInvoiceToken);
+
+                            response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result);
+
+                            if (response?.status == true)
+                            {
+                                businessData.DocumentApprovedtoUninet = true;
+                                businessData.ExpenseTypeId = insertUserDigitalDocRequest.expense_type_id.ToString();
+                                await _repository.UpdateAsync(businessData);
+
+                                try
+                                {
+                                    // Step 1: Retrieve the Upload URL
+                                    var (uploadUrl, fields) = await GetUploadUrl(greenInvoiceToken);
+
+                                    // Step 2: Fetch the Document Data from MongoDB
+                                    byte[] documentData = await FetchDocumentData(insertUserDigitalDocRequest.Jsondocumentid);
+
+                                    // Step 3: Upload the Document to the Morning System
+                                    string fileName = "uploaded_file.pdf"; // Replace with the actual file name if available
+                                    var uploadResult = await UploadFileToUrl(uploadUrl, documentData, fileName, fields, greenInvoiceToken);
+
+                                    Console.WriteLine($"Document uploaded successfully: {uploadResult}");
+                                }
+                                catch (Exception uploadEx)
+                                {
+                                    Console.WriteLine($"Failed to upload document: {uploadEx.Message}");
+                                    throw;
+                                }
+                            }
+                            else
+                            {
+                                // Fetch error message from MongoDB if available
+                                string errorMessage = response?.reason;
+                                if (int.TryParse(response?.reason, out int errorCode))
+                                {
+                                    errorMessage = await GetErrorMessageFromMongo(errorCode);
+                                }
+
+                                return new createExpenseApiResponse
+                                {
+                                    status = false,
+                                    reason = errorMessage ?? "Failed to send data to GreenInvoice."
+                                };
+                            }
+                        }
+                        catch (HttpRequestException ex)
+                        {
+                            string errorMessage = ex.Data.Contains("errorCode") && ex.Data.Contains("errorMessage")
+                                ? await GetErrorMessageFromMongo((int)ex.Data["errorCode"])
+                                : "An error occurred while sending data to GreenInvoice.";
+
+                            return new createExpenseApiResponse
+                            {
+                                status = false,
+                                reason = errorMessage
+                            };
+                        }
                     }
                 }
 
 
-
-
-                string cidvalue = null;
-                string uservalue = null;
-                string passvalue = null;
-
-                foreach (var dynamicField in UserexternalSystemDynamicFieldslist)
+                // Handle Icount System (dataSourceEnum == 2)
+                if (dataSourceEnum == 2)
                 {
-                    string fieldLabelName = dynamicField.FieldLabelName;
-                    string fieldLabelValue = dynamicField.FieldLabelValue;
+                    var clientVatFilter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", ClientVat_id.ToString());
+                    var companyClientRow = await _IcountCompaniesInfoCollection.Find(clientVatFilter).FirstOrDefaultAsync();
+                    int SubCompanyId = companyClientRow?["company_info"]["SubCompanyId"].AsInt32 ?? 0;
 
-                    if (fieldLabelName == "cid")
-                    {
-                        cidvalue = fieldLabelValue;
-                        // Use the cid value as needed
-                    }
-                    else if (fieldLabelName == "user")
-                    {
-                        uservalue = fieldLabelValue;
-                        // Use the user value as needed
-                    }
-                    else if (fieldLabelName == "pass")
-                    {
-                        passvalue = fieldLabelValue;
-                        // Use the pass value as needed
-                    }
-                }
-                var ExpenseCreateEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 79);//https://api.icount.co.il/api/v3.php/expense/create
-                string endpointExpenseCreate = ExpenseCreateEndpoint.Endpoint + "?cid=" + cidvalue + "&user=" + uservalue + "&pass=" + passvalue;
-                HttpMethod method = HttpMethod.Post; // Change to HttpMethod.Get for a GET request
+                    UserexternalSystemDynamicFieldslist = await GetUserDynamicFields(userId, insertUserDigitalDocRequest.internalCompanyId, SubCompanyId);
 
-                /////need to add logic search supplier in the 
-                /////
-                ////we get all list of supliers for the user loged into uninet and get his suplierid and supliername
-                //var resSUpplierLIst = await GetClientSupplierList(cidvalue, uservalue, passvalue);
-                ////now we should loop on the resSUpplierLIst
-                ////and find if the vatId exist in the suplier list
-                //var BusinessVatId = await _repository.GetFirstObjectAsync<BusinessData>(x => x.BusinessId == insertUserDigitalDocRequest.internalCompanyId);
-                //var ItemFound = GetSupplierItemByVatId(resSUpplierLIst, Convert.ToInt32(BusinessVatId));
-                //receiptDate   "2024-01-17"
-                string dateissued = "";
-                string doc_url_copy = "";
-                bool payed = true;
-                string postData = "";
-                string result = "";
-                string result_endpointExpenseCreate = "";
-                var filter = Builders<BsonDocument>.Filter.Eq("docnum", insertUserDigitalDocRequest.expense_docnum);
-                var webhookdoc = _IcountWebhookData.Find(filter).FirstOrDefault();
+                    string cidValue = UserexternalSystemDynamicFieldslist?.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
+                    string userValue = UserexternalSystemDynamicFieldslist?.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
+                    string passValue = UserexternalSystemDynamicFieldslist?.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
 
-                if (webhookdoc != null)
-                {
+                    if (string.IsNullOrEmpty(cidValue) || string.IsNullOrEmpty(userValue) || string.IsNullOrEmpty(passValue))
+                        throw new Exception("Missing dynamic field values for Icount.");
 
-                    dateissued = webhookdoc["doc_info"]["dateissued"].AsString;
-                    doc_url_copy = webhookdoc["doc_info"]["doc_url_copy"].AsString;
-                }
+                    var ExpenseCreateEndpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 79);
+                    string endpointExpenseCreate = $"{ExpenseCreateEndpoint.Endpoint}?cid={cidValue}&user={userValue}&pass={passValue}";
 
-                if (insertUserDigitalDocRequest.expense_doctype == "invrec" || insertUserDigitalDocRequest.expense_doctype == "receipt")
-                {
-
-
-
-                    //postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + ",\"expense_paid\":" + payed.ToString().ToLower() + ",\"expense_paid_date\":\"" + dateissued + "\"}";
-                    // Prepare JSON data part
+                    // Prepare and send data to Icount system
                     using (var httpClient = new HttpClient())
                     {
                         using (var content = new MultipartFormDataContent())
                         {
-                            // Add each field as a separate part
-                            content.Add(new StringContent(insertUserDigitalDocRequest.supplier_id.ToString()), "supplier_id");
+                            content.Add(new StringContent(insertUserDigitalDocRequest.supplier_id), "supplier_id");
                             content.Add(new StringContent(insertUserDigitalDocRequest.expense_type_id.ToString()), "expense_type_id");
                             content.Add(new StringContent(insertUserDigitalDocRequest.expense_doctype), "expense_doctype");
                             content.Add(new StringContent(insertUserDigitalDocRequest.expense_docnum.ToString()), "expense_docnum");
                             content.Add(new StringContent(insertUserDigitalDocRequest.expense_sum.ToString()), "expense_sum");
-                            // Add 'expense_paid' and 'expense_paid_date' only if necessary
-                            content.Add(new StringContent(payed.ToString().ToLower()), "expense_paid");
-                            content.Add(new StringContent(dateissued), "expense_paid_date");
 
-                            // Download and add PDF file part
-                            var pdfResponse = await httpClient.GetAsync(doc_url_copy);
+                            // Optionally handle PDF attachment if required
+                            string docUrlCopy = "URL from source if available";
+                            var pdfResponse = await httpClient.GetAsync(docUrlCopy);
                             if (pdfResponse.IsSuccessStatusCode)
                             {
                                 var pdfData = await pdfResponse.Content.ReadAsByteArrayAsync();
@@ -5741,88 +6834,101 @@ namespace Uninet.DATA.Services
                             }
 
                             // Send the request
-                            var endpointExpenseCreate_Response = await httpClient.PostAsync(endpointExpenseCreate, content);
-                            result_endpointExpenseCreate = await endpointExpenseCreate_Response.Content.ReadAsStringAsync();
+                            var endpointResponse = await httpClient.PostAsync(endpointExpenseCreate, content);
+                            var resultEndpoint = await endpointResponse.Content.ReadAsStringAsync();
+                            response = JsonConvert.DeserializeObject<createExpenseApiResponse>(resultEndpoint);
 
-                            // Process the response
-
-                        }
-                    }
-
-
-
-
-
-                }
-                if (insertUserDigitalDocRequest.expense_doctype == "invoice" || insertUserDigitalDocRequest.expense_doctype == "deal" || insertUserDigitalDocRequest.expense_doctype == "order" || insertUserDigitalDocRequest.expense_doctype == "refund" || insertUserDigitalDocRequest.expense_doctype == "delcert")
-                {
-                    // postData = "{\"supplier_id\": " + insertUserDigitalDocRequest.supplier_id + ", \"expense_type_id\": " + insertUserDigitalDocRequest.expense_type_id + ", \"expense_doctype\": \"" + insertUserDigitalDocRequest.expense_doctype + "\", \"expense_docnum\": \"" + insertUserDigitalDocRequest.expense_docnum + "\", \"internalCompanyId\": " + insertUserDigitalDocRequest.internalCompanyId + ", \"expense_sum\": " + insertUserDigitalDocRequest.expense_sum + "}";
-                    //result_endpointExpenseCreate = await SendRequest(endpointExpenseCreate, method, postData);
-                    using (var httpClient = new HttpClient())
-                    {
-                        using (var content = new MultipartFormDataContent())
-                        {
-                            // Add each field as a separate part
-                            content.Add(new StringContent(insertUserDigitalDocRequest.supplier_id.ToString()), "supplier_id");
-                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_type_id.ToString()), "expense_type_id");
-                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_doctype), "expense_doctype");
-                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_docnum.ToString()), "expense_docnum");
-                            content.Add(new StringContent(insertUserDigitalDocRequest.expense_sum.ToString()), "expense_sum");
-                            // Add 'expense_paid' and 'expense_paid_date' only if necessary
-                            //content.Add(new StringContent(payed.ToString().ToLower()), "expense_paid");
-                            //content.Add(new StringContent(dateissued), "expense_paid_date");
-
-                            // Download and add PDF file part
-                            var pdfResponse = await httpClient.GetAsync(doc_url_copy);
-                            if (pdfResponse.IsSuccessStatusCode)
+                            if (response?.status == true)
                             {
-                                var pdfData = await pdfResponse.Content.ReadAsByteArrayAsync();
-                                var pdfContent = new ByteArrayContent(pdfData);
-                                pdfContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/pdf");
-                                content.Add(pdfContent, "scan", "scan.pdf");
+                                businessData.DocumentApprovedtoUninet = true;
+                                businessData.ExpenseTypeId = insertUserDigitalDocRequest.expense_type_id.ToString();
+                                await _repository.UpdateAsync(businessData);
                             }
-
-                            // Send the request
-                            var endpointExpenseCreate_Response = await httpClient.PostAsync(endpointExpenseCreate, content);
-                            result_endpointExpenseCreate = await endpointExpenseCreate_Response.Content.ReadAsStringAsync();
-
-                            // Process the response
-
                         }
                     }
-
-
-
                 }
-
-                // Set your POST data if needed
-
-
-
-
-                createExpenseApiResponse response = JsonConvert.DeserializeObject<createExpenseApiResponse>(result_endpointExpenseCreate);
-                // Handle the result as needed
-                if (response.status)
-                {
-                    var businessDatarow = await _repository.GetFirstObjectAsync<BusinessData>(x => x.JsonDocumentid == insertUserDigitalDocRequest.Jsondocumentid);
-                    if (businessDatarow != null)
-                    {
-                        businessDatarow.DocumentApprovedtoUninet = true;
-                        businessDatarow.ExpenseTypeId = insertUserDigitalDocRequest.expense_type_id;
-                        await _repository.UpdateAsync(businessDatarow);
-
-
-                    }
-                }
-
 
                 return response;
             }
             catch (Exception ex)
             {
+                // Log exception and return null
+                Console.WriteLine(ex.Message);
                 return null;
             }
         }
+        //_MorningException
+        private async Task<string> GetErrorMessageFromMongo(int errorCode)
+        {
+            try
+            {
+                var filter = Builders<BsonDocument>.Filter.ElemMatch<BsonDocument>("data", Builders<BsonDocument>.Filter.Eq("Error Code", errorCode));
+                var projection = Builders<BsonDocument>.Projection.Include("data.$");
+                var result = await _MorningException.Find(filter).Project(projection).FirstOrDefaultAsync();
+
+                if (result != null && result.Contains("data"))
+                {
+                    var errorData = result["data"].AsBsonArray.FirstOrDefault();
+                    return errorData?["Description"].AsString ?? "Unknown error";
+                }
+                else
+                {
+                    return "Error code not found in exceptions collection.";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log exception
+                Console.WriteLine($"Error accessing MongoDB: {ex.Message}");
+                return "Error retrieving exception details.";
+            }
+        }
+
+        private async Task<List<UsersExternalSystemDynamicFields>> GetUserDynamicFields(int userId, int companyId, int subCompanyId)
+        {
+            List<UsersExternalSystemDynamicFields> userExternalSystemDynamicFieldsList = null;
+
+            // Check if the user is a master user
+            var masterUser = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.Userid == userId);
+            if (masterUser != null)
+            {
+                // Retrieve dynamic fields for the master user
+                userExternalSystemDynamicFieldsList = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                    x => x.Companyid == companyId &&
+                         x.Userid == userId &&
+                         x.SubCompayId == subCompanyId
+                );
+            }
+            else
+            {
+                // Retrieve the related master ID for the sub-user
+                var relatedMaster = await _repository.GetFirstObjectAsync<SubUserCredentials>(x => x.SubUserId == userId);
+                if (relatedMaster != null)
+                {
+                    // Retrieve dynamic fields for the related master user
+                    userExternalSystemDynamicFieldsList = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                        x => x.Companyid == relatedMaster.CompanyId &&
+                             x.Userid == relatedMaster.Userid &&
+                             x.SubCompayId == subCompanyId
+                    );
+
+                    // Update the userId to the master user ID
+                    userId = relatedMaster.Userid;
+                }
+                else
+                {
+                    // Retrieve dynamic fields for the sub-user
+                    userExternalSystemDynamicFieldsList = await _repository.GetListOfObjectsAsync<UsersExternalSystemDynamicFields>(
+                        x => x.Companyid == companyId &&
+                             x.Userid == userId &&
+                             x.SubCompayId == subCompanyId
+                    );
+                }
+            }
+
+            return userExternalSystemDynamicFieldsList;
+        }
+
         private List<ExpenseType> GetExpenseTypeListWithDefault(string json, int expenseTypeId, bool Permanent)
         {
             var bsonDoc = BsonDocument.Parse(json);
@@ -5843,7 +6949,7 @@ namespace Uninet.DATA.Services
 
                 var newExpenseType = new ExpenseType
                 {
-                    ExpenseTypeId = expenseTypeDoc["expense_type_id"].AsInt32,
+                    ExpenseTypeId = expenseTypeDoc["expense_type_id"].AsString,
                     ExpenseTypeDesc = expenseTypeDesc,
                     IsDefault = expenseTypeDoc["expense_type_id"].AsInt32 == expenseTypeId
                 };

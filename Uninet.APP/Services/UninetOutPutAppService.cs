@@ -98,16 +98,18 @@ namespace Uninet.APP.Services
         {
             try
             {
-
-
                 return await _uninetOutPutDataAccess.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, userId);
-
-
-
             }
-            catch (Exception ex) { return null; }
-
+            catch (Exception ex)
+            {
+                return new createExpenseApiResponse
+                {
+                    status = false,
+                    reason = $"Unexpected error: {ex.Message}"
+                };
+            }
         }
-       
+
+
     }
 }

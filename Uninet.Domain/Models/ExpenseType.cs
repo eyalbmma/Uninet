@@ -8,7 +8,7 @@ namespace Uninet.Domain.Models
 {
     public  class ExpenseType
     {
-        public int ExpenseTypeId { get; set; }
+        public string ExpenseTypeId { get; set; }
         public string ExpenseTypeDesc { get; set; }
 
         public bool IsDefault { get; set; }

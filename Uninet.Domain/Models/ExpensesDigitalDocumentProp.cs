@@ -39,7 +39,7 @@ namespace Uninet.Domain.Models
         public double Vat { get; set; }
 
         public ShowingDocsResults showingDocsResults { get; set; }
-
+        public int SubCompanyIdSuplier { get; set; } // New property
 
     }
 }

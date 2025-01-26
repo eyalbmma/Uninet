@@ -116,38 +116,61 @@ namespace UninetWebApi2.Controllers
 
 
 
+        
         [Authorize]
         [HttpPost("AproveDoc")]
         public async Task<ActionResult> AproveDoc([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
-
             string message = "";
+            createExpenseApiResponse result;
 
-            if (result.status)
+            try
             {
-                message = expensesUserDoRequest.Lang == 1 ? "Document transferred to Uninet successfully" : "המסמכים התקבלו בהצלחה ביונינט";
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
+            }
+            catch (Exception ex)
+            {
+                // Handle unexpected errors gracefully
+                result = new createExpenseApiResponse
+                {
+                    status = false,
+                    reason = "An unexpected error occurred. Please try again later."
+                };
+
+                Console.WriteLine($"Error in AproveDoc: {ex.Message}");
+            }
+
+            if (result?.status == true)
+            {
+                message = expensesUserDoRequest.Lang == 1
+                    ? "Document transferred to Uninet successfully"
+                    : "המסמכים התקבלו בהצלחה ביונינט";
             }
             else
             {
-                // Extract error messages from the result JSON
-                var errorMessage = result.api?.messages?.FirstOrDefault()?.data ?? string.Empty;
-
-                if (string.IsNullOrEmpty(errorMessage))
-                {
-                    message = expensesUserDoRequest.Lang == 1 ? "There was an error, the document failed to transfer to Uninet" : "אירעה שגיאה, המסמכים לא התקבלו";
-                }
-                else
-                {
-                    message = expensesUserDoRequest.Lang == 1 ? errorMessage : "אירעה שגיאה: " + errorMessage;
-                }
+                var errorMessage = result?.reason ?? "Unknown error occurred.";
+                message = expensesUserDoRequest.Lang == 1
+                    ? errorMessage
+                    : "אירעה שגיאה: " + errorMessage;
             }
 
-            result.textResponse = message;
+            if (result != null)
+            {
+                result.textResponse = message;
+            }
+            else
+            {
+                result = new createExpenseApiResponse
+                {
+                    status = false,
+                    textResponse = message
+                };
+            }
 
             return Ok(result);
         }
+
 
 
 

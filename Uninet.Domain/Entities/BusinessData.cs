@@ -61,7 +61,7 @@ namespace Uninet.Domain.Entities
 
 
 
-        public int? ExpenseTypeId { get; set; }
+        public string? ExpenseTypeId { get; set; }
 
     }
 }
