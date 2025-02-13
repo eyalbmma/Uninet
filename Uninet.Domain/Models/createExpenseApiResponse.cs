@@ -9,6 +9,7 @@ namespace Uninet.Domain.Models
   
     public class createExpenseApiResponse
     {
+        public string id { get; set; } // Add this to map the "id" field in the response
         public ApiData api { get; set; }
         public bool status { get; set; }
         public string reason { get; set; }

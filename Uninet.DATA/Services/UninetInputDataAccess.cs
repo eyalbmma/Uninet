@@ -587,13 +587,13 @@ namespace Uninet.DATA.Services
                 if (allowedDocTypes.Contains(doc_type))
                 {
 
-                    var UserParam0 = new
-                    {
-                        Taskid = -1,
-                        TaskDesc = "SubCompanyid"+ SubCompanyid+ " Str_WebHookSourceid " + Str_WebHookSourceid,
-                        text = json
-                    };
-                    var spresult0 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam0);
+                    //var UserParam0 = new
+                    //{
+                    //    Taskid = -1,
+                    //    TaskDesc = "SubCompanyid"+ SubCompanyid+ " Str_WebHookSourceid " + Str_WebHookSourceid,
+                    //    text = json
+                    //};
+                    //var spresult0 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam0);
 
                     BsonValue doc_urlvalue;
                     string doc_url = "";
@@ -621,13 +621,13 @@ namespace Uninet.DATA.Services
                     bsonDocument["doc_info"].AsBsonDocument.Add("doc_url_copy", finalUrl);
 
 
-                    var UserParam = new
-                    {
-                        Taskid = 1,
-                        TaskDesc = "1",
-                        text = "1"
-                    };
-                    var spresult = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam);
+                    //var UserParam = new
+                    //{
+                    //    Taskid = 1,
+                    //    TaskDesc = "1",
+                    //    text = "1"
+                    //};
+                    //var spresult = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam);
 
                     try
                     {
@@ -636,13 +636,13 @@ namespace Uninet.DATA.Services
                     }
                     catch (Exception ex)
                     {
-                        var UserParam2 = new
-                        {
-                            Taskid = 2,
-                            TaskDesc = "2",
-                            text = ex.Message
-                        };
-                        var spresult2 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam2);
+                        //var UserParam2 = new
+                        //{
+                        //    Taskid = 2,
+                        //    TaskDesc = "2",
+                        //    text = ex.Message
+                        //};
+                        //var spresult2 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam2);
                     }
 
 
@@ -678,25 +678,25 @@ namespace Uninet.DATA.Services
                     }
 
 
-                    var UserParam3 = new
-                    {
-                        Taskid = 3,
-                        TaskDesc = "3",
-                        text = Str_WebHookSourceid
-                    };
-                    var spresult3 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam3);
+                    //var UserParam3 = new
+                    //{
+                    //    Taskid = 3,
+                    //    TaskDesc = "3",
+                    //    text = Str_WebHookSourceid
+                    //};
+                    //var spresult3 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam3);
 
 
 
                     int intWebHookSourceid = Convert.ToInt32(Str_WebHookSourceid);
 
-                    var UserParam4 = new
-                    {
-                        Taskid = 4,
-                        TaskDesc = Str_WebHookSourceid,
-                        text = Str_WebHookSourceid
-                    };
-                    var spresult4 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam4);
+                    //var UserParam4 = new
+                    //{
+                    //    Taskid = 4,
+                    //    TaskDesc = Str_WebHookSourceid,
+                    //    text = Str_WebHookSourceid
+                    //};
+                    //var spresult4 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam4);
                     //remark eyal the resul of this line businessVatId = result["company_info"]["vat_id"].AsString; is 540270165 which is wrong
                     //because we take this filter 
                     //var filter = Builders<BsonDocument>.Filter.Eq("company_info.InternalCompanyId", internalCompanySenderId);
@@ -910,13 +910,13 @@ namespace Uninet.DATA.Services
 
 
 
-                    var UserParam5 = new
-                    {
-                        Taskid = 5,
-                        TaskDesc = "5",
-                        text = "5"
-                    };
-                    var spresult5 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam5);
+                    //var UserParam5 = new
+                    //{
+                    //    Taskid = 5,
+                    //    TaskDesc = "5",
+                    //    text = "5"
+                    //};
+                    //var spresult5 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam5);
 
 
 
@@ -945,13 +945,13 @@ namespace Uninet.DATA.Services
                         DataSourceType = 2
                     };
 
-                    var UserParam6 = new
-                    {
-                        Taskid = 6,
-                        TaskDesc = "6",
-                        text = "6"
-                    };
-                    var spresult6 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam6);
+                    //var UserParam6 = new
+                    //{
+                    //    Taskid = 6,
+                    //    TaskDesc = "6",
+                    //    text = "6"
+                    //};
+                    //var spresult6 = await _repository.ExecuteGetSPAsync<InsertdatatoJobbatchlogResult>(ConstUninetStoredprocedure.SP_InsertdatatoJobbatchlog, UserParam6);
 
 
                     // Create a predicate to check for the existence of the record

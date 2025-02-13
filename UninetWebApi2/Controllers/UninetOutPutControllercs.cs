@@ -34,9 +34,9 @@ namespace UninetWebApi2.Controllers
 
 
 
-       
 
 
+        [Authorize]
         [HttpPost]
         [Route("ShowDigitalDocumentDetails")]
         public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
