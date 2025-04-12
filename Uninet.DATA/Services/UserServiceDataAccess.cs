@@ -959,6 +959,45 @@ namespace Uninet.DATA.Services
         }
 
 
+        public async Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request, string userId)
+        {
+            try
+            {
+                // 1. בדיקת נתונים – ודא שכל השדות החיוניים מלאים (למשל, AcceptTerms, מזהה מערכת, פרטי הישות וכו')
+                if (!request.AcceptTerms)
+                {
+                    return new ResSaveExternalCustomized
+                    {
+                        Success = false,
+                        textResponse = "Terms of use must be accepted."
+                    };
+                }
+
+
+                // 4. החזרת תשובה
+                return new ResSaveExternalCustomized
+                {
+                    Success = true,
+                    textResponse = "Entity joined successfully. Trial period started.",
+                    SystemRegisteredInuninet = true,
+                    ValidExternalsystemCredenatials = true,
+                    FullName = "",//newEntity.EntityName,
+                    ClickedButtonToInviteBusinessPartners = false,
+                    SubCompanyId = 1//newEntity.Id // לדוגמה, אם קיים מזהה פנימי המוחזר
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ResSaveExternalCustomized
+                {
+                    Success = false,
+                    textResponse = "Error occurred while joining entity."
+                };
+            }
+        }
+
+
+
         public async Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId)
         {
             try

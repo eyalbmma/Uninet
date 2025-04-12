@@ -36,10 +36,10 @@ namespace Uninet.Domain.Models
         public int Lang { get; set; }
 
         [JsonPropertyName("expense_vat_sum")]
-        public float expense_vat_sum { get; set; } // Change to `float` to match potential decimals
+        public float ?expense_vat_sum { get; set; } // Change to `float` to match potential decimals
 
         [JsonPropertyName("expense_net_sum")]
-        public float expense_net_sum { get; set; } // Change to `float` to match potential decimals
+        public float ?expense_net_sum { get; set; } // Change to `float` to match potential decimals
 
         [JsonPropertyName("tax_id")]
         public string tax_id { get; set; }

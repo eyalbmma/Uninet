@@ -28,6 +28,8 @@ namespace Uninet.DATA.Services.MultipleContext
         //public virtual DbSet<UserDetails> UserDetails { get; set; }
         public virtual DbSet<UserCreditCardHolder> UserCreditCardHolder { get; set; }
 
+        public DbSet<ExternalServiceRefreshToken> ExternalServiceRefreshTokens { get; set; }
+
         public virtual DbSet<TestResponse> TestResponse { get; set; }
         public virtual DbSet<LoginWithOtpResponse> LoginWithOtpResponse { get; set; }
         public virtual DbSet<SaveRefreshTokenResponse> SaveRefreshTokenResponse { get; set; }

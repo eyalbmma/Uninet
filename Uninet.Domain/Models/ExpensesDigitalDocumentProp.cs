@@ -34,9 +34,9 @@ namespace Uninet.Domain.Models
 
         public string TaxId { get; set; }
 
-        public double AmountBeforeVat { get; set; }
+        public double ?AmountBeforeVat { get; set; }
 
-        public double Vat { get; set; }
+        public double ?Vat { get; set; }
 
         public ShowingDocsResults showingDocsResults { get; set; }
         public int SubCompanyIdSuplier { get; set; } // New property

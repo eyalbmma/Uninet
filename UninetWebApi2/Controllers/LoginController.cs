@@ -52,7 +52,7 @@ namespace UninetWebApi2.Controllers
         // Add error handling for null
         public async Task<IActionResult> RefreshToken(RefreshTokenRequest _refreshTokenRequest)
         {
-            var refreshToken = _refreshTokenRequest.authenticationToken;
+            var refreshToken = _refreshTokenRequest.RefreshToken;
 
             // Verify the refresh token and retrieve the associated user ID
              int userId = await _jwtAppService.GetUserIdByRefreshToken(refreshToken);

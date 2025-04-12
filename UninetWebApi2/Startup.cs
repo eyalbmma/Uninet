@@ -19,8 +19,9 @@ using Uninet.Domain.Interfaces;
 using Microsoft.Extensions.Hosting;
 using System.IdentityModel.Tokens.Jwt;
 using Uninet.Domain.Models;
+using UninetWebApi2.Middleware;
 
-namespace UninetWebApi2.Controllers
+namespace UninetWebApi2
 {
     public class Startup
     {
@@ -51,10 +52,11 @@ namespace UninetWebApi2.Controllers
             //    options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
             //});
 
-
+            services.AddScoped<IPWhitelistMiddleware>();
             services.AddSingleton<EnumRepository>();
 
 
+            services.Configure<ExternalTokenConfig>(Configuration.GetSection("ExternalTokens"));
 
 
 
@@ -72,9 +74,10 @@ namespace UninetWebApi2.Controllers
 
 
 
-            
-            
-            
+
+
+          
+
 
             services.AddScoped<IUserServiceDataAccess, UserServiceDataAccess>();
             services.AddScoped<IUserServiceApp, UserServiceApp>();
@@ -92,6 +95,13 @@ namespace UninetWebApi2.Controllers
             services.AddScoped<IUninetInputDataAccess, UninetInputDataAccess>();
             services.AddScoped<IUninetInputAppService, UninetInputAppService>();
             services.AddScoped<IRepository<UninetContext>, Repository<UninetContext>>();
+
+
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            services.AddScoped<IRefreshTokenRepository,RefreshTokenRepository>();
+
+            services.AddScoped<IExternalSystemService, ExternalSystemService>();
+            services.AddScoped <IExternalSystemRepository, ExternalSystemRepository>();
 
             //services.AddSingleton<IUninetInputDataAccess, UninetInputDataAccess>();  //remark eyal i changed it to singelton because  i inject it to PullUsersData which is a singelton
             //services.AddSingleton<IUninetInputAppService, UninetInputAppService>();//remark eyal i changed it to singelton because  i inject it to PullUsersData which is a singelton
@@ -121,15 +131,15 @@ namespace UninetWebApi2.Controllers
 
             ////for batch services
             //services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
-            
+
             //services.AddSingleton<IuninetBatchDataAccess, uninetBatchDataAccess>();
 
             //services.AddSingleton<IHostedService, PullUsersData>();
             //services.AddSingleton<IHostedService, PushExpensesToCompanyClient>();
-            
+
             //services.AddSingleton<IBatchDataMailassist, BatchDataMailassist>();
-            
-            
+
+
             var jwtTokenConfig = Configuration.GetSection("jwtTokenConfig");
             var secretKey = jwtTokenConfig.GetValue<string>("secret");
             var issuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
@@ -243,6 +253,10 @@ namespace UninetWebApi2.Controllers
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            
+            
+            
+            
             app.UseCors("AllowAllOrigins");
             if (env.IsDevelopment())
             {
@@ -270,7 +284,7 @@ namespace UninetWebApi2.Controllers
             //});
 
 
-
+            app.UseMiddleware<IPWhitelistMiddleware>();
 
 
             app.UseHttpsRedirection();
