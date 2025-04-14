@@ -8,6 +8,6 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IExternalSystemRepository
     {
-        ExternalSystem GetById(int externalSystemId);
+        ExternalSystem GetById(Guid ExternalSystemGuid);
     }
 }

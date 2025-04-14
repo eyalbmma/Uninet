@@ -8,9 +8,9 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IRefreshTokenRepository
     {
-       
-        void SaveOrUpdate(string token, int systemId, DateTime expiresAt);
-        bool Exists(string token, out int systemId);
+
+        void SaveOrUpdate(string token, Guid systemGuid, DateTime expiresAt);
+        bool Exists(string token, out Guid systemGuid);
         void Delete(string token);
     }
 }

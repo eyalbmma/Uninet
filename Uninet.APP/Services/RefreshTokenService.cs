@@ -15,14 +15,14 @@ namespace Uninet.APP.Services
 
         
 
-        public void SaveOrUpdate(string token, int systemId, DateTime expiresAt)
+        public void SaveOrUpdate(string token, Guid systemGuid, DateTime expiresAt)
         {
-            _repository.SaveOrUpdate(token, systemId, expiresAt);
+            _repository.SaveOrUpdate(token, systemGuid, expiresAt);
         }
 
-        public bool Exists(string token, out int systemId)
+        public bool Exists(string token, out Guid systemGuid)
         {
-            return _repository.Exists(token, out systemId);
+            return _repository.Exists(token, out systemGuid);
         }
 
         public void Delete(string token)

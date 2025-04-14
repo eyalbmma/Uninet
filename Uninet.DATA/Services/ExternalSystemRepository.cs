@@ -19,10 +19,10 @@ namespace Uninet.DATA.Services
             _context = context;
         }
 
-        public ExternalSystem GetById(int externalSystemId)
+        public ExternalSystem GetById(Guid ExternalSystemGuid)
         {
             return _context.ExternalSystem
-                .FirstOrDefault(es => es.ExternalSystemID == externalSystemId);
+                .FirstOrDefault(es => es.ExternalSystemGuid == ExternalSystemGuid);
         }
     }
 }

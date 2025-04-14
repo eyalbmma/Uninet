@@ -267,29 +267,17 @@ namespace UninetWebApi2
             }
             app.UseSwagger();
             app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Workspaces.API v1"));
-            //app.Use(async (context, next) =>
-            //{
-            //    // Your token validation and inspection code here
-            //    string accessToken = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
-
-            //    var handler = new JwtSecurityTokenHandler();
-            //    if (accessToken != "")
-            //    {
-            //        var token = handler.ReadJwtToken(accessToken);
-
-            //        // Perform validation and inspection logic
-
-            //        await next.Invoke();
-            //    }
-            //});
+           
 
 
             app.UseMiddleware<IPWhitelistMiddleware>();
 
-
+            
             app.UseHttpsRedirection();
 
             app.UseRouting();
+            
+
             app.UseAuthentication();
             
             app.UseAuthorization();

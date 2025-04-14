@@ -17,9 +17,9 @@ namespace Uninet.APP.Services
             _repository = repository;
         }
 
-        public ExternalSystem GetSystemById(int externalSystemId)
+        public ExternalSystem GetSystemById(Guid ExternalSystemGuid)
         {
-            return _repository.GetById(externalSystemId);
+            return _repository.GetById(ExternalSystemGuid);
         }
     }
 }

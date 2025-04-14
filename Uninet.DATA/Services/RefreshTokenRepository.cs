@@ -1,9 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Uninet.DATA.Interfaces;
 using Uninet.DATA.Services.MultipleContext;
 using Uninet.Domain.Entities;
@@ -19,10 +16,10 @@ namespace Uninet.DATA.Services
             _context = context;
         }
 
-        public void SaveOrUpdate(string token, int systemId, DateTime expiresAt)
+        public void SaveOrUpdate(string token, Guid systemGuid, DateTime expiresAt)
         {
             var existing = _context.Set<ExternalServiceRefreshToken>()
-                .FirstOrDefault(r => r.ExternalSystemId == systemId);
+                .FirstOrDefault(r => r.ExternalSystemGuid == systemGuid);
 
             if (existing != null)
             {
@@ -33,37 +30,39 @@ namespace Uninet.DATA.Services
             }
             else
             {
-                var refreshToken = new ExternalServiceRefreshToken
+                var newToken = new ExternalServiceRefreshToken
                 {
+                    ExternalSystemGuid = systemGuid,
                     Token = token,
-                    ExternalSystemId = systemId,
                     ExpiresAt = expiresAt,
                     CreatedAt = DateTime.UtcNow
                 };
-
-                _context.Add(refreshToken);
+                _context.Add(newToken);
             }
 
             _context.SaveChanges();
         }
 
-        public bool Exists(string token, out int systemId)
+        public bool Exists(string token, out Guid systemGuid)
         {
-            var existing = _context.Set<ExternalServiceRefreshToken>().FirstOrDefault(r => r.Token == token);
+            var existing = _context.Set<ExternalServiceRefreshToken>()
+                .FirstOrDefault(r => r.Token == token);
 
-            if (existing != null && existing.ExternalSystemId.HasValue)
+            if (existing != null)
             {
-                systemId = existing.ExternalSystemId.Value;
+                systemGuid = existing.ExternalSystemGuid;
                 return true;
             }
 
-            systemId = 0;
+            systemGuid = Guid.Empty;
             return false;
         }
 
         public void Delete(string token)
         {
-            var tokenToDelete = _context.Set<ExternalServiceRefreshToken>().FirstOrDefault(r => r.Token == token);
+            var tokenToDelete = _context.Set<ExternalServiceRefreshToken>()
+                .FirstOrDefault(r => r.Token == token);
+
             if (tokenToDelete != null)
             {
                 _context.Remove(tokenToDelete);
@@ -71,4 +70,5 @@ namespace Uninet.DATA.Services
             }
         }
     }
+
 }

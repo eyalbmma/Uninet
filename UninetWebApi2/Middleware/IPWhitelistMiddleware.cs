@@ -20,15 +20,20 @@ namespace UninetWebApi2.Middleware
 
         public async Task InvokeAsync(HttpContext context, RequestDelegate next)
         {
-            var remoteIp = context.Connection.RemoteIpAddress?.ToString();
-            var path = context.Request.Path;
-            var method = context.Request.Method;
+            var path = context.Request.Path.Value?.ToLower();
 
-            Debug.WriteLine($"[IPMiddleware] {method} request to {path} from {remoteIp}");
+            // Only apply to specific routes
+            if (path != "/api/auth/registerinit" && path != "/api/auth/loginwithsecret")
+            {
+                await next(context);
+                return;
+            }
+
+            var remoteIp = context.Connection.RemoteIpAddress?.ToString();
+            Debug.WriteLine($"[IPMiddleware] Request to {path} from {remoteIp}");
 
             if (remoteIp == "::1" || remoteIp == "127.0.0.1")
             {
-                Debug.WriteLine("[IPMiddleware] Allowed localhost, passing through.");
                 await next(context);
                 return;
             }
@@ -40,14 +45,13 @@ namespace UninetWebApi2.Middleware
 
             if (!allowedIps.Contains(remoteIp))
             {
-                Debug.WriteLine($"[IPMiddleware] BLOCKED: {remoteIp} is not in whitelist.");
                 context.Response.StatusCode = 403;
                 await context.Response.WriteAsync("Forbidden: Your IP is not whitelisted.");
                 return;
             }
 
-            Debug.WriteLine("[IPMiddleware] Allowed IP matched, passing through.");
             await next(context);
         }
+
     }
 }

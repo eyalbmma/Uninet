@@ -8,8 +8,8 @@ namespace Uninet.APP.Interfaces
 {
     public interface IRefreshTokenService
     {
-        void SaveOrUpdate(string token, int systemId, DateTime expiresAt);
-        bool Exists(string token, out int systemId);
+        void SaveOrUpdate(string token, Guid systemGuid, DateTime expiresAt);
+        bool Exists(string token, out Guid systemGuid);
         void Delete(string token);
     }
 }

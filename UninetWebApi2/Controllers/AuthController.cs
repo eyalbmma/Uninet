@@ -33,18 +33,18 @@ namespace UninetWebApi2.Controllers
         [HttpPost("RegisterInit")]
         public IActionResult RegisterInit([FromBody] RegisterInitRequest request)
         {
-            var system = _systemService.GetSystemById(request.ExternalSystemId);
+            var system = _systemService.GetSystemById(request.ExternalSystemGuid);
             if (system == null || !system.IsActive)
                 return Unauthorized("System not registered or inactive.");
 
             string tempToken = Guid.NewGuid().ToString();
             TempTokens[tempToken] = new TempTokenInfo
             {
-                ExternalSystemId = request.ExternalSystemId,
+                ExternalSystemGuid = request.ExternalSystemGuid,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(5)
             };
 
-            return Ok(new { tempToken });
+            return Ok(new { message = "Success", systemGuid = request.ExternalSystemGuid });
         }
 
         [HttpPost("LoginWithSecret")]
@@ -56,15 +56,15 @@ namespace UninetWebApi2.Controllers
             if (tempInfo.ExpiresAt < DateTime.UtcNow)
                 return Unauthorized("TempToken expired");
 
-            if (tempInfo.ExternalSystemId != request.ExternalSystemId)
+            if (tempInfo.ExternalSystemGuid != request.ExternalSystemGuid)
                 return Unauthorized("Mismatched system");
 
-            var system = _systemService.GetSystemById(request.ExternalSystemId);
+            var system = _systemService.GetSystemById(request.ExternalSystemGuid);
             if (system == null || !system.IsActive)
                 return Unauthorized("System not found");
 
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (Math.Abs(now - request.Timestamp) > system.ClockDriftToleranceSeconds)
+            if (Math.Abs(now - request.Timestamp) > system.ClockDriftToleranceSeconds)//if the external system call this api after more than 60 seconds it wont work 
                 return Unauthorized("Timestamp out of range");
 
             string expected = HMACHelper.ComputeSHA256(system.ApiKey + request.Timestamp + system.SharedSecret);
@@ -79,7 +79,7 @@ namespace UninetWebApi2.Controllers
             string accessToken = GenerateJwtToken(system, accessExpiresAt);
             string refreshToken = Guid.NewGuid().ToString();
 
-            _tokenService.SaveOrUpdate(refreshToken, system.ExternalSystemID, refreshExpiresAt);
+            _tokenService.SaveOrUpdate(refreshToken, system.ExternalSystemGuid, refreshExpiresAt);
 
             return Ok(new
             {
@@ -91,13 +91,14 @@ namespace UninetWebApi2.Controllers
             });
         }
 
+        
         [HttpPost("RefreshToken")]
         public IActionResult Refresh([FromBody] RefreshTokenRequest request)
         {
-            if (!_tokenService.Exists(request.RefreshToken, out var systemId))
+            if (!_tokenService.Exists(request.RefreshToken, out var systemGuid))
                 return Unauthorized("Invalid refresh token");
 
-            var system = _systemService.GetSystemById(systemId);
+            var system = _systemService.GetSystemById(systemGuid);
             if (system == null || !system.IsActive)
                 return Unauthorized("System inactive");
 
@@ -107,7 +108,8 @@ namespace UninetWebApi2.Controllers
             string newAccessToken = GenerateJwtToken(system, accessExpiresAt);
             string newRefreshToken = Guid.NewGuid().ToString();
 
-            _tokenService.SaveOrUpdate(newRefreshToken, systemId, refreshExpiresAt);
+            
+            _tokenService.SaveOrUpdate(newRefreshToken, system.ExternalSystemGuid, refreshExpiresAt);
 
             return Ok(new
             {
@@ -115,9 +117,13 @@ namespace UninetWebApi2.Controllers
                 RefreshToken = newRefreshToken,
                 ExpiresInSeconds = _tokenConfig.AccessTokenExpiryMinutes * 60,
                 ExpiresAtUtc = accessExpiresAt,
-                ExpiresAtIsrael = TimeZoneInfo.ConvertTimeFromUtc(accessExpiresAt, TimeZoneInfo.FindSystemTimeZoneById("Israel Standard Time")).ToString("yyyy-MM-dd HH:mm:ss")
+                ExpiresAtIsrael = TimeZoneInfo.ConvertTimeFromUtc(
+                    accessExpiresAt,
+                    TimeZoneInfo.FindSystemTimeZoneById("Israel Standard Time"))
+                    .ToString("yyyy-MM-dd HH:mm:ss")
             });
         }
+
 
         private string GenerateJwtToken(ExternalSystem system, DateTime expiresAt)
         {
@@ -126,7 +132,7 @@ namespace UninetWebApi2.Controllers
 
             var claims = new[]
             {
-                new Claim("systemId", system.ExternalSystemID.ToString()),
+                new Claim("systemGuid", system.ExternalSystemGuid.ToString()),
                 new Claim("systemName", system.ApiKey),
                 new Claim("scope", system.AllowedScopes ?? "read")
             };
@@ -145,12 +151,12 @@ namespace UninetWebApi2.Controllers
 
     public class RegisterInitRequest
     {
-        public int ExternalSystemId { get; set; }
+        public Guid ExternalSystemGuid { get; set; }
     }
 
     public class LoginWithSecretRequest
     {
-        public int ExternalSystemId { get; set; }
+        public Guid ExternalSystemGuid { get; set; }
         public string TempToken { get; set; }
         public long Timestamp { get; set; }
         public string DynamicSecret { get; set; }
@@ -163,7 +169,7 @@ namespace UninetWebApi2.Controllers
 
     public class TempTokenInfo
     {
-        public int ExternalSystemId { get; set; }
+        public Guid ExternalSystemGuid { get; set; }
         public DateTime ExpiresAt { get; set; }
     }
 }

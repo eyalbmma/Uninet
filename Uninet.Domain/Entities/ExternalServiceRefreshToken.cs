@@ -8,16 +8,19 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Entities
 {
-    [Table("RefreshTokens")] // 👈 this is what tells EF to use the correct table
+    [Table("RefreshTokens")]
     public class ExternalServiceRefreshToken
     {
         [Key]
+        public int Id { get; set; }
         public string Token { get; set; }
 
-        public int? ExternalSystemId { get; set; }
+        public Guid ExternalSystemGuid { get; set; }
 
         public DateTime? ExpiresAt { get; set; }
 
         public DateTime? CreatedAt { get; set; }
     }
+
+
 }
