@@ -36,7 +36,7 @@ namespace Uninet.DATA.Interfaces
 
         public Task<ExternalsystemCompanyTotalDetails> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId);
 
-        Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request, string userId);
+        public Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request);
         public Task<ResSaveExternalCustomized> SaveExternalCustomizedExternalSystemId(SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails, string UserId);
         public Task<ForgotPasswordResponse> ForgotPassword(ForgotPasswordRequest forgotPasswordRequest);
     }

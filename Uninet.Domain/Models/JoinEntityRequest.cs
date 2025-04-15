@@ -6,19 +6,27 @@ using System.Threading.Tasks;
 
 namespace Uninet.Domain.Models
 {
+    public class Vehicle
+    {
+        public string VehicleId { get; set; }
+        public string VehicleName { get; set; }
+    }
+
     public class JoinEntityRequest
     {
-        // פרטי מערכת הכספים
-        public int FinanceSystemId { get; set; }
-        public string FinanceSystemName { get; set; }
+        public int? FinanceSystemId { get; set; }
+        public string? FinanceSystemName { get; set; }
+        public int? InternalEntityId { get; set; }
+        public List<Vehicle>? Vehicles { get; set; }
 
-        // פרטי הקריאה
-        public string RequestId { get; set; }
-        public DateTime? PreviousRequestDate { get; set; }
-        public DateTime CurrentRequestDate { get; set; }
+        public Guid ExternalSystemGuid { get; set; }
+
+        // מידע שמגיע ממערכת הכספים (user/pass/cid או apiKey וכו')
+        public List<CustomizedDataList> Variables { get; set; }
+
+        public int? SubCompanyId { get; set; }
 
         // פרטי הישות
-        public int InternalEntityId { get; set; }
         public string EntityName { get; set; }
         public string Country { get; set; }
         public string Currency { get; set; }
@@ -29,20 +37,28 @@ namespace Uninet.Domain.Models
         public string ContactEmail { get; set; }
         public string ContactPhone { get; set; }
 
-        // פרטי רכבים (רשימה)
-        public List<VehicleInfo> Vehicles { get; set; }
+        // פרטי הקריאה
+        public string RequestId { get; set; }
+        public DateTime? PreviousRequestDate { get; set; }
+        public DateTime? CurrentRequestDate { get; set; }
 
-        // רמת אימות (enum או מספר)
-        public int VerificationLevel { get; set; }
-
-        // אישור תנאי שימוש
+        // אימות ואישור
+        public int? VerificationLevel { get; set; }
         public bool AcceptTerms { get; set; }
+
+        // טוקן - למערכות שדורשות (כמו גרין אינבויס)
+       /// <summary>
+       /// public string Token { get; set; }
+       /// </summary>
+        public DateTime? TokenExpiration { get; set; }
     }
 
-    public class VehicleInfo
+    public class CustomizedDataList
     {
-        public string VehicleId { get; set; }
-        public string VehicleName { get; set; }
-        // ניתן להוסיף שדות נוספים
+        public string FieldLabelName { get; set; }
+        public string FieldLabelValue { get; set; }
+        public int? FiledType { get; set; }
+        public string? FieldTypeDesc { get; set; }
     }
+
 }

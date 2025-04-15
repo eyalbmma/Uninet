@@ -21,14 +21,16 @@ namespace UninetWebApi2.Controllers
         private readonly IRefreshTokenService _tokenService;
         private readonly IExternalSystemService _systemService;
         private readonly ExternalTokenConfig _tokenConfig;
-        private const string JwtSecretKey = "SuperLongPrivateKeyYouControl123!";
+        private readonly IConfiguration _configuration;
 
-        public AuthController(IRefreshTokenService tokenService, IExternalSystemService systemService, IOptions<ExternalTokenConfig> tokenConfig)
+        public AuthController(IRefreshTokenService tokenService, IExternalSystemService systemService, IOptions<ExternalTokenConfig> tokenConfig, IConfiguration configuration)
         {
             _tokenService = tokenService;
             _systemService = systemService;
             _tokenConfig = tokenConfig.Value;
+            _configuration = configuration;
         }
+
 
         [HttpPost("RegisterInit")]
         public IActionResult RegisterInit([FromBody] RegisterInitRequest request)
@@ -44,8 +46,14 @@ namespace UninetWebApi2.Controllers
                 ExpiresAt = DateTime.UtcNow.AddMinutes(5)
             };
 
-            return Ok(new { message = "Success", systemGuid = request.ExternalSystemGuid });
+            return Ok(new
+            {
+                message = "Success",
+                systemGuid = request.ExternalSystemGuid,
+                tempToken = tempToken // this is crucial to include
+            });
         }
+
 
         [HttpPost("LoginWithSecret")]
         public IActionResult LoginWithSecret([FromBody] LoginWithSecretRequest request)
@@ -91,7 +99,7 @@ namespace UninetWebApi2.Controllers
             });
         }
 
-        
+
         [HttpPost("RefreshToken")]
         public IActionResult Refresh([FromBody] RefreshTokenRequest request)
         {
@@ -108,7 +116,7 @@ namespace UninetWebApi2.Controllers
             string newAccessToken = GenerateJwtToken(system, accessExpiresAt);
             string newRefreshToken = Guid.NewGuid().ToString();
 
-            
+
             _tokenService.SaveOrUpdate(newRefreshToken, system.ExternalSystemGuid, refreshExpiresAt);
 
             return Ok(new
@@ -125,28 +133,46 @@ namespace UninetWebApi2.Controllers
         }
 
 
+
+
+
+
+
+
+
+
         private string GenerateJwtToken(ExternalSystem system, DateTime expiresAt)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(JwtSecretKey);
+
+            // Get base64-encoded secret from config
+            var base64Secret = _configuration["jwtTokenConfig:secret"];
+
+            // Decode from base64
+            var keyBytes = Convert.FromBase64String(base64Secret);
+            var key = new SymmetricSecurityKey(keyBytes);
 
             var claims = new[]
             {
-                new Claim("systemGuid", system.ExternalSystemGuid.ToString()),
-                new Claim("systemName", system.ApiKey),
-                new Claim("scope", system.AllowedScopes ?? "read")
-            };
+                    new Claim(ClaimTypes.NameIdentifier, system.ExternalSystemGuid.ToString()),
+                    new Claim("systemGuid", system.ExternalSystemGuid.ToString()),
+                    new Claim("systemName", system.ApiKey),
+                    new Claim("scope", system.AllowedScopes ?? "read")
+                };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = expiresAt,
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
+
+
+
     }
 
     public class RegisterInitRequest

@@ -291,8 +291,14 @@ namespace Uninet.DATA.Services
 
         public async Task<AccesstokenReturnObj> GenerateAccessToken(IEnumerable<Claim> claims)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
+            //var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"]));
+            //var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var base64Secret = Configuration["jwtTokenConfig:secret"];
+            var keyBytes = Convert.FromBase64String(base64Secret);
+            var key = new SymmetricSecurityKey(keyBytes);
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
 
             // Get Israel's time zone info
             string israelTimeZoneId = "Israel Standard Time"; // This is the Windows time zone ID for Israel
@@ -306,8 +312,8 @@ namespace Uninet.DATA.Services
 
             // Create the JWT token
             var jwt = new JwtSecurityToken(
-                issuer: Configuration["jwtTokenConfig:issuer"],
-                audience: Configuration["Tokens:audience"],
+                //issuer: Configuration["jwtTokenConfig:issuer"],
+                //audience: Configuration["Tokens:audience"],
                 claims: claims,
                 notBefore: DateTime.UtcNow, // Token is valid from the current UTC time
                 expires: israelExpirationTime, // Expiration time in Israel time

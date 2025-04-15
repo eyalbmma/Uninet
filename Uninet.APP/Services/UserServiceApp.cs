@@ -28,24 +28,10 @@ namespace Uninet.APP.Services
         }
 
 
-        public async Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request, string userId)
+        public async Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request)
         {
-            try
-            {
-                // קריאה לשכבת DataAccess שתטפל בלוגיקת הצירוף – למשל, בדיקת כפילות, הוספת ישות חדשה למסד נתונים וכו'
-                return await _userServiceDataAccess.JoinEntityAsync(request, userId);
-            }
-            catch (Exception ex)
-            {
-                // טיפול בשגיאות בהתאם לצורך
-                return new ResSaveExternalCustomized
-                {
-                    Success = false,
-                    textResponse = "Error processing join entity request."
-                };
-            }
+            return await _userServiceDataAccess.JoinEntityAsync(request);
         }
-
         public async Task<LoginWithEmailandPasswordResponse> VerifyEmailLink(string EmailGuidVerification)
         {
             try

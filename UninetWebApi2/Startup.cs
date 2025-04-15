@@ -141,8 +141,8 @@ namespace UninetWebApi2
 
 
             var jwtTokenConfig = Configuration.GetSection("jwtTokenConfig");
-            var secretKey = jwtTokenConfig.GetValue<string>("secret");
-            var issuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+            var base64Secret = jwtTokenConfig.GetValue<string>("secret");
+            var issuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(base64Secret));
 
             services.AddAuthentication(options =>
             {
@@ -169,13 +169,19 @@ namespace UninetWebApi2
                 {
                     OnAuthenticationFailed = context =>
                     {
-                        if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                        {
-                            context.Response.Headers.Add("Token-Expired", "true");
-                        }
-                        return System.Threading.Tasks.Task.CompletedTask;
+                        Console.WriteLine($"🔴 JWT AUTH FAILED: {context.Exception.Message}");
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        Console.WriteLine($"✅ JWT AUTH SUCCESS for {context.Principal.Identity?.Name}");
+                        return Task.CompletedTask;
                     }
+                    
                 };
+
+
+                
             });
 
 

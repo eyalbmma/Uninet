@@ -17,16 +17,18 @@ namespace UninetWebApi2.Controllers
         {
             _userServiceApp = userServiceApp;
         }
-        [Authorize]
+
         [HttpPost("Join_entity")]
         public async Task<IActionResult> JoinEntity([FromBody] JoinEntityRequest request)
         {
-            // שליפת מזהה המשתמש מתוך ה-JWT Token
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized("User not found in token.");
+            foreach (var claim in User.Claims)
+            {
+                Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+            }
 
-            var result = await _userServiceApp.JoinEntityAsync(request, userId);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState); // הצגת שגיאות קלט
+            var result = await _userServiceApp.JoinEntityAsync(request);
             return Ok(result);
         }
     }

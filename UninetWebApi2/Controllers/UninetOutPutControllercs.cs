@@ -33,7 +33,12 @@ namespace UninetWebApi2.Controllers
         }
 
 
-
+        [HttpGet("CheckToken")]
+        [Authorize]
+        public IActionResult CheckToken()
+        {
+            return Ok(User.Claims.Select(c => new { c.Type, c.Value }));
+        }
 
 
         [Authorize]
@@ -41,6 +46,7 @@ namespace UninetWebApi2.Controllers
         [Route("ShowDigitalDocumentDetails")]
         public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
         {
+            
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(expensesUserDoRequest.ClientVat_id))

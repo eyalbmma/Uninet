@@ -12,7 +12,7 @@ namespace Uninet.APP.Interfaces
 {
     public interface IUserServiceApp
     {
-        Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request, string userId);
+        Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request);
 
         public Task<CurrentExternalSystemDetails> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput, int userid);
         public Task<BusinessPartnerLists> InviteBusinessPartners(int userid,int Lang, int subcompanyid);
