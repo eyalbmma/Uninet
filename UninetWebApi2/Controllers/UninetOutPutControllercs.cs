@@ -22,7 +22,7 @@ namespace UninetWebApi2.Controllers
            
         }
         //here we get all document that the client is getting to his uninet system approved rejected and not each one of them 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("GetDigitalDocumentToApproveListByUser")]
         public async Task<ActionResult> GetDigitalDocumentToApproveListByUser(string Typelist, int? subCompanyId = null, int pageNumber = 1, int pageSize = 100)
         {
@@ -51,14 +51,14 @@ namespace UninetWebApi2.Controllers
 
 
         [HttpGet("CheckToken")]
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         public IActionResult CheckToken()
         {
             return Ok(User.Claims.Select(c => new { c.Type, c.Value }));
         }
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost]
         [Route("ShowDigitalDocumentDetails")]
         public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
@@ -117,7 +117,7 @@ namespace UninetWebApi2.Controllers
 
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("RejectDocument")]
         //this method gets a 
         public async Task<ActionResult> RejectDocument([FromBody] RequestRejectDocument requestRejectDocument)
@@ -145,7 +145,7 @@ namespace UninetWebApi2.Controllers
             return Ok(result);
         }
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("InsertUserDigitalDocToUninet")]
         //this method gets a 
         //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
@@ -158,7 +158,7 @@ namespace UninetWebApi2.Controllers
         }
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("AddexpenseType")]
         //this method gets a 
         //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
@@ -189,8 +189,8 @@ namespace UninetWebApi2.Controllers
 
 
 
-        
-        [Authorize]
+
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("AproveDoc")]
         public async Task<ActionResult> AproveDoc([FromBody] InsertUserDigitalDocRequest expensesUserDoRequest)
         {

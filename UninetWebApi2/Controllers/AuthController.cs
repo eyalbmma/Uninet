@@ -1,14 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// AuthController.cs
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Uninet.APP.Interfaces;
 using UninetWebApi2.Helpers;
 using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography;
 
 namespace UninetWebApi2.Controllers
 {
@@ -19,14 +20,12 @@ namespace UninetWebApi2.Controllers
         private readonly IRefreshTokenService _tokenService;
         private readonly IExternalSystemService _systemService;
         private readonly ExternalTokenConfig _tokenConfig;
-        private readonly IConfiguration _configuration;
 
-        public AuthController(IRefreshTokenService tokenService, IExternalSystemService systemService, IOptions<ExternalTokenConfig> tokenConfig, IConfiguration configuration)
+        public AuthController(IRefreshTokenService tokenService, IExternalSystemService systemService, IOptions<ExternalTokenConfig> tokenConfig)
         {
             _tokenService = tokenService;
             _systemService = systemService;
             _tokenConfig = tokenConfig.Value;
-            _configuration = configuration;
         }
 
         [HttpPost("token")]
@@ -39,18 +38,8 @@ namespace UninetWebApi2.Controllers
             if (system == null || !system.IsActive)
                 return Unauthorized("Invalid client_id");
 
-            if (string.IsNullOrEmpty(request.Client_Secret))
-                return Unauthorized("Missing client_secret");
-
             if (!string.Equals(system.SharedSecret, request.Client_Secret, StringComparison.Ordinal))
                 return Unauthorized("Invalid client_secret");
-
-            var requestedScopes = (request.Scope ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var allowedScopes = (system.AllowedScopes ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-            if (requestedScopes.Except(allowedScopes).Any())
-                return Unauthorized("Requested scope is not allowed.");
-
 
             var accessExpiresAt = DateTime.UtcNow.AddMinutes(_tokenConfig.AccessTokenExpiryMinutes);
             var refreshExpiresAt = DateTime.UtcNow.AddDays(_tokenConfig.RefreshTokenExpiryDays);
@@ -69,16 +58,11 @@ namespace UninetWebApi2.Controllers
                 scope = request.Scope ?? system.AllowedScopes
             });
         }
+
         private string GenerateJwtToken(ExternalSystem system, DateTime expiresAt)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var base64Secret = _configuration["jwtTokenConfig:secret"];
-            var keyBytes = Convert.FromBase64String(base64Secret);
-            var signingKey = new SymmetricSecurityKey(keyBytes);
-
-            var encryptionBase64Key = _configuration["jwtTokenConfig:encryptionKey"];
-            var encryptionKeyBytes = Convert.FromBase64String(encryptionBase64Key);
-            var encryptingKey = new SymmetricSecurityKey(encryptionKeyBytes);
+            var signingKey = GetPrivateKey();
 
             var now = DateTime.UtcNow;
 
@@ -96,18 +80,43 @@ namespace UninetWebApi2.Controllers
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
-            {
+                {
                 Subject = new ClaimsIdentity(claims),
                 Expires = expiresAt,
-                SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256),
-                EncryptingCredentials = new EncryptingCredentials(encryptingKey, SecurityAlgorithms.Aes256KW, SecurityAlgorithms.Aes256CbcHmacSha512)
+                SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.RsaSha256),
+                //EncryptingCredentials = new EncryptingCredentials
+                //(
+                //    GetClientPublicKey(),
+                //    SecurityAlgorithms.RsaOAEP,             // הצפנת מפתח סשן
+                //    SecurityAlgorithms.Aes256CbcHmacSha512   // הצפנת התוכן
+                //)
+                //remarked by eyal temporary until i will have the public key that the client sent me for the encyption of the signing key 
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
+        private RsaSecurityKey GetClientPublicKey()
+        {
+            using (var reader = new StreamReader("C:\\Users\\eyalber1.CLALIT\\Documents\\jwt-keys\\client_public_key.pem"))
+            {
+                var pem = reader.ReadToEnd();
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(pem.ToCharArray());
+                return new RsaSecurityKey(rsa);
+            }
+        }
 
-       
+        private RsaSecurityKey GetPrivateKey()
+        {
+            using (var reader = new StreamReader("C:\\Users\\eyalber1.CLALIT\\Documents\\jwt-keys\\private_key.pem"))
+            {
+                var pem = reader.ReadToEnd();
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(pem.ToCharArray());
+                return new RsaSecurityKey(rsa);
+            }
+        }
     }
 
     public class TokenRequest

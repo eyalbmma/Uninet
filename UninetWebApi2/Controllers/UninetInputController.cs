@@ -35,7 +35,7 @@ namespace UninetWebApi2.Controllers
             _uninetInputAppService = uninetInputAppServic;
             _uninetSimulateGreenVoiceAppServices = uninetSimulateGreenVoiceAppServices;
         }
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("GetTestResponse")]
         public async Task<List<TestResponse>> GetTestResponse()
         {

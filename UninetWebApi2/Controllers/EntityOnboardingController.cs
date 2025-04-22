@@ -6,7 +6,7 @@ using Uninet.APP.Interfaces;          // IUserServiceApp
 using UninetWebApi2.Helpers;
 namespace UninetWebApi2.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "ExternalPolicy")]
     [ApiController]
     [Route("api/[controller]")]
     public class EntityOnboardingController : ControllerBase

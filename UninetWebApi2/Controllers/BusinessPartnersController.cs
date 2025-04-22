@@ -17,6 +17,7 @@ using UninetWebApi2.Helpers;
 
 namespace UninetWebApi2.Controllers
 {
+    
     [Route("api/[controller]")]
     [ApiController]
     public class BusinessPartnersController : ControllerBase
@@ -37,7 +38,7 @@ namespace UninetWebApi2.Controllers
 
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("SendEmail")]
         public async Task<ActionResult> SendEmail([FromBody] List<SendEmailRequest> sendEmailRequests, int Lang,int MainCompanyid)
         {
@@ -69,7 +70,7 @@ namespace UninetWebApi2.Controllers
 
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
 
         [HttpGet("ShortVersionGetBusinessPartnersByFilter")]
         public async Task<ActionResult> ShortVersionGetBusinessPartnersByFilter([FromQuery] int filterType, int subCopmanyId, int pageNumber, int pageSize,int Lang)
@@ -122,9 +123,9 @@ namespace UninetWebApi2.Controllers
             }
         }
 
-            // Endpoint to get business partners by filter type
-            [Authorize]
-       
+        // Endpoint to get business partners by filter type
+        [Authorize(Policy = "AdminPolicy")]
+
         [HttpGet("GetBusinessPartnersByFilter")]
         public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId, int pageNumber, int pageSize,int Lang)
         {

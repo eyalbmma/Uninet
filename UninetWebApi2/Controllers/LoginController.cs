@@ -598,7 +598,7 @@ namespace UninetWebApi2.Controllers
 
 
         [HttpPost("Logout")]
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         public async Task<IActionResult> Logout(LogOutRequest logoutrequest)
         {
             var context = UserContextHelper.GetUserContext(User);

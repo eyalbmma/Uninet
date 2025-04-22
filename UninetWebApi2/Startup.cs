@@ -20,6 +20,7 @@ using Microsoft.Extensions.Hosting;
 using System.IdentityModel.Tokens.Jwt;
 using Uninet.Domain.Models;
 using UninetWebApi2.Middleware;
+using System.Security.Cryptography;
 
 namespace UninetWebApi2
 {
@@ -146,71 +147,58 @@ namespace UninetWebApi2
 
             services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(options =>
+            })
+            .AddJwtBearer("AdminScheme", options =>  // HS256 עבור משתמשים
             {
                 options.RequireHttpsMetadata = false;
                 options.SaveToken = true;
-                //options.Authority = Configuration["jwtTokenConfig:Authority"];
-                options.Audience = Configuration["jwtTokenConfig:Audience"];
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateAudience = false,
                     ValidateIssuer = false,
                     ValidateIssuerSigningKey = true,
-                    //IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["jwtTokenConfig:secret"])),
-                    IssuerSigningKey = issuerSigningKey,
+                    IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(Configuration["jwtTokenConfig:secret"])),
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero //the default for this setting is 5 minutes
+                    ClockSkew = TimeSpan.Zero
                 };
+            })
+            .AddJwtBearer("ExternalScheme", options => // RS256 עבור מערכות חיצוניות
+            {
+                options.RequireHttpsMetadata = false;
+                options.SaveToken = true;
 
-                options.Events = new JwtBearerEvents
+                // Load RSA public key
+                var rsa = RSA.Create();
+                rsa.ImportFromPem(File.ReadAllText("C:\\Users\\eyalber1.CLALIT\\Documents\\jwt-keys\\public_key.pem").ToCharArray());
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    OnAuthenticationFailed = context =>
-                    {
-                        Console.WriteLine($"🔴 JWT AUTH FAILED: {context.Exception.Message}");
-                        return Task.CompletedTask;
-                    },
-                    OnTokenValidated = context =>
-                    {
-                        Console.WriteLine($"✅ JWT AUTH SUCCESS for {context.Principal.Identity?.Name}");
-                        return Task.CompletedTask;
-                    }
-                    
+                    ValidateAudience = false,
+                    ValidateIssuer = false,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new RsaSecurityKey(rsa),
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
                 };
-
-
-                
             });
 
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("AdminPolicy", policy =>
+                {
+                    policy.AuthenticationSchemes.Add("AdminScheme");
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireClaim("systemType", "adminUser");
+                });
 
-
-
-
-
-            
-
-            //services.AddAuthentication(options =>
-            //{
-            //    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-            //    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            //}).AddJwtBearer(options =>
-            //{
-            //    options.RequireHttpsMetadata = false; // Set to true if using HTTPS
-            //    options.SaveToken = true;
-            //    options.TokenValidationParameters = new TokenValidationParameters
-            //    {
-            //        ValidateAudience = false,
-            //        ValidateIssuer = false,
-            //        ValidateIssuerSigningKey = true,
-            //        IssuerSigningKey = issuerSigningKey, // Use the configured secret key
-            //        ValidateLifetime = true,
-            //        ClockSkew = TimeSpan.Zero // The default for this setting is 5 minutes
-            //    };
-
-                
-            //});
+                options.AddPolicy("ExternalPolicy", policy =>
+                {
+                    policy.AuthenticationSchemes.Add("ExternalScheme");
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireClaim("systemType", "externalSystem");
+                });
+            });
 
 
 

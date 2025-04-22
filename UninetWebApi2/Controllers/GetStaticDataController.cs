@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -7,6 +8,7 @@ using Uninet.APP.Services;
 
 namespace UninetWebApi2.Controllers
 {
+   
     [Route("api/[controller]")]
     [ApiController]
     public class GetStaticDataController : ControllerBase

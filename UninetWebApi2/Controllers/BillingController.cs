@@ -8,6 +8,7 @@ using Uninet.Domain.Models;
 using UninetWebApi2.Helpers;
 namespace UninetWebApi2.Controllers
 {
+   
     [Route("api/[controller]")]
     [ApiController]
     public class BillingController : ControllerBase
@@ -22,7 +23,7 @@ namespace UninetWebApi2.Controllers
         }
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("Save")]
 
         public async Task<ActionResult> Save([FromBody] CreditCard creditCard)
@@ -41,7 +42,7 @@ namespace UninetWebApi2.Controllers
 
         }
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("ContinueFreeBilling")]
         public async Task<ActionResult> ContinueFreeBilling(ContinueFreeInput continueFreeInput)
         {
@@ -71,7 +72,7 @@ namespace UninetWebApi2.Controllers
             }
             catch (Exception ex) { return null; }
         }
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("ShowUserBillingDetails")]
         public async Task<ActionResult> ShowUserBillingDetails([FromBody] UserDetails userDetails)
         {

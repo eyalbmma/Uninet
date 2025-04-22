@@ -40,7 +40,7 @@ namespace UninetWebApi2.Controllers
         }
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("ShowCurrentExternalSystemDetails")]
         public async Task<ActionResult> ShowCurrentExternalSystemDetails(DetailsForExternakSystemInput detailsForExternakSystemInput)
         {
@@ -107,7 +107,7 @@ namespace UninetWebApi2.Controllers
         //}
 
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("InviteBusinessPartners")]
         public async Task<ActionResult> InviteBusinessPartners(int Lang, int subcompanyid)
         {
@@ -157,7 +157,7 @@ namespace UninetWebApi2.Controllers
 
 
         //Q1 to Q3
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("RegisterBusinessToUser")]
         public async Task<ActionResult> RegisterBusinessToUser([FromBody] BusinessRequestWrap RegisterUserReqWrap)
         {
@@ -246,7 +246,7 @@ namespace UninetWebApi2.Controllers
         //}
 
         //GetExternalCustomizedFieldByExternaLSystemID  ''ExternalSystemCustomizeFieldResult
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpPost("SaveExternalCustomizedExternalSystemId")]
         public async Task<ActionResult> SaveExternalCustomizedExternalSystemId([FromBody] SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails)
         {
@@ -285,7 +285,7 @@ namespace UninetWebApi2.Controllers
             return Ok(res);
         }
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("GetExternalSystem")]
         public async Task<IActionResult> GetExternalSystem(int Lang)
         {
@@ -293,7 +293,7 @@ namespace UninetWebApi2.Controllers
             return Ok(res);
         }
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("GetWelcomeToUninet")]
         public async Task<IActionResult> GetWelcomeToUninet(int Lang)
         {
@@ -350,7 +350,7 @@ namespace UninetWebApi2.Controllers
 
         //    return Ok(new { Token = tokenString });
         //}
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("Test")]
         public async Task<IActionResult> Test()
         {
@@ -360,7 +360,7 @@ namespace UninetWebApi2.Controllers
             
         }
 
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         [HttpGet("GetExternalCustomizedFieldByExternaLSystemID")]
         public async Task<IActionResult> GetExternalCustomizedFieldByExternaLSystemID(int ExternalSystemId)
         {
@@ -541,7 +541,7 @@ namespace UninetWebApi2.Controllers
         }
 
         [HttpPost("GetActiveTab")]
-        [Authorize]
+        [Authorize(Policy = "AdminPolicy")]
         public async Task<ActionResult> GetActiveTab([FromBody] GetActiveTabRequest getActiveTabRequest)
         {
             var res = await _userServiceApp.GetActiveTab(getActiveTabRequest);
