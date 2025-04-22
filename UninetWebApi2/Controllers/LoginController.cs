@@ -20,6 +20,7 @@ using Uninet.DATA.Services;
 using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Responses;
+using UninetWebApi2.Helpers;
 
 //using Google.Apis.Auth;
 
@@ -61,7 +62,8 @@ namespace UninetWebApi2.Controllers
 
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier,userId.ToString())
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim("systemType", "adminUser")
             };
             var newJwtToken = await _jwtAppService.GenerateAccessToken(claims);
             
@@ -127,7 +129,8 @@ namespace UninetWebApi2.Controllers
                     var claims = new[]
                     {
 
-                         new Claim(ClaimTypes.NameIdentifier,googleresponse.UserId.ToString())
+                         new Claim(ClaimTypes.NameIdentifier,googleresponse.UserId.ToString()),
+                          new Claim("systemType", "adminUser")
                      };
                     var token = await _jwtAppService.GenerateAccessToken(claims);
                     var newRefreshToken = await _jwtAppService.GenerateRefreshToken(googleresponse.UserId);
@@ -284,7 +287,8 @@ namespace UninetWebApi2.Controllers
 
 
 
-                        new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString())
+                        new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString()),
+                         new Claim("systemType", "adminUser")
                     };
                     AccesstokenReturnObj token = await _jwtAppService.GenerateAccessToken(claims);
                     var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Res.Userid);
@@ -596,10 +600,28 @@ namespace UninetWebApi2.Controllers
         [HttpPost("Logout")]
         [Authorize]
         public async Task<IActionResult> Logout(LogOutRequest logoutrequest)
-        { 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        {
+            var context = UserContextHelper.GetUserContext(User);
 
-           
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
+
+
+
             await HttpContext.SignOutAsync(JwtBearerDefaults.AuthenticationScheme);
 
 

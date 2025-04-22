@@ -105,7 +105,7 @@ namespace Uninet.DATA.Services
 
         //    return Ok(question.ToJson());
         //}
-        private async Task<string> FetchAndUpdateNewToken(int companyId, int subcompanyId, int userId, int externalSystemId, UsersExternalSystemDynamicFields usersExternalSystemDynamicFieldsResult)
+        private async Task<string> FetchAndUpdateNewToken(int companyId, int subcompanyId, int? userId, int externalSystemId, UsersExternalSystemDynamicFields usersExternalSystemDynamicFieldsResult)
         {
             try
             {
@@ -184,25 +184,78 @@ namespace Uninet.DATA.Services
             }
         }
 
-        public async Task<string> GetNewToken(int companyId, int subcompanyId, int userId, int externalSystemId)
+        //public async Task<string> GetNewToken(int companyId, int subcompanyId, int userId, int externalSystemId)
+        //{
+        //    try
+        //    {
+        //        string newToken = "";
+
+        //        // Step 1: Retrieve the token information from the database
+        //        var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
+        //            x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
+        //        );
+
+        //        if (usersExternalSystemDynamicFieldsResult == null || IsTokenExpired(usersExternalSystemDynamicFieldsResult.TokenExpiration))
+        //        {
+        //            // Call the helper function to fetch and update the token
+        //            newToken = await FetchAndUpdateNewToken(companyId, subcompanyId, userId, externalSystemId, usersExternalSystemDynamicFieldsResult);
+        //        }
+        //        else
+        //        {
+        //            // If the token is valid, return it
+        //            newToken = usersExternalSystemDynamicFieldsResult.Token;
+        //        }
+
+        //        return newToken;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Error in GetNewToken: {ex.Message}");
+        //        return "";
+        //    }
+        //}
+
+
+
+        public async Task<string> GetNewToken(int companyId, int subcompanyId, int? userId, int externalSystemId)
         {
             try
             {
                 string newToken = "";
 
-                // Step 1: Retrieve the token information from the database
-                var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync<UsersExternalSystemDynamicFields>(
-                    x => x.Companyid == companyId && x.Userid == userId && x.SubCompayId == subcompanyId && x.ExternalSystemId == externalSystemId
-                );
+                Expression<Func<UsersExternalSystemDynamicFields, bool>> predicate;
 
-                if (usersExternalSystemDynamicFieldsResult == null || IsTokenExpired(usersExternalSystemDynamicFieldsResult.TokenExpiration))
+                if (companyId == -1 || userId == null)
                 {
-                    // Call the helper function to fetch and update the token
-                    newToken = await FetchAndUpdateNewToken(companyId, subcompanyId, userId, externalSystemId, usersExternalSystemDynamicFieldsResult);
+                    // במקרה של ממשק, אין קשר למשתמש ולחברה - רק לפי SubCompanyId ו-ExternalSystemId
+                    predicate = x =>
+                        x.Companyid == -1 &&
+                        x.SubCompayId == subcompanyId &&
+                        x.ExternalSystemId == externalSystemId;
                 }
                 else
                 {
-                    // If the token is valid, return it
+                    predicate = x =>
+                        x.Companyid == companyId &&
+                        x.Userid == userId &&
+                        x.SubCompayId == subcompanyId &&
+                        x.ExternalSystemId == externalSystemId;
+                }
+
+                var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync(predicate);
+
+                if (usersExternalSystemDynamicFieldsResult == null || IsTokenExpired(usersExternalSystemDynamicFieldsResult.TokenExpiration))
+                {
+                    newToken = await FetchAndUpdateNewToken(
+                        companyId,
+                        subcompanyId,
+                        userId,
+                        externalSystemId,
+                        usersExternalSystemDynamicFieldsResult
+                    );
+                }
+                else
+                {
                     newToken = usersExternalSystemDynamicFieldsResult.Token;
                 }
 
@@ -214,6 +267,8 @@ namespace Uninet.DATA.Services
                 return "";
             }
         }
+
+
         public async Task<string> GetNameById(string jsonString, long idToFind)
         {
             // Parse the JSON string into a list of dictionaries
@@ -233,12 +288,42 @@ namespace Uninet.DATA.Services
                 string SubCompanyid = WebHookSourceid.Split("_")[1];
                 string Str_WebHookSourceid = WebHookSourceid.Split("_")[0];
                 int intWebHookSourceid = Convert.ToInt32(Str_WebHookSourceid);
+
                 var internalCompanySenderIdObj = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(
                     x => x.WebHookSourceid == intWebHookSourceid && x.SubCompanyId == Convert.ToInt32(SubCompanyid)
                 );
-                var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
-                    x => x.BusinessId == internalCompanySenderIdObj.Internalcompanyid
-                );
+
+                int internalCompanySenderId = internalCompanySenderIdObj.Internalcompanyid;
+                int? UserIdAttachedToCompanySenderId = null;
+                string OrganiztionName = "Unknown";
+
+                string newToken;
+
+                if (internalCompanySenderId == -1)
+                {
+                    // במקרה של ממשק - אין משתמש ואין חברה
+                    newToken = await GetNewToken(-1, Convert.ToInt32(SubCompanyid), null, 6);
+                }
+                else
+                {
+                    var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
+                        x => x.BusinessId == internalCompanySenderId
+                    );
+
+                    if (UserIdAttachedToCompanySenderIdObj == null)
+                        throw new Exception("Business object not found for Internalcompanyid");
+
+                    UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
+                    OrganiztionName = UserIdAttachedToCompanySenderIdObj.OrganizationName;
+
+                    newToken = await GetNewToken(
+                        internalCompanySenderId,
+                        Convert.ToInt32(SubCompanyid),
+                        UserIdAttachedToCompanySenderId,
+                        6
+                    );
+                }
+
                 // Parse the incoming JSON
                 var bsonDocument = BsonDocument.Parse(json);
 
@@ -246,16 +331,13 @@ namespace Uninet.DATA.Services
                 string type = bsonDocument.GetValue("type", "").ToString();
 
                 // Fetch typename from the Morning API based on `type`
-                string newToken = await GetNewToken(internalCompanySenderIdObj.Internalcompanyid, Convert.ToInt32(SubCompanyid) ,UserIdAttachedToCompanySenderIdObj.AdminUserid ,6);//internalCompanyId, Client_SubCompanyid, userId, 6
-                var EndpointDocInfoObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 92); // Endpoint for typename
+                var EndpointDocInfoObj = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 92);
                 string DocInfoEndpoint = $"{EndpointDocInfoObj.Endpoint}";
                 string typenameResponse = await SendRequest(DocInfoEndpoint, HttpMethod.Get, newToken);
-                string typename = await GetNameById(typenameResponse,Convert.ToInt64(type));
+                string typename = await GetNameById(typenameResponse, Convert.ToInt64(type));
 
-                // Add typename to the BSON document
                 bsonDocument.Add("typename", typename);
 
-                // Parse remaining fields from the BSON document
                 string businessId = bsonDocument.GetValue("businessId", "").ToString();
                 string date = bsonDocument.GetValue("date", "").ToString();
                 string total = bsonDocument.GetValue("total", "").ToString();
@@ -272,7 +354,6 @@ namespace Uninet.DATA.Services
 
                 string finalUrl = await ConvertMorningUrl(docUrl);
 
-                // Update or add the "processedUrl" field in downloadLinks
                 if (!downloadLinks.Contains("processedUrl"))
                 {
                     downloadLinks.Add("processedUrl", finalUrl);
@@ -282,24 +363,8 @@ namespace Uninet.DATA.Services
                     downloadLinks["processedUrl"] = finalUrl;
                 }
 
-                // Insert the updated BSON document into the webhook collection
                 await _MorningWebhookData.InsertOneAsync(bsonDocument);
 
-                // Parse WebHookSourceId to retrieve mappings
-                
-
-                
-                int internalCompanySenderId = internalCompanySenderIdObj.Internalcompanyid;
-
-                
-                int UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
-
-                var OrganiztionNameObj = await _repository.GetFirstObjectAsync<Businesses>(
-                    x => x.BusinessId == internalCompanySenderId
-                );
-                string OrganiztionName = OrganiztionNameObj.OrganizationName;
-
-                // Check if the business is registered in MorningCompanisInfo
                 var filter = Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("InternalCompanyId", internalCompanySenderId),
                     Builders<BsonDocument>.Filter.Eq("SubCompanyId", Convert.ToInt32(SubCompanyid))
@@ -311,17 +376,16 @@ namespace Uninet.DATA.Services
                 string businessVatId = resultMorningCompanyinfo?["taxId"].AsString ?? string.Empty;
                 bool isRegisteredOnUninet = _MorningCompanisInfoCollection.CountDocuments(filter) > 0;
 
-                // Prepare BusinessData object
                 var newBusinessData = new BusinessData
                 {
-                    UserId = UserIdAttachedToCompanySenderId,
+                    UserId = UserIdAttachedToCompanySenderId ?? 0,
                     BusinessId = internalCompanySenderId,
                     SubCompanyId = Convert.ToInt32(SubCompanyid),
                     JsonDocumentid = bsonDocument["_id"].AsObjectId.ToString(),
                     BusinessVatId = businessVatId,
                     ClientVat_id = Convert.ToInt32(recipientTaxId),
                     client_name = recipientName,
-                    DataSourceEnum = 6, // 6 for Morning
+                    DataSourceEnum = 6,
                     ClientEmail = recipientEmail,
                     EmailSent = false,
                     DateEmailSent = null,
@@ -331,12 +395,11 @@ namespace Uninet.DATA.Services
                     amountAV = Convert.ToDouble(total),
                     currency_code = bsonDocument.GetValue("currency", "").ToString(),
                     ClientvatidRegisteredtOnUninet = isRegisteredOnUninet,
-                    DataSourceType = 2 // for webhook data collection
+                    DataSourceType = 2
                 };
 
-                // Check for existing BusinessData object
                 Expression<Func<BusinessData, bool>> predicate = bd =>
-                    bd.UserId == UserIdAttachedToCompanySenderId &&
+                    bd.UserId == (UserIdAttachedToCompanySenderId ?? 0) &&
                     bd.BusinessId == internalCompanySenderId &&
                     bd.SubCompanyId == Convert.ToInt32(SubCompanyid) &&
                     bd.JsonDocumentid == ObjectId.Parse(newBusinessData.JsonDocumentid).ToString();
@@ -361,7 +424,7 @@ namespace Uninet.DATA.Services
                         isRegisteredOnUninet ? 7 : 5,
                         1,
                         _RequestMailObject,
-                        UserIdAttachedToCompanySenderId.ToString(),
+                        (UserIdAttachedToCompanySenderId ?? 0).ToString(),
                         newBusinessData.JsonDocumentid
                     );
                 }
@@ -374,6 +437,7 @@ namespace Uninet.DATA.Services
                 return false;
             }
         }
+
         private string ExtractTypenameFromResponse(string response)
         {
             try

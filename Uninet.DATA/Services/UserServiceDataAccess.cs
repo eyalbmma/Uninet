@@ -67,6 +67,7 @@ namespace Uninet.DATA.Services
         private readonly IMongoCollection<BsonDocument> _MorningWebHookData;
         private readonly IUninetInputDataAccess _UninetInputDataAccess;
         private readonly Dictionary<int, ExternalSystemConfig> _externalSystemConfig;
+        private readonly IMongoCollection<BsonDocument> _JoinedEntity; 
         public IConfiguration Configuration { get; }
         public UserServiceDataAccess(IRepository<UninetContext> repository, IConfiguration configuration, IDataMailassist dataMailassist, IUninetInputDataAccess uninetInputDataAccess, IMongoClient client)//, IloginRepository loginRepository
         {
@@ -85,9 +86,10 @@ namespace Uninet.DATA.Services
             Configuration = configuration;
             _dataMailassist = dataMailassist;
             _UninetInputDataAccess = uninetInputDataAccess;
+            _JoinedEntity = database.GetCollection<BsonDocument>("JoinedEntity");
             _externalSystemConfig = new Dictionary<int, ExternalSystemConfig>
-    {
-        {
+            {
+             {
             2, // iCount System
             new ExternalSystemConfig
             {
@@ -975,19 +977,25 @@ namespace Uninet.DATA.Services
                 var externalSystem = await _repository.GetFirstObjectAsync<ExternalSystem>(x => x.ExternalSystemGuid == request.ExternalSystemGuid);
                 if (externalSystem == null)
                 {
-                    return new ResSaveExternalCustomized { Success = false, textResponse = "External system not found", SystemRegisteredInuninet = false };
+                    return new ResSaveExternalCustomized
+                    {
+                        Success = false,
+                        textResponse = "External system not found",
+                        SystemRegisteredInuninet = false
+                    };
                 }
 
                 int externalSystemId = externalSystem.ExternalSystemID;
                 string token = null;
                 DateTime? tokenExpiration = null;
 
+                // Extract credentials
+                string cid = request.Variables.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
+                string user = request.Variables.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
+                string pass = request.Variables.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
+
                 if (externalSystemId == 2)
                 {
-                    var cid = request.Variables.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
-                    var user = request.Variables.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
-                    var pass = request.Variables.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
-
                     if (string.IsNullOrWhiteSpace(cid) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
                         return new ResSaveExternalCustomized { Success = false, textResponse = "Missing required credentials (cid/user/pass)" };
 
@@ -999,10 +1007,10 @@ namespace Uninet.DATA.Services
                     if (!root.GetProperty("status").GetBoolean())
                         return new ResSaveExternalCustomized { Success = false, textResponse = "iCount credentials validation failed" };
 
-                    dynamic dynamicCompanyInfo = Newtonsoft.Json.JsonConvert.DeserializeObject(response);
+                    dynamic dynamicCompanyInfo = JsonConvert.DeserializeObject(response);
                     dynamicCompanyInfo.company_info.InternalCompanyId = -1;
                     dynamicCompanyInfo.company_info.SubCompanyId = 0;
-                    string modifiedJson = Newtonsoft.Json.JsonConvert.SerializeObject(dynamicCompanyInfo);
+                    string modifiedJson = JsonConvert.SerializeObject(dynamicCompanyInfo);
                     string vatId = dynamicCompanyInfo.company_info.vat_id;
 
                     var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
@@ -1029,6 +1037,7 @@ namespace Uninet.DATA.Services
                     tokenExpiration = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
                 }
 
+                // Save dynamic fields into DB
                 var jsonObject = new
                 {
                     listInputLabelDetails = request.Variables,
@@ -1041,7 +1050,6 @@ namespace Uninet.DATA.Services
                 };
 
                 var param = new { jsonInput = JsonConvert.SerializeObject(jsonObject) };
-
                 var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData("SP_joinentity", param);
                 var subCompanyId = spresult?.NewSubCompanyId;
                 string operation = spresult?.OperationType;
@@ -1059,46 +1067,88 @@ namespace Uninet.DATA.Services
                         SubCompanyId = subCompanyId
                     };
                 }
-
-                if (operation == "insert")
+                else
                 {
-                    var mapping = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(x => x.Internalcompanyid == -1 && x.SubCompanyId == subCompanyId);
-                    if (mapping == null)
+                    if (subCompanyId.HasValue)
                     {
-                        mapping = new LUTIcountSourceWebhookCompanyMapping { Internalcompanyid = -1, SubCompanyId = subCompanyId };
-                        mapping = await _repository.CreateAsyncReturnEntity(mapping);
+                        request.SubCompanyId = subCompanyId; // Make sure it's updated before the insert
                     }
 
-                    string endpointUrl = externalSystemId == 2
-                        ? $"https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid={mapping.WebHookSourceid}_{subCompanyId}"
-                        : $"https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhookMorning?webhooksourceid={mapping.WebHookSourceid}_{subCompanyId}";
+                    // Check if already exists in Mongo
+                    var filter = Builders<BsonDocument>.Filter.Eq("FinanceSystemId", request.FinanceSystemId) &
+                    Builders<BsonDocument>.Filter.Eq("SubCompanyId", request.SubCompanyId);
 
-                    JsonDocument webhookResponse = externalSystemId == 2
-                        ? await CallAddWebhookToIcount(mapping, endpointUrl)
-                        : await CallAddWebhookToGreenInvoice(mapping, endpointUrl, "", token);
-
-                    var root = webhookResponse.RootElement;
-                    int webhookId = root.TryGetProperty("webhook_id", out var w) ? w.GetInt32() : 0;
-                    mapping.WebhookID = webhookId;
-                    await _repository.UpdateAsync(mapping);
-
-                    if (externalSystemId == 6)
+                    var existingJoin = await _JoinedEntity.Find(filter).FirstOrDefaultAsync();
+                    if (existingJoin == null)
                     {
-                        var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 14);
-                        var businessData = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Get, token, null);
-                        var dynamicCompanyInfo = JObject.Parse(businessData);
-                        dynamicCompanyInfo["InternalCompanyId"] = -1;
-                        dynamicCompanyInfo["SubCompanyId"] = subCompanyId;
-                        string vatId = dynamicCompanyInfo["taxId"]?.ToString();
-                        var filter = Builders<BsonDocument>.Filter.Eq("taxId", vatId);
-                        var existing = await _MorningCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-                        if (existing == null)
+                        var document = request.ToBsonDocument(); // convert the C# object to Bson
+                        await _JoinedEntity.InsertOneAsync(document);
+                    }
+
+                }
+
+                if (externalSystemId == 6)
+                {
+                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 14);
+                    var businessData = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Get, token, null);
+                    var dynamicCompanyInfo = JObject.Parse(businessData);
+                    dynamicCompanyInfo["InternalCompanyId"] = -1;
+                    dynamicCompanyInfo["SubCompanyId"] = subCompanyId;
+                    string vatId = dynamicCompanyInfo["taxId"]?.ToString();
+                    var filter = Builders<BsonDocument>.Filter.Eq("taxId", vatId);
+                    var existing = await _MorningCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+                    if (existing == null)
+                    {
+                        var doc = BsonDocument.Parse(dynamicCompanyInfo.ToString());
+                        await _MorningCompanyInfoCollection.InsertOneAsync(doc);
+                    }
+                }
+
+                if (externalSystemId == 2)
+                {
+                    if (string.IsNullOrWhiteSpace(cid) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
+                        return new ResSaveExternalCustomized { Success = false, textResponse = "Missing required credentials (cid/user/pass)" };
+
+                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70);
+                    string fullUrl = $"{endpoint.Endpoint}?cid={cid}&user={user}&pass={pass}";
+                    var response = await _UninetInputDataAccess.SendRequest(fullUrl, HttpMethod.Get);
+
+                    var jsonDoc = JsonDocument.Parse(response);
+                    var root = jsonDoc.RootElement;
+
+                    if (!root.GetProperty("status").GetBoolean())
+                        return new ResSaveExternalCustomized { Success = false, textResponse = "iCount credentials validation failed" };
+
+                    // Deserialize response
+                    dynamic dynamicCompanyInfo = JsonConvert.DeserializeObject(response);
+
+                    // Insert InternalCompanyId/SubCompanyId
+                    dynamicCompanyInfo.company_info.InternalCompanyId = -1;
+                    dynamicCompanyInfo.company_info.SubCompanyId = subCompanyId;
+
+                    string modifiedJson = JsonConvert.SerializeObject(dynamicCompanyInfo);
+                    string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+                    if (existingDocument == null)
+                    {
+                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
+
+                        try
                         {
-                            var doc = BsonDocument.Parse(dynamicCompanyInfo.ToString());
-                            await _MorningCompanyInfoCollection.InsertOneAsync(doc);
+                            await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"An error occurred inserting iCount company info: {ex.Message}");
                         }
                     }
                 }
+
+
+
 
                 return new ResSaveExternalCustomized
                 {
@@ -1127,6 +1177,179 @@ namespace Uninet.DATA.Services
                 };
             }
         }
+
+
+
+        //public async Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request)
+        //{
+        //    try
+        //    {
+        //        var externalSystem = await _repository.GetFirstObjectAsync<ExternalSystem>(x => x.ExternalSystemGuid == request.ExternalSystemGuid);
+        //        if (externalSystem == null)
+        //        {
+        //            return new ResSaveExternalCustomized
+        //            {
+        //                Success = false,
+        //                textResponse = "External system not found",
+        //                SystemRegisteredInuninet = false
+        //            };
+        //        }
+
+        //        int externalSystemId = externalSystem.ExternalSystemID;
+        //        string token = null;
+        //        DateTime? tokenExpiration = null;
+
+        //        // Extract credentials
+        //        string cid = request.Variables.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
+        //        string user = request.Variables.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
+        //        string pass = request.Variables.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
+
+        //        if (externalSystemId == 2)
+        //        {
+        //            if (string.IsNullOrWhiteSpace(cid) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
+        //                return new ResSaveExternalCustomized { Success = false, textResponse = "Missing required credentials (cid/user/pass)" };
+
+        //            var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70);
+        //            string fullUrl = $"{endpoint.Endpoint}?cid={cid}&user={user}&pass={pass}";
+        //            var response = await _UninetInputDataAccess.SendRequest(fullUrl, HttpMethod.Get);
+        //            var root = JsonDocument.Parse(response).RootElement;
+
+        //            if (!root.GetProperty("status").GetBoolean())
+        //                return new ResSaveExternalCustomized { Success = false, textResponse = "iCount credentials validation failed" };
+
+        //            dynamic dynamicCompanyInfo = JsonConvert.DeserializeObject(response);
+        //            dynamicCompanyInfo.company_info.InternalCompanyId = -1;
+        //            dynamicCompanyInfo.company_info.SubCompanyId = 0;
+        //            string modifiedJson = JsonConvert.SerializeObject(dynamicCompanyInfo);
+        //            string vatId = dynamicCompanyInfo.company_info.vat_id;
+
+        //            var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
+        //            var existing = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+        //            if (existing == null)
+        //            {
+        //                var doc = BsonDocument.Parse(modifiedJson);
+        //                await _ICountCompanyInfoCollection.InsertOneAsync(doc);
+        //            }
+        //        }
+        //        else if (externalSystemId == 6)
+        //        {
+        //            var apiToken = request.Variables.FirstOrDefault(x => x.FieldLabelName == "ApiToken")?.FieldLabelValue;
+        //            var secretKey = request.Variables.FirstOrDefault(x => x.FieldLabelName == "SecretKey")?.FieldLabelValue;
+        //            if (string.IsNullOrWhiteSpace(apiToken) || string.IsNullOrWhiteSpace(secretKey))
+        //                return new ResSaveExternalCustomized { Success = false, textResponse = "Missing GreenInvoice credentials" };
+
+        //            var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 88);
+        //            var payload = new { id = apiToken, secret = secretKey };
+        //            var response = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Post, null, JsonConvert.SerializeObject(payload));
+        //            var json = JObject.Parse(response);
+        //            token = json["token"]?.ToString();
+        //            long expires = (long)json["expires"];
+        //            tokenExpiration = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
+        //        }
+
+        //        // Save dynamic fields into DB
+        //        var jsonObject = new
+        //        {
+        //            listInputLabelDetails = request.Variables,
+        //            userid = -1,
+        //            ExternalSystemId = externalSystemId,
+        //            CompanyId = -1,
+        //            SubCompanyId = request.SubCompanyId,
+        //            token = token,
+        //            tokenExpiration = tokenExpiration
+        //        };
+
+        //        var param = new { jsonInput = JsonConvert.SerializeObject(jsonObject) };
+        //        var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData("SP_joinentity", param);
+        //        var subCompanyId = spresult?.NewSubCompanyId;
+        //        string operation = spresult?.OperationType;
+
+        //        if (operation == "already_exists")
+        //        {
+        //            return new ResSaveExternalCustomized
+        //            {
+        //                Success = false,
+        //                textResponse = "Entity already exists in Uninet.",
+        //                SystemRegisteredInuninet = true,
+        //                ValidExternalsystemCredenatials = true,
+        //                FullName = request.EntityName,
+        //                ClickedButtonToInviteBusinessPartners = false,
+        //                SubCompanyId = subCompanyId
+        //            };
+        //        }
+
+        //        // Insert new mapping if not exists
+        //        var mapping = await _repository.GetFirstObjectAsync<LUTIcountSourceWebhookCompanyMapping>(
+        //            x => x.Internalcompanyid == -1 && x.SubCompanyId == subCompanyId);
+        //        if (mapping == null)
+        //        {
+        //            mapping = new LUTIcountSourceWebhookCompanyMapping
+        //            {
+        //                Internalcompanyid = -1,
+        //                SubCompanyId = subCompanyId
+        //            };
+        //            mapping = await _repository.CreateAsyncReturnEntity(mapping);
+        //        }
+
+        //        // Build base URL for webhook
+        //        string endpointUrl = externalSystemId == 2
+        //            ? $"?cid={cid}&user={user}&pass={pass}&url=https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhook?webhooksourceid={mapping.WebHookSourceid}_{subCompanyId}"
+        //            : $"https://uninetwebapi220231222123817.azurewebsites.net/api/UninetInput/ReceiveWebhookMorning?webhooksourceid={mapping.WebHookSourceid}_{subCompanyId}";
+
+        //        JsonDocument webhookResponse = externalSystemId == 2
+        //            ? await CallAddWebhookToIcount(mapping, endpointUrl)
+        //            : await CallAddWebhookToGreenInvoice(mapping, endpointUrl, "", token);
+
+        //        var rootWebhook = webhookResponse.RootElement;
+        //        int webhookId = rootWebhook.TryGetProperty("webhook_id", out var w) ? w.GetInt32() : 0;
+        //        mapping.WebhookID = webhookId;
+        //        await _repository.UpdateAsync(mapping);
+
+        //        if (externalSystemId == 6)
+        //        {
+        //            var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 14);
+        //            var businessData = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Get, token, null);
+        //            var dynamicCompanyInfo = JObject.Parse(businessData);
+        //            dynamicCompanyInfo["InternalCompanyId"] = -1;
+        //            dynamicCompanyInfo["SubCompanyId"] = subCompanyId;
+        //            string vatId = dynamicCompanyInfo["taxId"]?.ToString();
+        //            var filter = Builders<BsonDocument>.Filter.Eq("taxId", vatId);
+        //            var existing = await _MorningCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
+        //            if (existing == null)
+        //            {
+        //                var doc = BsonDocument.Parse(dynamicCompanyInfo.ToString());
+        //                await _MorningCompanyInfoCollection.InsertOneAsync(doc);
+        //            }
+        //        }
+
+        //        return new ResSaveExternalCustomized
+        //        {
+        //            Success = operation == "insert" || operation == "update",
+        //            textResponse = operation switch
+        //            {
+        //                "insert" => "Entity joined successfully. Trial period started.",
+        //                "update" => "Entity credentials updated.",
+        //                "no_change" => "No changes were made.",
+        //                _ => "Unknown operation"
+        //            },
+        //            SystemRegisteredInuninet = true,
+        //            ValidExternalsystemCredenatials = true,
+        //            FullName = request.EntityName,
+        //            ClickedButtonToInviteBusinessPartners = false,
+        //            SubCompanyId = subCompanyId
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ResSaveExternalCustomized
+        //        {
+        //            Success = false,
+        //            textResponse = "Error during onboarding: " + ex.Message,
+        //            SystemRegisteredInuninet = false
+        //        };
+        //    }
+        //}
+
 
 
 

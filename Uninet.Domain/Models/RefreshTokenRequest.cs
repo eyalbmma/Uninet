@@ -9,6 +9,8 @@ namespace Uninet.Domain.Models
 {
     public class RefreshTokenRequest
     {
+        public string RefreshToken { get; set; }
+
         [JsonPropertyName("authenticationToken")]
         public string authenticationToken { get; set; }
     }

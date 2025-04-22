@@ -8,6 +8,6 @@ namespace Uninet.DATA.Interfaces
 {
     public interface IExternalSystemRepository
     {
-        ExternalSystem GetById(Guid ExternalSystemGuid);
+        ExternalSystem GetSystemByApiKey(string apiKey);
     }
 }

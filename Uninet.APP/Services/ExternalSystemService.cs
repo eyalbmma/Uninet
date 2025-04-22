@@ -16,10 +16,11 @@ namespace Uninet.APP.Services
         {
             _repository = repository;
         }
-
-        public ExternalSystem GetSystemById(Guid ExternalSystemGuid)
+        public ExternalSystem GetSystemByApiKey(string apiKey)
         {
-            return _repository.GetById(ExternalSystemGuid);
+            return _repository.GetSystemByApiKey(apiKey);
         }
+        
+        
     }
 }

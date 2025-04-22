@@ -8,6 +8,9 @@ namespace Uninet.APP.Interfaces
 {
     public interface IExternalSystemService
     {
-        ExternalSystem GetSystemById(Guid ExternalSystemGuid);
+       
+
+        // חדש:
+        ExternalSystem GetSystemByApiKey(string apiKey);
     }
 }

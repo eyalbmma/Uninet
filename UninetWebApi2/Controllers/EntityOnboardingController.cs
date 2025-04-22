@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Uninet.Domain.Models;          // JoinEntityRequest וכו'
 using Uninet.APP.Interfaces;          // IUserServiceApp
-
+using UninetWebApi2.Helpers;
 namespace UninetWebApi2.Controllers
 {
     [Authorize]
@@ -21,15 +21,20 @@ namespace UninetWebApi2.Controllers
         [HttpPost("Join_entity")]
         public async Task<IActionResult> JoinEntity([FromBody] JoinEntityRequest request)
         {
-            foreach (var claim in User.Claims)
+            var context = UserContextHelper.GetUserContext(User);
+
+            if (context.systemType != "externalSystem")
             {
-                Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+                return Unauthorized("Only external systems can call this endpoint.");
             }
 
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState); // הצגת שגיאות קלט
+            var systemGuid = context.systemGuid.Value;
+
+            // המשך לוגיקה של JoinEntity
             var result = await _userServiceApp.JoinEntityAsync(request);
+
             return Ok(result);
         }
+
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -17,7 +16,6 @@ namespace UninetWebApi2.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private static readonly ConcurrentDictionary<string, TempTokenInfo> TempTokens = new();
         private readonly IRefreshTokenService _tokenService;
         private readonly IExternalSystemService _systemService;
         private readonly ExternalTokenConfig _tokenConfig;
@@ -31,55 +29,28 @@ namespace UninetWebApi2.Controllers
             _configuration = configuration;
         }
 
-
-        [HttpPost("RegisterInit")]
-        public IActionResult RegisterInit([FromBody] RegisterInitRequest request)
+        [HttpPost("token")]
+        public IActionResult Token([FromForm] TokenRequest request)
         {
-            var system = _systemService.GetSystemById(request.ExternalSystemGuid);
+            if (request.Grant_Type?.ToLower() != "client_credentials")
+                return BadRequest("Unsupported grant_type");
+
+            var system = _systemService.GetSystemByApiKey(request.Client_Id);
             if (system == null || !system.IsActive)
-                return Unauthorized("System not registered or inactive.");
+                return Unauthorized("Invalid client_id");
 
-            string tempToken = Guid.NewGuid().ToString();
-            TempTokens[tempToken] = new TempTokenInfo
-            {
-                ExternalSystemGuid = request.ExternalSystemGuid,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(5)
-            };
+            if (string.IsNullOrEmpty(request.Client_Secret))
+                return Unauthorized("Missing client_secret");
 
-            return Ok(new
-            {
-                message = "Success",
-                systemGuid = request.ExternalSystemGuid,
-                tempToken = tempToken // this is crucial to include
-            });
-        }
+            if (!string.Equals(system.SharedSecret, request.Client_Secret, StringComparison.Ordinal))
+                return Unauthorized("Invalid client_secret");
 
+            var requestedScopes = (request.Scope ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var allowedScopes = (system.AllowedScopes ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        [HttpPost("LoginWithSecret")]
-        public IActionResult LoginWithSecret([FromBody] LoginWithSecretRequest request)
-        {
-            if (!TempTokens.TryGetValue(request.TempToken, out var tempInfo))
-                return Unauthorized("TempToken invalid");
+            if (requestedScopes.Except(allowedScopes).Any())
+                return Unauthorized("Requested scope is not allowed.");
 
-            if (tempInfo.ExpiresAt < DateTime.UtcNow)
-                return Unauthorized("TempToken expired");
-
-            if (tempInfo.ExternalSystemGuid != request.ExternalSystemGuid)
-                return Unauthorized("Mismatched system");
-
-            var system = _systemService.GetSystemById(request.ExternalSystemGuid);
-            if (system == null || !system.IsActive)
-                return Unauthorized("System not found");
-
-            long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (Math.Abs(now - request.Timestamp) > system.ClockDriftToleranceSeconds)//if the external system call this api after more than 60 seconds it wont work 
-                return Unauthorized("Timestamp out of range");
-
-            string expected = HMACHelper.ComputeSHA256(system.ApiKey + request.Timestamp + system.SharedSecret);
-            if (expected != request.DynamicSecret.ToLower())
-                return Unauthorized("Invalid secret");
-
-            TempTokens.TryRemove(request.TempToken, out _);
 
             var accessExpiresAt = DateTime.UtcNow.AddMinutes(_tokenConfig.AccessTokenExpiryMinutes);
             var refreshExpiresAt = DateTime.UtcNow.AddDays(_tokenConfig.RefreshTokenExpiryDays);
@@ -91,111 +62,59 @@ namespace UninetWebApi2.Controllers
 
             return Ok(new
             {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken,
-                ExpiresInSeconds = _tokenConfig.AccessTokenExpiryMinutes * 60,
-                ExpiresAtUtc = accessExpiresAt,
-                ExpiresAtIsrael = TimeZoneInfo.ConvertTimeFromUtc(accessExpiresAt, TimeZoneInfo.FindSystemTimeZoneById("Israel Standard Time")).ToString("yyyy-MM-dd HH:mm:ss")
+                access_token = accessToken,
+                token_type = "Bearer",
+                expires_in = _tokenConfig.AccessTokenExpiryMinutes * 60,
+                refresh_token = refreshToken,
+                scope = request.Scope ?? system.AllowedScopes
             });
         }
-
-
-        [HttpPost("RefreshToken")]
-        public IActionResult Refresh([FromBody] RefreshTokenRequest request)
-        {
-            if (!_tokenService.Exists(request.RefreshToken, out var systemGuid))
-                return Unauthorized("Invalid refresh token");
-
-            var system = _systemService.GetSystemById(systemGuid);
-            if (system == null || !system.IsActive)
-                return Unauthorized("System inactive");
-
-            var accessExpiresAt = DateTime.UtcNow.AddMinutes(_tokenConfig.AccessTokenExpiryMinutes);
-            var refreshExpiresAt = DateTime.UtcNow.AddDays(_tokenConfig.RefreshTokenExpiryDays);
-
-            string newAccessToken = GenerateJwtToken(system, accessExpiresAt);
-            string newRefreshToken = Guid.NewGuid().ToString();
-
-
-            _tokenService.SaveOrUpdate(newRefreshToken, system.ExternalSystemGuid, refreshExpiresAt);
-
-            return Ok(new
-            {
-                AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken,
-                ExpiresInSeconds = _tokenConfig.AccessTokenExpiryMinutes * 60,
-                ExpiresAtUtc = accessExpiresAt,
-                ExpiresAtIsrael = TimeZoneInfo.ConvertTimeFromUtc(
-                    accessExpiresAt,
-                    TimeZoneInfo.FindSystemTimeZoneById("Israel Standard Time"))
-                    .ToString("yyyy-MM-dd HH:mm:ss")
-            });
-        }
-
-
-
-
-
-
-
-
-
-
         private string GenerateJwtToken(ExternalSystem system, DateTime expiresAt)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-
-            // Get base64-encoded secret from config
             var base64Secret = _configuration["jwtTokenConfig:secret"];
-
-            // Decode from base64
             var keyBytes = Convert.FromBase64String(base64Secret);
-            var key = new SymmetricSecurityKey(keyBytes);
+            var signingKey = new SymmetricSecurityKey(keyBytes);
+
+            var encryptionBase64Key = _configuration["jwtTokenConfig:encryptionKey"];
+            var encryptionKeyBytes = Convert.FromBase64String(encryptionBase64Key);
+            var encryptingKey = new SymmetricSecurityKey(encryptionKeyBytes);
+
+            var now = DateTime.UtcNow;
 
             var claims = new[]
             {
-                    new Claim(ClaimTypes.NameIdentifier, system.ExternalSystemGuid.ToString()),
-                    new Claim("systemGuid", system.ExternalSystemGuid.ToString()),
-                    new Claim("systemName", system.ApiKey),
-                    new Claim("scope", system.AllowedScopes ?? "read")
-                };
+                new Claim(JwtRegisteredClaimNames.Sub, system.ExternalSystemGuid.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, system.ExternalSystemGuid.ToString()),
+                new Claim("systemType", "externalSystem"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, ((DateTimeOffset)now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new Claim("systemName", system.ApiKey),
+                new Claim("scope", system.AllowedScopes ?? "read"),
+                new Claim("aud", "uninet-api"),
+                new Claim("iss", "auth.uninet")
+            };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = expiresAt,
-                SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
+                SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256),
+                EncryptingCredentials = new EncryptingCredentials(encryptingKey, SecurityAlgorithms.Aes256KW, SecurityAlgorithms.Aes256CbcHmacSha512)
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
 
-
-
+       
     }
 
-    public class RegisterInitRequest
+    public class TokenRequest
     {
-        public Guid ExternalSystemGuid { get; set; }
-    }
-
-    public class LoginWithSecretRequest
-    {
-        public Guid ExternalSystemGuid { get; set; }
-        public string TempToken { get; set; }
-        public long Timestamp { get; set; }
-        public string DynamicSecret { get; set; }
-    }
-
-    public class RefreshTokenRequest
-    {
-        public string RefreshToken { get; set; }
-    }
-
-    public class TempTokenInfo
-    {
-        public Guid ExternalSystemGuid { get; set; }
-        public DateTime ExpiresAt { get; set; }
+        public string Grant_Type { get; set; }
+        public string Client_Id { get; set; }
+        public string Client_Secret { get; set; }
+        public string Scope { get; set; }
     }
 }

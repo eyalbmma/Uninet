@@ -15,6 +15,7 @@ using Uninet.Domain.Entities;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Requests;
 using Uninet.Domain.StoredProcedures.Responses;
+using UninetWebApi2.Helpers;
 using static System.Net.WebRequestMethods;
 
 namespace UninetWebApi2.Controllers
@@ -45,7 +46,24 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
                 var ExternalSystemResult = await _userServiceApp.ShowCurrentExternalSystemDetails(detailsForExternakSystemInput, Convert.ToInt32(userId));
                 return Ok(ExternalSystemResult);
             }
@@ -63,7 +81,7 @@ namespace UninetWebApi2.Controllers
         //    {
 
         //        BusinessPartnerLists BPLResult = new BusinessPartnerLists();
-        //        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        //        var context = UserContextHelper.GetUserContext(User);if (context.systemType == "adminUser"){ var userId = context.userId.Value; }else if (context.systemType == "externalSystem"){var systemGuid = context.systemGuid.Value;}else{return Unauthorized("Invalid user context");}
         //         BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
 
 
@@ -95,7 +113,24 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
                 var BPLResult = await _userServiceApp.InviteBusinessPartners(Convert.ToInt32(userId), Lang, subcompanyid);
 
                 var res = new InviteBusinessPartnerResult
@@ -128,8 +163,24 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
-                // Retrieve the User ID from the JWT token
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
                 var UserBusinesses = new UserBusinesses
                 {
                     BusinessRequests = RegisterUserReqWrap.RegisterUserReq,
@@ -199,11 +250,27 @@ namespace UninetWebApi2.Controllers
         [HttpPost("SaveExternalCustomizedExternalSystemId")]
         public async Task<ActionResult> SaveExternalCustomizedExternalSystemId([FromBody] SpInputExternalSystemCompanyDetails spInputExternalSystemCompanyDetails)
         {
-            // Retrieve the User ID from the JWT token
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
 
             // Create the JSON object
-           
+
             var res = await _userServiceApp.SaveExternalCustomizedExternalSystemId(spInputExternalSystemCompanyDetails, userId.ToString());
             //string msg = "";
             //if (res.Success)
@@ -231,8 +298,25 @@ namespace UninetWebApi2.Controllers
         public async Task<IActionResult> GetWelcomeToUninet(int Lang)
         {
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var res = await _userServiceApp.GetWelcomeToUninet(Lang, userId);
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
+            var res = await _userServiceApp.GetWelcomeToUninet(Lang, userId.ToString());
             return Ok(res);
         }
 
@@ -397,7 +481,8 @@ namespace UninetWebApi2.Controllers
 
 
                    // new Claim(ClaimTypes.Name,Res.FirstName.ToString()),
-                    new Claim(ClaimTypes.NameIdentifier,Res.userId.ToString())
+                    new Claim(ClaimTypes.NameIdentifier,Res.userId.ToString()),
+                     new Claim("systemType", "adminUser")
                 };
                     var token = await _jwtAppService.GenerateAccessToken(claims);
                     var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Convert.ToInt32(Res.userId));
@@ -477,7 +562,8 @@ namespace UninetWebApi2.Controllers
 
 
 
-                    new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString())
+                    new Claim(ClaimTypes.NameIdentifier,Res.Userid.ToString()),
+                     new Claim("systemType", "adminUser")
                 };
                 var token = await _jwtAppService.GenerateAccessToken(claims);
                 var newRefreshToken = await _jwtAppService.GenerateRefreshToken(Res.Userid);

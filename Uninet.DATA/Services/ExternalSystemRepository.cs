@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,11 +19,12 @@ namespace Uninet.DATA.Services
         {
             _context = context;
         }
-
-        public ExternalSystem GetById(Guid ExternalSystemGuid)
+        public ExternalSystem GetSystemByApiKey(string apiKey)
         {
             return _context.ExternalSystem
-                .FirstOrDefault(es => es.ExternalSystemGuid == ExternalSystemGuid);
+                .FirstOrDefault(x => x.ApiKey == apiKey && x.IsActive);
         }
+
+        
     }
 }

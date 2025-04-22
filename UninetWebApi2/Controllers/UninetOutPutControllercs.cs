@@ -6,6 +6,7 @@ using System.Security.Claims;
 using Uninet.APP.Interfaces;
 using Uninet.APP.Services;
 using Uninet.Domain.Models;
+using UninetWebApi2.Helpers;
 
 namespace UninetWebApi2.Controllers
 {
@@ -25,7 +26,23 @@ namespace UninetWebApi2.Controllers
         [HttpGet("GetDigitalDocumentToApproveListByUser")]
         public async Task<ActionResult> GetDigitalDocumentToApproveListByUser(string Typelist, int? subCompanyId = null, int pageNumber = 1, int pageSize = 100)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
 
             var result = await _uninetOutPutAppService.GetDigitalDocumentToApproveListByUser(Convert.ToInt32(userId), Typelist, subCompanyId, pageNumber, pageSize);
 
@@ -46,8 +63,24 @@ namespace UninetWebApi2.Controllers
         [Route("ShowDigitalDocumentDetails")]
         public async Task<ActionResult> ShowDigitalDocumentDetails([FromBody] DigitalDocumentDInputRequest expensesUserDoRequest)
         {
-            
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
 
             if (string.IsNullOrEmpty(expensesUserDoRequest.ClientVat_id))
             {
@@ -89,7 +122,24 @@ namespace UninetWebApi2.Controllers
         //this method gets a 
         public async Task<ActionResult> RejectDocument([FromBody] RequestRejectDocument requestRejectDocument)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
             var result = await _uninetOutPutAppService.RejectDocument(requestRejectDocument);
 
             return Ok(result);
@@ -101,7 +151,7 @@ namespace UninetWebApi2.Controllers
         //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
         public async Task<ActionResult> InsertUserDigitalDocToUninet()
         {
-            //var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            //var context = UserContextHelper.GetUserContext(User);if (context.systemType == "adminUser"){ var userId = context.userId.Value; }else if (context.systemType == "externalSystem"){var systemGuid = context.systemGuid.Value;}else{return Unauthorized("Invalid user context");}
             //var result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
 
             return Ok(true);
@@ -114,7 +164,24 @@ namespace UninetWebApi2.Controllers
         //[FromBody] InsertUserDigitalDocRequest expensesUserDoRequest
         public async Task<ActionResult> AddexpenseType([FromBody] AddexpenseTypeRequest addexpenseTypeRequest)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
             var result = await _uninetOutPutAppService.AddexpenseType(addexpenseTypeRequest, Convert.ToInt32(userId));
             return Ok(result);
         }
@@ -132,7 +199,24 @@ namespace UninetWebApi2.Controllers
 
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
                 result = await _uninetOutPutAppService.InsertUserDigitalDocToUninetSystem(expensesUserDoRequest, Convert.ToInt32(userId));
             }
             catch (Exception ex)

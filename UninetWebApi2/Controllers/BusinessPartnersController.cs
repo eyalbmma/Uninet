@@ -13,6 +13,7 @@ using Uninet.Domain.Interfaces;
 using Uninet.Domain.Models;
 using Uninet.Domain.StoredProcedures.Constants;
 using Uninet.Domain.StoredProcedures.Responses;
+using UninetWebApi2.Helpers;
 
 namespace UninetWebApi2.Controllers
 {
@@ -40,10 +41,28 @@ namespace UninetWebApi2.Controllers
         [HttpPost("SendEmail")]
         public async Task<ActionResult> SendEmail([FromBody] List<SendEmailRequest> sendEmailRequests, int Lang,int MainCompanyid)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
+
 
             // Call the modified BusinessPartnerSendEmail with a list
-            var results = await _mailasist.BusinessPartnerSendEmail(sendEmailRequests, userId, Lang, MainCompanyid);
+            var results = await _mailasist.BusinessPartnerSendEmail(sendEmailRequests, userId.ToString(), Lang, MainCompanyid);
 
             return Ok(results);
         }
@@ -55,7 +74,24 @@ namespace UninetWebApi2.Controllers
         [HttpGet("ShortVersionGetBusinessPartnersByFilter")]
         public async Task<ActionResult> ShortVersionGetBusinessPartnersByFilter([FromQuery] int filterType, int subCopmanyId, int pageNumber, int pageSize,int Lang)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
             // Check if the provided filterType is valid
             if (!Enum.IsDefined(typeof(FilterType), filterType))
             {
@@ -93,7 +129,24 @@ namespace UninetWebApi2.Controllers
         public async Task<ActionResult> GetBusinessPartnersByFilter([FromQuery] int filterType,int subCopmanyId, int pageNumber, int pageSize,int Lang)
         {
 
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var context = UserContextHelper.GetUserContext(User);
+
+            int? userId = null;
+            Guid? systemGuid = null;
+
+            if (context.systemType == "adminUser")
+            {
+                userId = context.userId.Value; // שמירת userId
+            }
+            else if (context.systemType == "externalSystem")
+            {
+                return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+            }
+            else
+            {
+                return Unauthorized("Invalid user context.");
+            }
+
             // Check if the provided filterType is valid
             if (!Enum.IsDefined(typeof(FilterType), filterType))
             {

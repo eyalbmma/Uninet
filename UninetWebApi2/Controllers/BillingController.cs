@@ -5,7 +5,7 @@ using System.Security.Claims;
 using Uninet.APP.Interfaces;
 using Uninet.APP.Services;
 using Uninet.Domain.Models;
-
+using UninetWebApi2.Helpers;
 namespace UninetWebApi2.Controllers
 {
     [Route("api/[controller]")]
@@ -47,7 +47,25 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
+
                 var ContinueFreeBillingResult = await _billingService.ContinueFreeBilling(continueFreeInput, Convert.ToInt32(userId));
                 return Ok(ContinueFreeBillingResult);
             }
@@ -59,7 +77,24 @@ namespace UninetWebApi2.Controllers
         {
             try
             {
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var context = UserContextHelper.GetUserContext(User);
+
+                int? userId = null;
+                Guid? systemGuid = null;
+
+                if (context.systemType == "adminUser")
+                {
+                    userId = context.userId.Value; // שמירת userId
+                }
+                else if (context.systemType == "externalSystem")
+                {
+                    return Unauthorized("This endpoint is for UI users only. Please login via the user interface.");
+                }
+                else
+                {
+                    return Unauthorized("Invalid user context.");
+                }
+
                 userDetails.UserId = Convert.ToInt32(userId);
                 var res = await _billingService.ShowUserBillingDetails(userDetails);
                 return Ok(res);
