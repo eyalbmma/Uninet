@@ -9,5 +9,6 @@ namespace Uninet.DATA.Interfaces
     public interface IExternalSystemRepository
     {
         ExternalSystem GetSystemByApiKey(string apiKey);
+        ExternalSystem GetSystemByGuid(Guid systemGuid); // חדש
     }
 }

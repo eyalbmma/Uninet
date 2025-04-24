@@ -24,7 +24,12 @@ namespace Uninet.DATA.Services
             return _context.ExternalSystem
                 .FirstOrDefault(x => x.ApiKey == apiKey && x.IsActive);
         }
+        public ExternalSystem GetSystemByGuid(Guid systemGuid)
+        {
+            return _context.ExternalSystem
+                .FirstOrDefault(x => x.ExternalSystemGuid == systemGuid && x.IsActive);
+        }
 
-        
+
     }
 }

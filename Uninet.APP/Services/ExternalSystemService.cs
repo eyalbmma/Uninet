@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Metadata;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,7 +21,10 @@ namespace Uninet.APP.Services
         {
             return _repository.GetSystemByApiKey(apiKey);
         }
-        
-        
+        public ExternalSystem GetSystemByGuid(Guid systemGuid)
+        {
+            return _repository.GetSystemByGuid(systemGuid);
+        }
+
     }
 }

@@ -969,12 +969,15 @@ namespace Uninet.DATA.Services
         // JoinEntity - C# Logic (Updated with ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData)
         // ========================================
 
-
         public async Task<ResSaveExternalCustomized> JoinEntityAsync(JoinEntityRequest request)
         {
             try
             {
-                var externalSystem = await _repository.GetFirstObjectAsync<ExternalSystem>(x => x.ExternalSystemGuid == request.ExternalSystemGuid);
+                // בדיקה אם ExternalSystemGuid קיים
+                var externalSystem = await _repository.GetFirstObjectAsync<ExternalSystem>(
+                    x => x.ExternalSystemGuid == request.ExternalSystemGuid
+                );
+
                 if (externalSystem == null)
                 {
                     return new ResSaveExternalCustomized
@@ -986,185 +989,40 @@ namespace Uninet.DATA.Services
                 }
 
                 int externalSystemId = externalSystem.ExternalSystemID;
-                string token = null;
-                DateTime? tokenExpiration = null;
 
-                // Extract credentials
-                string cid = request.Variables.FirstOrDefault(x => x.FieldLabelName == "cid")?.FieldLabelValue;
-                string user = request.Variables.FirstOrDefault(x => x.FieldLabelName == "user")?.FieldLabelValue;
-                string pass = request.Variables.FirstOrDefault(x => x.FieldLabelName == "pass")?.FieldLabelValue;
+                // הגדרת מפתח לחיפוש במונגו לפי fis_id + entity_id_internal
+                var filter = Builders<BsonDocument>.Filter.And(
+                    Builders<BsonDocument>.Filter.Eq("fis_id", request.FisId),
+                    Builders<BsonDocument>.Filter.Eq("entity_id_internal", request.EntityIdInternal)
+                );
 
-                if (externalSystemId == 2)
-                {
-                    if (string.IsNullOrWhiteSpace(cid) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
-                        return new ResSaveExternalCustomized { Success = false, textResponse = "Missing required credentials (cid/user/pass)" };
+                var update = Builders<BsonDocument>.Update
+                .Set("fis_name", request.FisName)
+                .Set("entity_name", request.EntityName)
+                .Set("entity_tax_number", request.EntityTaxNumber)
+                .Set("entity_vat_number", request.EntityVatNumber)
+                .Set("entity_country", request.EntityCountry)
+                .Set("entity_type", (int)request.EntityType) // enum to int
+                .Set("entity_terms_agree", request.EntityTermsAgree)
+                .Set("entity_email", request.EntityEmail)
+                .Set("entity_phone", request.EntityPhone)
+                .Set("entity_authentication_level", (int)request.EntityAuthenticationLevel) // enum to int
+                .Set("entity_cars", request.EntityCars != null
+                    ? new BsonArray(request.EntityCars)
+                    : new BsonArray());
 
-                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70);
-                    string fullUrl = $"{endpoint.Endpoint}?cid={cid}&user={user}&pass={pass}";
-                    var response = await _UninetInputDataAccess.SendRequest(fullUrl, HttpMethod.Get);
-                    var root = JsonDocument.Parse(response).RootElement;
+                var options = new UpdateOptions { IsUpsert = true };
+                var result = await _JoinedEntity.UpdateOneAsync(filter, update, options);
 
-                    if (!root.GetProperty("status").GetBoolean())
-                        return new ResSaveExternalCustomized { Success = false, textResponse = "iCount credentials validation failed" };
-
-                    dynamic dynamicCompanyInfo = JsonConvert.DeserializeObject(response);
-                    dynamicCompanyInfo.company_info.InternalCompanyId = -1;
-                    dynamicCompanyInfo.company_info.SubCompanyId = 0;
-                    string modifiedJson = JsonConvert.SerializeObject(dynamicCompanyInfo);
-                    string vatId = dynamicCompanyInfo.company_info.vat_id;
-
-                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
-                    var existing = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-                    if (existing == null)
-                    {
-                        var doc = BsonDocument.Parse(modifiedJson);
-                        await _ICountCompanyInfoCollection.InsertOneAsync(doc);
-                    }
-                }
-                else if (externalSystemId == 6)
-                {
-                    var apiToken = request.Variables.FirstOrDefault(x => x.FieldLabelName == "ApiToken")?.FieldLabelValue;
-                    var secretKey = request.Variables.FirstOrDefault(x => x.FieldLabelName == "SecretKey")?.FieldLabelValue;
-                    if (string.IsNullOrWhiteSpace(apiToken) || string.IsNullOrWhiteSpace(secretKey))
-                        return new ResSaveExternalCustomized { Success = false, textResponse = "Missing GreenInvoice credentials" };
-
-                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 88);
-                    var payload = new { id = apiToken, secret = secretKey };
-                    var response = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Post, null, JsonConvert.SerializeObject(payload));
-                    var json = JObject.Parse(response);
-                    token = json["token"]?.ToString();
-                    long expires = (long)json["expires"];
-                    tokenExpiration = DateTimeOffset.FromUnixTimeSeconds(expires).UtcDateTime;
-                }
-
-                // Save dynamic fields into DB
-                var jsonObject = new
-                {
-                    listInputLabelDetails = request.Variables,
-                    userid = -1,
-                    ExternalSystemId = externalSystemId,
-                    CompanyId = -1,
-                    SubCompanyId = request.SubCompanyId,
-                    token = token,
-                    tokenExpiration = tokenExpiration
-                };
-
-                var param = new { jsonInput = JsonConvert.SerializeObject(jsonObject) };
-                var spresult = ExecuteGetSP_SaveUsersExternalSystemDynamicFieldsData("SP_joinentity", param);
-                var subCompanyId = spresult?.NewSubCompanyId;
-                string operation = spresult?.OperationType;
-
-                if (operation == "already_exists")
-                {
-                    return new ResSaveExternalCustomized
-                    {
-                        Success = false,
-                        textResponse = "Entity already exists in Uninet.",
-                        SystemRegisteredInuninet = true,
-                        ValidExternalsystemCredenatials = true,
-                        FullName = request.EntityName,
-                        ClickedButtonToInviteBusinessPartners = false,
-                        SubCompanyId = subCompanyId
-                    };
-                }
-                else
-                {
-                    if (subCompanyId.HasValue)
-                    {
-                        request.SubCompanyId = subCompanyId; // Make sure it's updated before the insert
-                    }
-
-                    // Check if already exists in Mongo
-                    var filter = Builders<BsonDocument>.Filter.Eq("FinanceSystemId", request.FinanceSystemId) &
-                    Builders<BsonDocument>.Filter.Eq("SubCompanyId", request.SubCompanyId);
-
-                    var existingJoin = await _JoinedEntity.Find(filter).FirstOrDefaultAsync();
-                    if (existingJoin == null)
-                    {
-                        var document = request.ToBsonDocument(); // convert the C# object to Bson
-                        await _JoinedEntity.InsertOneAsync(document);
-                    }
-
-                }
-
-                if (externalSystemId == 6)
-                {
-                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 14);
-                    var businessData = await _UninetInputDataAccess.SendRequest(endpoint.Endpoint, HttpMethod.Get, token, null);
-                    var dynamicCompanyInfo = JObject.Parse(businessData);
-                    dynamicCompanyInfo["InternalCompanyId"] = -1;
-                    dynamicCompanyInfo["SubCompanyId"] = subCompanyId;
-                    string vatId = dynamicCompanyInfo["taxId"]?.ToString();
-                    var filter = Builders<BsonDocument>.Filter.Eq("taxId", vatId);
-                    var existing = await _MorningCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-                    if (existing == null)
-                    {
-                        var doc = BsonDocument.Parse(dynamicCompanyInfo.ToString());
-                        await _MorningCompanyInfoCollection.InsertOneAsync(doc);
-                    }
-                }
-
-                if (externalSystemId == 2)
-                {
-                    if (string.IsNullOrWhiteSpace(cid) || string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(pass))
-                        return new ResSaveExternalCustomized { Success = false, textResponse = "Missing required credentials (cid/user/pass)" };
-
-                    var endpoint = await _repository.GetFirstObjectAsync<SystemsEndpoints>(x => x.Id == 70);
-                    string fullUrl = $"{endpoint.Endpoint}?cid={cid}&user={user}&pass={pass}";
-                    var response = await _UninetInputDataAccess.SendRequest(fullUrl, HttpMethod.Get);
-
-                    var jsonDoc = JsonDocument.Parse(response);
-                    var root = jsonDoc.RootElement;
-
-                    if (!root.GetProperty("status").GetBoolean())
-                        return new ResSaveExternalCustomized { Success = false, textResponse = "iCount credentials validation failed" };
-
-                    // Deserialize response
-                    dynamic dynamicCompanyInfo = JsonConvert.DeserializeObject(response);
-
-                    // Insert InternalCompanyId/SubCompanyId
-                    dynamicCompanyInfo.company_info.InternalCompanyId = -1;
-                    dynamicCompanyInfo.company_info.SubCompanyId = subCompanyId;
-
-                    string modifiedJson = JsonConvert.SerializeObject(dynamicCompanyInfo);
-                    string vatId = dynamicCompanyInfo.company_info.vat_id;
-
-                    var filter = Builders<BsonDocument>.Filter.Eq("company_info.vat_id", vatId);
-                    var existingDocument = await _ICountCompanyInfoCollection.Find(filter).FirstOrDefaultAsync();
-
-                    if (existingDocument == null)
-                    {
-                        BsonDocument modifiedCompanyInfo = BsonDocument.Parse(modifiedJson);
-
-                        try
-                        {
-                            await _ICountCompanyInfoCollection.InsertOneAsync(modifiedCompanyInfo);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"An error occurred inserting iCount company info: {ex.Message}");
-                        }
-                    }
-                }
-
-
-
+                // בדיקה אם זה Insert או Update
+                bool isNew = result.UpsertedId != null;
 
                 return new ResSaveExternalCustomized
                 {
-                    Success = operation == "insert" || operation == "update",
-                    textResponse = operation switch
-                    {
-                        "insert" => "Entity joined successfully. Trial period started.",
-                        "update" => "Entity credentials updated.",
-                        "no_change" => "No changes were made.",
-                        _ => "Unknown operation"
-                    },
+                    Success = true,
+                    textResponse = isNew ? "Entity joined successfully. Trial period started." : "Entity updated successfully.",
                     SystemRegisteredInuninet = true,
-                    ValidExternalsystemCredenatials = true,
-                    FullName = request.EntityName,
-                    ClickedButtonToInviteBusinessPartners = false,
-                    SubCompanyId = subCompanyId
+                    FullName = request.EntityName
                 };
             }
             catch (Exception ex)
@@ -1177,6 +1035,7 @@ namespace Uninet.DATA.Services
                 };
             }
         }
+
 
 
 

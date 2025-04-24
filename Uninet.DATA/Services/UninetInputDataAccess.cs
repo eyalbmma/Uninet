@@ -225,22 +225,13 @@ namespace Uninet.DATA.Services
 
                 Expression<Func<UsersExternalSystemDynamicFields, bool>> predicate;
 
-                if (companyId == -1 || userId == null)
-                {
-                    // במקרה של ממשק, אין קשר למשתמש ולחברה - רק לפי SubCompanyId ו-ExternalSystemId
-                    predicate = x =>
-                        x.Companyid == -1 &&
-                        x.SubCompayId == subcompanyId &&
-                        x.ExternalSystemId == externalSystemId;
-                }
-                else
-                {
-                    predicate = x =>
-                        x.Companyid == companyId &&
-                        x.Userid == userId &&
-                        x.SubCompayId == subcompanyId &&
-                        x.ExternalSystemId == externalSystemId;
-                }
+                
+                predicate = x =>
+                    x.Companyid == companyId &&
+                    x.Userid == userId &&
+                    x.SubCompayId == subcompanyId &&
+                    x.ExternalSystemId == externalSystemId;
+               
 
                 var usersExternalSystemDynamicFieldsResult = await _repository.GetFirstObjectAsync(predicate);
 
@@ -299,30 +290,24 @@ namespace Uninet.DATA.Services
 
                 string newToken;
 
-                if (internalCompanySenderId == -1)
-                {
-                    // במקרה של ממשק - אין משתמש ואין חברה
-                    newToken = await GetNewToken(-1, Convert.ToInt32(SubCompanyid), null, 6);
-                }
-                else
-                {
-                    var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
-                        x => x.BusinessId == internalCompanySenderId
-                    );
+            
+                var UserIdAttachedToCompanySenderIdObj = await _repository.GetFirstObjectAsync<Businesses>(
+                    x => x.BusinessId == internalCompanySenderId
+                );
 
-                    if (UserIdAttachedToCompanySenderIdObj == null)
-                        throw new Exception("Business object not found for Internalcompanyid");
+                if (UserIdAttachedToCompanySenderIdObj == null)
+                    throw new Exception("Business object not found for Internalcompanyid");
 
-                    UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
-                    OrganiztionName = UserIdAttachedToCompanySenderIdObj.OrganizationName;
+                UserIdAttachedToCompanySenderId = UserIdAttachedToCompanySenderIdObj.AdminUserid;
+                OrganiztionName = UserIdAttachedToCompanySenderIdObj.OrganizationName;
 
-                    newToken = await GetNewToken(
-                        internalCompanySenderId,
-                        Convert.ToInt32(SubCompanyid),
-                        UserIdAttachedToCompanySenderId,
-                        6
-                    );
-                }
+                newToken = await GetNewToken(
+                    internalCompanySenderId,
+                    Convert.ToInt32(SubCompanyid),
+                    UserIdAttachedToCompanySenderId,
+                    6
+                );
+               
 
                 // Parse the incoming JSON
                 var bsonDocument = BsonDocument.Parse(json);

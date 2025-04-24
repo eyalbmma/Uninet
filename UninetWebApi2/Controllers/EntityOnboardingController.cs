@@ -18,6 +18,12 @@ namespace UninetWebApi2.Controllers
             _userServiceApp = userServiceApp;
         }
 
+
+
+
+
+
+
         [HttpPost("Join_entity")]
         public async Task<IActionResult> JoinEntity([FromBody] JoinEntityRequest request)
         {

@@ -28,6 +28,44 @@ namespace UninetWebApi2.Controllers
             _tokenConfig = tokenConfig.Value;
         }
 
+        [HttpPost("RefreshToken")]
+        public IActionResult RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.RefreshToken))
+                return BadRequest("Refresh token is required.");
+
+            // בודק אם ה-refresh token קיים במסד
+            if (!_tokenService.Exists(request.RefreshToken, out Guid systemGuid))
+                return Unauthorized("Invalid refresh token.");
+
+            // שליפת פרטי מערכת חיצונית
+            var system = _systemService.GetSystemByGuid(systemGuid);
+            if (system == null || !system.IsActive)
+                return Unauthorized("External system not found or inactive.");
+
+            // הפקת Access Token חדש
+            var accessExpiresAt = DateTime.UtcNow.AddMinutes(_tokenConfig.AccessTokenExpiryMinutes);
+            var refreshExpiresAt = DateTime.UtcNow.AddDays(_tokenConfig.RefreshTokenExpiryDays);
+
+            string newAccessToken = GenerateJwtToken(system, accessExpiresAt);
+            string newRefreshToken = Guid.NewGuid().ToString();
+
+            // עדכון ה-refresh token במסד
+            _tokenService.SaveOrUpdate(newRefreshToken, systemGuid, refreshExpiresAt);
+            _tokenService.Delete(request.RefreshToken); // מוחק את הישן
+
+            return Ok(new
+            {
+                access_token = newAccessToken,
+                token_type = "Bearer",
+                expires_in = _tokenConfig.AccessTokenExpiryMinutes * 60,
+                refresh_token = newRefreshToken,
+                scope = system.AllowedScopes
+            });
+        }
+
+
+
         [HttpPost("token")]
         public IActionResult Token([FromForm] TokenRequest request)
         {

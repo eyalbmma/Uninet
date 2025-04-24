@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Uninet.Domain.Enums;
 
 namespace Uninet.Domain.Models
 {
@@ -11,46 +12,35 @@ namespace Uninet.Domain.Models
         public string VehicleId { get; set; }
         public string VehicleName { get; set; }
     }
-
+   
     public class JoinEntityRequest
     {
-        public int? FinanceSystemId { get; set; }
-        public string? FinanceSystemName { get; set; }
-        public int? InternalEntityId { get; set; }
-        public List<Vehicle>? Vehicles { get; set; }
-
-        public Guid ExternalSystemGuid { get; set; }
-
-        // מידע שמגיע ממערכת הכספים (user/pass/cid או apiKey וכו')
-        public List<CustomizedDataList> Variables { get; set; }
-
-        public int? SubCompanyId { get; set; }
+        // פרטי מערכת הכספים
+        public string FisId { get; set; }
+        public string FisName { get; set; }
 
         // פרטי הישות
+        public string EntityIdInternal { get; set; }
         public string EntityName { get; set; }
-        public string Country { get; set; }
-        public string Currency { get; set; }
-        public string Language { get; set; }
-        public string EntityType { get; set; }
-        public string TaxId { get; set; }
-        public string VatId { get; set; }
-        public string ContactEmail { get; set; }
-        public string ContactPhone { get; set; }
+        public string EntityTaxNumber { get; set; }
+        public string EntityVatNumber { get; set; }
+        public string EntityCountry { get; set; }
+        public EntityType EntityType { get; set; }
+        public AuthenticationLevel EntityAuthenticationLevel { get; set; }
 
-        // פרטי הקריאה
-        public string RequestId { get; set; }
-        public DateTime? PreviousRequestDate { get; set; }
-        public DateTime? CurrentRequestDate { get; set; }
+        // אימות ותנאים
+        public bool EntityTermsAgree { get; set; }
+        
 
-        // אימות ואישור
-        public int? VerificationLevel { get; set; }
-        public bool AcceptTerms { get; set; }
+        // פרטי קשר
+        public string? EntityEmail { get; set; }
+        public string? EntityPhone { get; set; }
 
-        // טוקן - למערכות שדורשות (כמו גרין אינבויס)
-       /// <summary>
-       /// public string Token { get; set; }
-       /// </summary>
-        public DateTime? TokenExpiration { get; set; }
+        // רכבים
+        public List<string>? EntityCars { get; set; }
+
+        // מזהה מערכת חיצונית
+        public Guid ExternalSystemGuid { get; set; }
     }
 
     public class CustomizedDataList
