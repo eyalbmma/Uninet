@@ -990,6 +990,35 @@ namespace Uninet.DATA.Services
 
                 int externalSystemId = externalSystem.ExternalSystemID;
 
+                var now = DateTime.UtcNow;
+
+                // בדיקה אם יש מסמך קיים עם אותו entity_vat_number
+                var vatFilter = Builders<BsonDocument>.Filter.Eq("entity_vat_number", request.EntityVatNumber);
+                var existingDocs = await _JoinedEntity.Find(vatFilter).ToListAsync();
+
+                bool isNew = false;
+
+                if (existingDocs.Any())
+                {
+                    // בדיקה אם fis_id ו-entity_id_internal שונים והמסמך חדש יותר
+                    var matchedDoc = existingDocs.FirstOrDefault(doc =>
+                        doc["fis_id"].AsString == request.FisId &&
+                        doc["entity_id_internal"].AsString == request.EntityIdInternal);
+
+                    if (matchedDoc == null)
+                    {
+                        var latestDoc = existingDocs.OrderByDescending(doc => doc["updated_at"].ToUniversalTime()).First();
+
+                        if (now > latestDoc["updated_at"].ToUniversalTime())
+                        {
+                            // להפוך את המסמך הישן ל-validdoc=false
+                            var oldDocFilter = Builders<BsonDocument>.Filter.Eq("_id", latestDoc["_id"]);
+                            var oldDocUpdate = Builders<BsonDocument>.Update.Set("validdoc", false).Set("updated_at", now);
+                            await _JoinedEntity.UpdateOneAsync(oldDocFilter, oldDocUpdate);
+                        }
+                    }
+                }
+
                 // הגדרת מפתח לחיפוש במונגו לפי fis_id + entity_id_internal
                 var filter = Builders<BsonDocument>.Filter.And(
                     Builders<BsonDocument>.Filter.Eq("fis_id", request.FisId),
@@ -997,25 +1026,25 @@ namespace Uninet.DATA.Services
                 );
 
                 var update = Builders<BsonDocument>.Update
-                .Set("fis_name", request.FisName)
-                .Set("entity_name", request.EntityName)
-                .Set("entity_tax_number", request.EntityTaxNumber)
-                .Set("entity_vat_number", request.EntityVatNumber)
-                .Set("entity_country", request.EntityCountry)
-                .Set("entity_type", (int)request.EntityType) // enum to int
-                .Set("entity_terms_agree", request.EntityTermsAgree)
-                .Set("entity_email", request.EntityEmail)
-                .Set("entity_phone", request.EntityPhone)
-                .Set("entity_authentication_level", (int)request.EntityAuthenticationLevel) // enum to int
-                .Set("entity_cars", request.EntityCars != null
-                    ? new BsonArray(request.EntityCars)
-                    : new BsonArray());
+                    .Set("fis_name", request.FisName)
+                    .Set("entity_name", request.EntityName)
+                    .Set("entity_tax_number", request.EntityTaxNumber)
+                    .Set("entity_vat_number", request.EntityVatNumber)
+                    .Set("entity_country", request.EntityCountry)
+                    .Set("entity_type", (int)request.EntityType)
+                    .Set("entity_terms_agree", request.EntityTermsAgree)
+                    .Set("entity_email", request.EntityEmail)
+                    .Set("entity_phone", request.EntityPhone)
+                    .Set("entity_authentication_level", (int)request.EntityAuthenticationLevel)
+                    .Set("entity_cars", request.EntityCars != null ? new BsonArray(request.EntityCars) : new BsonArray())
+                    .Set("validdoc", true)
+                    .Set("updated_at", now)
+                    .SetOnInsert("created_at", now);
 
                 var options = new UpdateOptions { IsUpsert = true };
                 var result = await _JoinedEntity.UpdateOneAsync(filter, update, options);
 
-                // בדיקה אם זה Insert או Update
-                bool isNew = result.UpsertedId != null;
+                isNew = result.UpsertedId != null;
 
                 return new ResSaveExternalCustomized
                 {
@@ -1035,6 +1064,7 @@ namespace Uninet.DATA.Services
                 };
             }
         }
+
 
 
 

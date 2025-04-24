@@ -77,9 +77,9 @@ namespace UninetWebApi2
 
 
 
-          
 
-
+            services.AddScoped<ISendDocsRepository, SendDocsRepository>();
+            services.AddScoped<ISendDocsService, SendDocsService>();
             services.AddScoped<IUserServiceDataAccess, UserServiceDataAccess>();
             services.AddScoped<IUserServiceApp, UserServiceApp>();
             services.AddScoped<IMailassist, Mailassist>();
