@@ -104,41 +104,7 @@ namespace UninetWebApi2
             services.AddScoped<IExternalSystemService, ExternalSystemService>();
             services.AddScoped <IExternalSystemRepository, ExternalSystemRepository>();
 
-            //services.AddSingleton<IUninetInputDataAccess, UninetInputDataAccess>();  //remark eyal i changed it to singelton because  i inject it to PullUsersData which is a singelton
-            //services.AddSingleton<IUninetInputAppService, UninetInputAppService>();//remark eyal i changed it to singelton because  i inject it to PullUsersData which is a singelton
-            //services.AddSingleton<IRepository<UninetContext>, Repository<UninetContext>>();
-            // 
-            //services.AddIdentity<IdentityUser, IdentityRole>();
-
-
-            //services.AddDbContext<UninetBatchContext>(options =>
-            //{
-            //    options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
-            //}, ServiceLifetime.Singleton);
-
-            ////add service to check if there are users to collect their data from external  system 
-            //services.AddHostedService<PullUsersData>();//remark eyal this is a  singleton service, as it is added as a hosted service using 
-            //services.AddSingleton<IuninetBatchDataAccess, uninetBatchDataAccess>();
-
-
-
-            //services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
-
-
-            //services.AddDbContext<UninetBatchContext>(options =>
-            //{
-            //    options.UseSqlServer(Configuration.GetConnectionString("AppConnectionString"));
-            //}, ServiceLifetime.Singleton);
-
-            ////for batch services
-            //services.AddSingleton<IBatchRepository<UninetBatchContext>, BatchRepository<UninetBatchContext>>();
-
-            //services.AddSingleton<IuninetBatchDataAccess, uninetBatchDataAccess>();
-
-            //services.AddSingleton<IHostedService, PullUsersData>();
-            //services.AddSingleton<IHostedService, PushExpensesToCompanyClient>();
-
-            //services.AddSingleton<IBatchDataMailassist, BatchDataMailassist>();
+        
 
 
             var jwtTokenConfig = Configuration.GetSection("jwtTokenConfig");
@@ -223,22 +189,6 @@ namespace UninetWebApi2
 
 
 
-            ///add google section
-            //services.AddAuthentication(options =>
-            //{
-            //    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            //    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-            //})
-            //.AddCookie(options =>
-            //{
-            //    options.LoginPath = "/Account/Login";
-            //})
-            //.AddGoogle(options =>
-            //{
-            //    //Configuration.GetValue<string>("jwtTokenConfig:issuer"),
-            //    options.ClientId = Configuration["Authentication:Google:ClientId"];
-            //    options.ClientSecret = Configuration["Authentication:Google:ClientSecret"];
-            //});
 
 
 

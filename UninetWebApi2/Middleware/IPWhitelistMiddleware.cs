@@ -23,7 +23,7 @@ namespace UninetWebApi2.Middleware
             var path = context.Request.Path.Value?.ToLower();
 
             // Only apply to specific routes
-            if (path != "/api/auth/registerinit" && path != "/api/auth/loginwithsecret")
+            if (path != "/api/auth/token" )
             {
                 await next(context);
                 return;
