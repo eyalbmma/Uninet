@@ -1,6 +1,12 @@
- Uninet Backend API
+# Uninet Backend API
 
 A production-style backend system built with .NET 6, designed to manage users, business entities, financial documents, and integrations with external accounting systems.
+
+---
+
+## 📌 Status
+
+This project is a real-world backend system that was developed over time and later sanitized for public sharing.
 
 ---
 
@@ -96,36 +102,51 @@ Databases (SQL Server + MongoDB)
 ### Prerequisites
 
 - .NET 6 SDK
-- SQL Server
-- MongoDB
+- SQL Server (local or remote)
+- MongoDB (local or cloud)
 
-### Run
+---
+
+### 🔧 Setup
+
+1. Clone the repository
 
 ```bash
+git clone https://github.com/eyalbmma/Uninet.git
+cd Uninet
+Configure environment
+
+Update the following files with your own values:
+
+UninetWebApi2/appsettings.json
+UninetWebApi2/appsettings.Development.json
+
+Required configuration:
+
+SQL Server connection string
+MongoDB connection string
+JWT secret (Base64 string)
+Email API key (if needed)
+Google OAuth credentials (optional)
+▶️ Run the API
 dotnet restore
 dotnet build
 dotnet run --project UninetWebApi2
+🌐 Access
 
-Swagger:
+Swagger UI will be available at:
 
 https://localhost:7202/swagger
-⚠️ Configuration
-
-All sensitive values were removed from this repository.
-
-To run locally, create your own configuration:
-
-Database connection string
-MongoDB URI
-JWT secrets
-Email API key
-Google OAuth credentials
+🧪 Notes
+Make sure SQL Server and MongoDB are running before starting
+Some features require external integrations configuration
+This is a backend-only system (no frontend included)
 🧠 Key Highlights
 Clean separation of concerns (SOC + SRP)
+Layered architecture (API → Application → Data)
 Hybrid data architecture (SQL + MongoDB)
 Dual authentication model (users + external systems)
-Secure external integrations
-Real-world backend architecture
+Real-world backend design and integrations
 💬 Interview Summary
 
 This project demonstrates:
