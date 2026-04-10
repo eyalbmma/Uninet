@@ -361,3 +361,21 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+
+# Sensitive local configuration
+appsettings.local.json
+appsettings.*.local.json
+.env
+.env.*
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+
+# Optional: keep only sanitized appsettings in repo
+# Uncomment these only if you move all real config out of source control
+# appsettings.json
+# appsettings.Development.json
+# appsettings.Production.json

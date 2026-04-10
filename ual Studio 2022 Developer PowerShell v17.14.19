@@ -1,0 +1,18 @@
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m10[m[36m:[m    "secret": "[1;31mREPLACE_WITH_BASE64[m_SECRET_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m11[m[36m:[m    "encryptionKey": "[1;31mREPLACE_WITH_BASE64[m_ENCRYPTION_KEY_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m17[m[36m:[m    "AppConnectionString": "Server=YOUR_SERVER;Database=YOUR_DATABASE;User Id=YOUR_USER;Password=[1;31mYOUR_PASSWORD[m;",
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m18[m[36m:[m    "MongoDb": "mongodb+srv://YOUR_USER:[1;31mYOUR_PASSWORD[m@YOUR_CLUSTER.mongodb.net/"
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m22[m[36m:[m    "Password": "[1;31mYOUR_EMAIL_API_KEY[m"
+[35mUninetWebApi2/appsettings.Development.json[m[36m:[m[32m27[m[36m:[m      "ClientSecret": "[1;31mYOUR_GOOGLE_CLIENT_SECRET[m"
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m10[m[36m:[m    "secret": "[1;31mREPLACE_WITH_BASE64[m_SECRET_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m11[m[36m:[m    "encryptionKey": "[1;31mREPLACE_WITH_BASE64[m_ENCRYPTION_KEY_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m17[m[36m:[m    "AppConnectionString": "Server=YOUR_SERVER;Database=YOUR_DATABASE;User Id=YOUR_USER;Password=[1;31mYOUR_PASSWORD[m;",
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m18[m[36m:[m    "MongoDb": "mongodb+srv://YOUR_USER:[1;31mYOUR_PASSWORD[m@YOUR_CLUSTER.mongodb.net/"
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m22[m[36m:[m    "Password": "[1;31mYOUR_EMAIL_API_KEY[m"
+[35mUninetWebApi2/appsettings.Production.json[m[36m:[m[32m27[m[36m:[m      "ClientSecret": "[1;31mYOUR_GOOGLE_CLIENT_SECRET[m"
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m10[m[36m:[m    "secret": "[1;31mREPLACE_WITH_BASE64[m_SECRET_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m11[m[36m:[m    "encryptionKey": "[1;31mREPLACE_WITH_BASE64[m_ENCRYPTION_KEY_FOR_LOCAL_ONLY",
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m17[m[36m:[m    "AppConnectionString": "Server=YOUR_SERVER;Database=YOUR_DATABASE;User Id=YOUR_USER;Password=[1;31mYOUR_PASSWORD[m;",
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m18[m[36m:[m    "MongoDb": "mongodb+srv://YOUR_USER:[1;31mYOUR_PASSWORD[m@YOUR_CLUSTER.mongodb.net/"
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m22[m[36m:[m    "Password": "[1;31mYOUR_EMAIL_API_KEY[m"
+[35mUninetWebApi2/appsettings.json[m[36m:[m[32m27[m[36m:[m      "ClientSecret": "[1;31mYOUR_GOOGLE_CLIENT_SECRET[m"
